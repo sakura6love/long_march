@@ -112,7 +112,11 @@ function setActive(id) {
   }
 }
 
-function handleNodeSelect(pointData) {
+/**
+ * 让镜头飞向某个节点（点击、面板上的 ← → 都走这里）。
+ * 只做一件事：把"选中"这件事在地球这一侧执行完，再把节点抛给 App。
+ */
+function focusNode(pointData) {
   if (!globe.value) return
 
   // 用户在开场动画途中点了光点：立刻收掉剩余节奏，别让"点亮"追着镜头跑。
@@ -142,6 +146,13 @@ function handleNodeSelect(pointData) {
     }
   }, 4200)
 }
+
+function handleNodeSelect(pointData) {
+  focusNode(pointData)
+}
+
+// 面板上的"上一站 / 下一站"从外部调用它。
+defineExpose({ focusNode })
 
 /**
  * 外层元素严格保持 0x0。
