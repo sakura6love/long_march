@@ -57,7 +57,8 @@ const lerp = (a, b, t) => a + (b - a) * t
 export function createCameraRig(globe) {
   const camera = globe.camera()
   const controls = globe.controls()
-  const state = { ...FRAME, lat: 35.6921, lng: 105.0533 }
+  // pin=true → 目标点必须钉在主角线；false → 只摆机位、不动投影（开场整球）。
+  const state = { ...FRAME, lat: 35.6921, lng: 105.0533, pin: true }
 
   let flightHandle = 0
   let flight = null
@@ -109,12 +110,15 @@ export function createCameraRig(globe) {
    */
   function apply(next = {}) {
     cancelFlight()
-    Object.assign(state, next)
+    // pin=false：不把目标点钉到主角线，只把相机摆在指定机位（开场整球用）。
+    const { pin = true, ...pose } = next
+    state.pin = pin
+    Object.assign(state, pose)
 
     if (!globe.width() || !globe.height()) return
 
     placeCamera(state.lat, state.lng, state.altitude, state.pitch)
-    setOffset(solveOffsetY(state.lat, state.lng))
+    setOffset(pin ? solveOffsetY(state.lat, state.lng) : 0)
     controls.update()
   }
 
@@ -151,6 +155,7 @@ export function createCameraRig(globe) {
     state.lng = lng
     state.altitude = altitude
     state.pitch = pitch
+    state.pin = true
 
     const step = (time) => {
       if (!flight) return
@@ -204,7 +209,7 @@ export function createCameraRig(globe) {
   function reframe() {
     if (flight) return
     if (!globe.width() || !globe.height()) return
-    setOffset(solveOffsetY(state.lat, state.lng))
+    setOffset(state.pin ? solveOffsetY(state.lat, state.lng) : 0)
   }
 
   /** 当前镜头注视点是否就是某个坐标（调试用）。 */
