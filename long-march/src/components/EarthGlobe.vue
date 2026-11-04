@@ -15,12 +15,16 @@ import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import Globe from 'globe.gl'
 import { AmbientLight, DirectionalLight } from 'three'
 import longMarchNodes from '../data.js'
+import { createCameraRig, FRAME } from '../lib/cameraRig.js'
 
 const emit = defineEmits(['select'])
 
 // 只让 DOM 容器参与 Vue 响应式；WebGL 实例使用 shallowRef，避免深度代理。
 const globeContainer = ref(null)
 const globe = shallowRef(null)
+
+// 相机机位：三个旋钮（altitude / pitch / viewOffset）全部收口在 lib/cameraRig.js。
+let cameraRig = null
 
 // —— 渲染循环共享的普通变量，绝不进入响应式系统 ——
 let resizeObserver = null
@@ -44,6 +48,7 @@ function resizeGlobe() {
   const { clientWidth, clientHeight } = globeContainer.value
   if (clientWidth > 0 && clientHeight > 0) {
     globe.value.width(clientWidth).height(clientHeight)
+    cameraRig?.reframe()
   }
 }
 
@@ -92,6 +97,8 @@ function updateLabelStates() {
 
 function tick() {
   frameHandle = requestAnimationFrame(tick)
+  // 位移被库内部清掉时立刻补回，保证"点恒在 30% 那条线上"。
+  cameraRig?.ensureOffset()
   updateLabelStates()
 }
 
@@ -114,16 +121,14 @@ function handleNodeSelect(pointData) {
 
   setActive(pointData.id)
 
-  // 低轨镜头：近距离俯瞰中国区域，保留地球弧面和地平线。
-  // P2 会把这里换成统一的相机机位（altitude / viewOffset / lookAt 三个旋钮）。
-  globe.value.pointOfView(
-    {
-      lat: pointData.lat,
-      lng: pointData.lng,
-      altitude: 0.5,
-    },
-    1500,
-  )
+  // 统一机位：飞行 1.6s，落点固定在屏高 30% 的"主角线"上。
+  // 不再用 pointOfView —— 它只管中心，管不了"点落在哪条线上"。
+  cameraRig?.flyTo({
+    lat: pointData.lat,
+    lng: pointData.lng,
+    altitude: cameraRig.state.altitude,
+    duration: FRAME.flightMs,
+  })
 
   emit('select', pointData)
 
@@ -225,22 +230,23 @@ onMounted(() => {
   globeMaterial.emissiveIntensity = 0.06
   globeMaterial.needsUpdate = true
 
-  // 低地轨道空间站式俯瞰：中国位于镜头中心，地球弧面占据下半屏。
-  globe.value.pointOfView(
-    {
-      lat: 34,
-      lng: 105,
-      altitude: 0.72,
-    },
-    0,
-  )
+  // 机位统一交给 cameraRig：首屏把 1936 年会宁放在"主角线"（屏高 30%）上，
+  // 整条路线从会宁向左下方铺开 —— 构图 A 的锚点。
+  cameraRig = createCameraRig(globe.value)
+  cameraRig.apply({
+    lat: 35.6921,
+    lng: 105.0533,
+    altitude: FRAME.altitude,
+  })
 
   const controls = globe.value.controls()
   controls.autoRotate = true
   controls.autoRotateSpeed = 0.08
   controls.enableZoom = true
-  controls.minDistance = 101
-  controls.maxDistance = 180
+  // 视高锁在 altitude 0.45 ~ 0.72（distance 145 ~ 172）：
+  // 再近就贴地糊成一片，再远就看不清路线。
+  controls.minDistance = 145
+  controls.maxDistance = 172
   controls.enablePan = false
   controls.enableDamping = true
   controls.dampingFactor = 0.07
@@ -251,12 +257,20 @@ onMounted(() => {
 
   // 标签的遮挡 / 翻面判定跟着渲染帧走，成本是 12 次点积，可以忽略。
   tick()
+
+  // 仅供开发期截图/标定使用；生产构建会被 tree-shake 掉。
+  if (import.meta.env.DEV) {
+    window.__marchRig = cameraRig
+    window.__marchGlobe = globe.value
+  }
 })
 
 onBeforeUnmount(() => {
   cancelAnimationFrame(frameHandle)
   frameHandle = 0
 
+  cameraRig?.cancelFlight()
+  cameraRig = null
   window.clearTimeout(rotationTimer)
   resizeObserver?.disconnect()
   resizeObserver = null

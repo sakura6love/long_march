@@ -124,6 +124,41 @@ try {
   await send(ws, 'Page.navigate', { url })
   await sleep(waitMs)
 
+  // 标签是 globe.gl 渲染时才挂到 DOM 的，CDN 贴图慢的时候 7s 还不够。
+  // 统一在这里等它出现，避免量到空数组。
+  async function waitForLabels(min = 12, timeout = 15000) {
+    const startedAt = Date.now()
+    while (Date.now() - startedAt < timeout) {
+      const { result } = await send(ws, 'Runtime.evaluate', {
+        returnByValue: true,
+        expression: "document.querySelectorAll('.march-label-anchor').length",
+      })
+      if ((result.value || 0) >= min) return result.value
+      await sleep(250)
+    }
+    return 0
+  }
+
+  await waitForLabels()
+  // 标签刚挂上 DOM 时还停在上一帧的投影位置，等两帧再量。
+  await sleep(1200)
+
+  // 可选：截图前在页面里执行一段脚本（标定机位、关掉自转等）。
+  const evalExpr = arg('eval', '')
+  if (evalExpr) {
+    const { result, exceptionDetails } = await send(ws, 'Runtime.evaluate', {
+      returnByValue: true,
+      awaitPromise: true,
+      expression: evalExpr,
+    })
+    if (exceptionDetails) {
+      logs.push(`EVAL ERROR: ${exceptionDetails.exception?.description || exceptionDetails.text}`)
+    } else if (result?.value !== undefined) {
+      logs.push(`EVAL: ${JSON.stringify(result.value)}`)
+    }
+    await sleep(2600)
+  }
+
   /** 读取所有标签锚点在屏幕上的位置与状态。 */
   const measure = async () => {
     const { result } = await send(ws, 'Runtime.evaluate', {
