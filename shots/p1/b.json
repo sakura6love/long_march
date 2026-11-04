@@ -1,0 +1,226 @@
+{
+  "out": "C:\\Users\\cjy\\Desktop\\零杯\\dsh\\shots\\p1\\hover-zunyi.png",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "hover": "zunyi",
+  "click": null,
+  "probe": {
+    "canvas": 1,
+    "canvasSize": [
+      1920,
+      1080
+    ],
+    "labels": 12,
+    "app": 1
+  },
+  "logs": [
+    "CONSOLE.debug: [vite] connecting...",
+    "CONSOLE.debug: [vite] connected."
+  ],
+  "before": {
+    "width": 1920,
+    "height": 1080,
+    "nodes": [
+      {
+        "id": "ruijin",
+        "x": 1317.6,
+        "y": 736,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "yudu",
+        "x": 1303.8,
+        "y": 736.9,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "xiangjiang",
+        "x": 1193.8,
+        "y": 754.1,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "zunyi",
+        "x": 1098.9,
+        "y": 715,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "chishui",
+        "x": 1068.2,
+        "y": 691.6,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "luding",
+        "x": 981.5,
+        "y": 656.9,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "jiajin",
+        "x": 988,
+        "y": 626,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "ruoergai",
+        "x": 998.2,
+        "y": 551.9,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "lazikou",
+        "x": 1020.3,
+        "y": 533.9,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "wuqizhen",
+        "x": 1114.8,
+        "y": 451.5,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "zhiliang",
+        "x": 1143.4,
+        "y": 464.6,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "huining",
+        "x": 1045.8,
+        "y": 489.9,
+        "far": false,
+        "flipped": false,
+        "active": false
+      }
+    ]
+  },
+  "after": {
+    "width": 1920,
+    "height": 1080,
+    "nodes": [
+      {
+        "id": "ruijin",
+        "x": 1321.8,
+        "y": 735.2,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "yudu",
+        "x": 1308.1,
+        "y": 736.1,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "xiangjiang",
+        "x": 1198.3,
+        "y": 753.6,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "zunyi",
+        "x": 1103.6,
+        "y": 714.7,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "chishui",
+        "x": 1072.9,
+        "y": 691.3,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "luding",
+        "x": 986.2,
+        "y": 656.8,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "jiajin",
+        "x": 992.7,
+        "y": 625.9,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "ruoergai",
+        "x": 1002.7,
+        "y": 551.9,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "lazikou",
+        "x": 1024.8,
+        "y": 533.7,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "wuqizhen",
+        "x": 1119,
+        "y": 451.2,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "zhiliang",
+        "x": 1147.6,
+        "y": 464.2,
+        "far": false,
+        "flipped": false,
+        "active": false
+      },
+      {
+        "id": "huining",
+        "x": 1050.1,
+        "y": 489.8,
+        "far": false,
+        "flipped": false,
+        "active": false
+      }
+    ]
+  }
+}
