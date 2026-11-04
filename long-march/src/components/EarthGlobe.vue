@@ -11,11 +11,16 @@
  * 绝对禁止：把 globe 实例放进 ref / reactive。
  * WebGL 对象一旦被 Vue 深度代理，浏览器会直接卡死白屏，这里只能使用 shallowRef。
  */
-import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import Globe from 'globe.gl'
 import { AmbientLight, DirectionalLight } from 'three'
 import longMarchNodes from '../data.js'
 import { createCameraRig, FRAME } from '../lib/cameraRig.js'
+
+const props = defineProps({
+  // 已点亮的站点 id，用来给光点加一层更暖的光晕
+  litIds: { type: Array, default: () => [] },
+})
 
 const emit = defineEmits(['select'])
 
@@ -76,6 +81,16 @@ function isFacingCamera(lat, lng) {
  * 逐帧刷新标签状态：只在相机变化时才真正改变 class，
  * classList.toggle 传入第二个参数是幂等的，不会触发多余重排。
  */
+// 用 Set 存一份，避免每帧对 12 个节点做 includes
+let litIdSet = new Set()
+watch(
+  () => props.litIds,
+  (ids) => {
+    litIdSet = new Set(ids || [])
+  },
+  { immediate: true, deep: true },
+)
+
 function updateLabelStates() {
   if (!globe.value || labelRecords.length === 0) return
 
@@ -85,6 +100,8 @@ function updateLabelStates() {
   for (const record of labelRecords) {
     const facing = isFacingCamera(record.lat, record.lng)
     record.el.classList.toggle('is-far', !facing)
+    // 点亮过的站点，光点常亮一层金晕
+    record.el.classList.toggle('is-lit', litIdSet.has(record.id))
 
     if (!facing) continue
 
@@ -696,7 +713,14 @@ onBeforeUnmount(() => {
   transition-delay: 0s;
 }
 
-/* 选中节点的圆点放大一圈，让"当前在看哪个点"一眼可辨。 */
+/* 点亮过的站点：光点常亮一层暖金，和"还没点亮"的点拉开差别。 */
+:deep(.march-label-anchor.is-lit .march-label-node) {
+  background: #f6dc9c;
+  box-shadow:
+    0 0 0 1px rgba(246, 220, 156, 0.45),
+    0 0 14px 3px rgba(224, 189, 114, 0.55);
+}
+
 :deep(.march-label-anchor.is-active .march-label-node) {
   background: #f3d48c;
   border-color: #fff6d8;
