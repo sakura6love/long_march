@@ -1,4 +1,16 @@
 <script setup>
+/**
+ * 《长征万里·薪火千秋》— 地球主视口
+ *
+ * P1「标签稳定化」四条铁律，全部落在本文件里：
+ * 1. 锚点严格 0×0、卡片绝对定位 —— 窗口尺寸变化不会把光点"拉偏"；
+ * 2. 转到球体背面的标签直接淡出，不会"横穿"到正面来；
+ * 3. 卡片默认隐藏，只有悬停 / 键盘聚焦 / 选中时才出现，同屏最多一张；
+ * 4. 靠近屏幕右缘的卡片自动翻到左侧，避免被视口裁掉。
+ *
+ * 绝对禁止：把 globe 实例放进 ref / reactive。
+ * WebGL 对象一旦被 Vue 深度代理，浏览器会直接卡死白屏，这里只能使用 shallowRef。
+ */
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import Globe from 'globe.gl'
 import { AmbientLight, DirectionalLight } from 'three'
@@ -10,8 +22,21 @@ const emit = defineEmits(['select'])
 const globeContainer = ref(null)
 const globe = shallowRef(null)
 
+// —— 渲染循环共享的普通变量，绝不进入响应式系统 ——
 let resizeObserver = null
 let rotationTimer = null
+let frameHandle = 0
+
+// 当前选中的节点 id：它的卡片会保持展开。
+let activeId = null
+// 悬停到别的节点时，被临时收起的"选中卡片"；指针移开即还原。
+let hoverSuspended = null
+
+// 标签 DOM ↔ 经纬度的对照表，供逐帧判定遮挡与左右翻转。
+const labelRecords = []
+
+// 卡片翻面的安全边距：卡片宽度 + 视口留白，超出就翻到左侧。
+const FLIP_SAFE_MARGIN = 168
 
 function resizeGlobe() {
   if (!globe.value || !globeContainer.value) return
@@ -22,6 +47,64 @@ function resizeGlobe() {
   }
 }
 
+/**
+ * 背面遮挡判定。
+ *
+ * 节点 P 在球面上、相机 C 在球外，P 可见的充要条件是：
+ *   dot(C - P, P) > 0 ，即 dot(C, P) > |P|²
+ * 阈值乘以 1.004 留出一点余量，避免正好贴在边缘时来回闪烁。
+ */
+function isFacingCamera(lat, lng) {
+  if (!globe.value) return false
+
+  // 注意：getCoords 返回的是普通对象 { x, y, z }，不是 THREE.Vector3，
+  // 不能调用 lengthSq()，这里手动算模长平方。
+  const point = globe.value.getCoords(lat, lng, 0.01)
+  const camera = globe.value.camera().position
+  const dot = point.x * camera.x + point.y * camera.y + point.z * camera.z
+  const radiusSq = point.x * point.x + point.y * point.y + point.z * point.z
+
+  return dot > radiusSq * 1.004
+}
+
+/**
+ * 逐帧刷新标签状态：只在相机变化时才真正改变 class，
+ * classList.toggle 传入第二个参数是幂等的，不会触发多余重排。
+ */
+function updateLabelStates() {
+  if (!globe.value || labelRecords.length === 0) return
+
+  const width = globe.value.width()
+  const flipLine = width - FLIP_SAFE_MARGIN
+
+  for (const record of labelRecords) {
+    const facing = isFacingCamera(record.lat, record.lng)
+    record.el.classList.toggle('is-far', !facing)
+
+    if (!facing) continue
+
+    const screen = globe.value.getScreenCoords(record.lat, record.lng, 0.01)
+    if (screen) {
+      record.el.classList.toggle('is-flipped', screen.x > flipLine)
+    }
+  }
+}
+
+function tick() {
+  frameHandle = requestAnimationFrame(tick)
+  updateLabelStates()
+}
+
+/** 切换选中态：保证任何时刻最多只有一个 is-active。 */
+function setActive(id) {
+  activeId = id
+  hoverSuspended = null
+
+  for (const record of labelRecords) {
+    record.el.classList.toggle('is-active', record.id === id)
+  }
+}
+
 function handleNodeSelect(pointData) {
   if (!globe.value) return
 
@@ -29,7 +112,10 @@ function handleNodeSelect(pointData) {
   controls.autoRotate = false
   window.clearTimeout(rotationTimer)
 
+  setActive(pointData.id)
+
   // 低轨镜头：近距离俯瞰中国区域，保留地球弧面和地平线。
+  // P2 会把这里换成统一的相机机位（altitude / viewOffset / lookAt 三个旋钮）。
   globe.value.pointOfView(
     {
       lat: pointData.lat,
@@ -50,13 +136,14 @@ function handleNodeSelect(pointData) {
 
 /**
  * 外层元素严格保持 0x0。
- * CSS2DRenderer 会将这个零尺寸元素的原点投影到经纬度位置，
- * 文字面板、引导线和发光点全部从该原点展开，不会被面板宽度拉偏。
+ * CSS2DRenderer 会把零尺寸元素的原点投影到经纬度位置，
+ * 圆点、引线和卡片全部从该原点展开，因此不会被卡片宽度拉偏。
  */
 function createChineseLabel(pointData) {
   const anchor = document.createElement('button')
   anchor.type = 'button'
   anchor.className = 'march-label-anchor'
+  anchor.dataset.nodeId = pointData.id
   anchor.setAttribute('aria-label', `查看${pointData.name}历史节点`)
   anchor.innerHTML = `
     <span class="march-label-beam" aria-hidden="true"></span>
@@ -71,6 +158,26 @@ function createChineseLabel(pointData) {
   anchor.addEventListener('click', (event) => {
     event.stopPropagation()
     handleNodeSelect(pointData)
+  })
+
+  // 悬停到别的节点时，先收起已选中节点的卡片，保证"同屏最多一张卡片"。
+  anchor.addEventListener('pointerenter', () => {
+    if (!activeId || activeId === pointData.id) return
+
+    hoverSuspended = labelRecords.find((record) => record.id === activeId) || null
+    hoverSuspended?.el.classList.remove('is-active')
+  })
+
+  anchor.addEventListener('pointerleave', () => {
+    hoverSuspended?.el.classList.add('is-active')
+    hoverSuspended = null
+  })
+
+  labelRecords.push({
+    el: anchor,
+    id: pointData.id,
+    lat: pointData.lat,
+    lng: pointData.lng,
   })
 
   return anchor
@@ -141,12 +248,22 @@ onMounted(() => {
   resizeGlobe()
   resizeObserver = new ResizeObserver(resizeGlobe)
   resizeObserver.observe(globeContainer.value)
+
+  // 标签的遮挡 / 翻面判定跟着渲染帧走，成本是 12 次点积，可以忽略。
+  tick()
 })
 
 onBeforeUnmount(() => {
+  cancelAnimationFrame(frameHandle)
+  frameHandle = 0
+
   window.clearTimeout(rotationTimer)
   resizeObserver?.disconnect()
   resizeObserver = null
+
+  labelRecords.length = 0
+  activeId = null
+  hoverSuspended = null
 
   if (globe.value) {
     globe.value.controls().dispose()
@@ -214,7 +331,7 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-/* 解除此前的下沉偏移：画布本身严格覆盖全屏。 */
+/* 画布本身严格覆盖全屏。 */
 .earth-globe {
   position: absolute;
   top: 0;
@@ -252,6 +369,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 12px #c4a35a;
 }
 
+/* ———————————————————— 标签 ———————————————————— */
+
 :deep(.march-label-anchor) {
   position: relative;
   display: block;
@@ -263,6 +382,33 @@ onBeforeUnmount(() => {
   background: transparent;
   cursor: pointer;
   pointer-events: auto;
+  opacity: 1;
+  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 锚点是 0×0，用伪元素撑出 36px 的透明命中圆，
+   用户不必精准点到 9px 的小圆点。 */
+:deep(.march-label-anchor::before) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  content: '';
+  transform: translate(-50%, -50%);
+}
+
+/* 转到球体背面：整块淡出，同时让出点击。 */
+:deep(.march-label-anchor.is-far) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+:deep(.march-label-anchor.is-far .march-label-card),
+:deep(.march-label-anchor.is-far .march-label-node),
+:deep(.march-label-anchor.is-far::before) {
+  pointer-events: none;
 }
 
 :deep(.march-label-node) {
@@ -278,6 +424,10 @@ onBeforeUnmount(() => {
     0 0 0 3px rgba(196, 163, 90, 0.18),
     0 0 18px rgba(224, 189, 114, 0.95);
   transform: translate(-50%, -50%);
+  transition:
+    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    background 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 :deep(.march-label-beam) {
@@ -288,11 +438,19 @@ onBeforeUnmount(() => {
   height: 1px;
   background: linear-gradient(90deg, #f3d48c, rgba(196, 163, 90, 0.2));
   box-shadow: 0 0 8px rgba(224, 189, 114, 0.8);
-  transform: translate(3px, -50%);
+  /* 默认收成一小段并隐藏，避免静止时每个点后面都拖一根毛刺。 */
+  opacity: 0;
+  transform: translate(var(--beam-shift, 3px), -50%) scaleX(0.35);
   transform-origin: left center;
+  transition:
+    opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
+/* 卡片默认隐藏：靠 --slide-x 做位移，和垂直居中互不打架。 */
 :deep(.march-label-card) {
+  --slide-x: -6px;
+
   position: absolute;
   top: 0;
   left: 30px;
@@ -312,8 +470,13 @@ onBeforeUnmount(() => {
   color: #f3f1e6;
   font-family: 'Microsoft YaHei', 'Noto Sans CJK SC', 'PingFang SC', sans-serif;
   text-align: left;
-  transform: translateY(-50%);
+  text-wrap: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(var(--slide-x));
   transition:
+    opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1) 0.12s,
+    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1) 0.12s,
     background 0.45s cubic-bezier(0.25, 1, 0.5, 1),
     border-color 0.45s cubic-bezier(0.25, 1, 0.5, 1),
     box-shadow 0.45s cubic-bezier(0.25, 1, 0.5, 1);
@@ -339,8 +502,39 @@ onBeforeUnmount(() => {
   font: 9px/1.2 'Space Mono', ui-monospace, monospace;
 }
 
+/* 靠近屏幕右缘：卡片翻到左侧，引线同步反向。 */
+:deep(.march-label-anchor.is-flipped .march-label-card) {
+  --slide-x: 6px;
+
+  right: 30px;
+  left: auto;
+  border-right: 2px solid #c4a35a;
+  border-left: 1px solid rgba(224, 189, 114, 0.56);
+  border-radius: 5px 1px 1px 5px;
+  text-align: right;
+}
+
+:deep(.march-label-anchor.is-flipped .march-label-beam) {
+  --beam-shift: -3px;
+
+  left: -30px;
+  background: linear-gradient(270deg, #f3d48c, rgba(196, 163, 90, 0.2));
+  transform-origin: right center;
+}
+
+/* 悬停 / 键盘聚焦 / 选中：三种状态共用同一套展开样式。 */
+:deep(.march-label-anchor:hover .march-label-beam),
+:deep(.march-label-anchor:focus-visible .march-label-beam),
+:deep(.march-label-anchor.is-active .march-label-beam) {
+  opacity: 1;
+  transform: translate(var(--beam-shift, 3px), -50%) scaleX(1);
+}
+
 :deep(.march-label-anchor:hover .march-label-card),
-:deep(.march-label-anchor:focus-visible .march-label-card) {
+:deep(.march-label-anchor:focus-visible .march-label-card),
+:deep(.march-label-anchor.is-active .march-label-card) {
+  --slide-x: 0px;
+
   border-color: #f3d48c;
   background:
     linear-gradient(135deg, rgba(74, 61, 38, 0.96), rgba(17, 24, 29, 0.94)),
@@ -349,6 +543,19 @@ onBeforeUnmount(() => {
     10px 10px 0 rgba(5, 9, 14, 0.46),
     0 7px 24px rgba(196, 163, 90, 0.2),
     inset 0 1px rgba(255, 255, 255, 0.15);
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+/* 选中节点的圆点放大一圈，让"当前在看哪个点"一眼可辨。 */
+:deep(.march-label-anchor.is-active .march-label-node) {
+  background: #f3d48c;
+  border-color: #fff6d8;
+  box-shadow:
+    0 0 0 5px rgba(196, 163, 90, 0.2),
+    0 0 26px rgba(243, 212, 140, 0.95);
+  transform: translate(-50%, -50%) scale(1.28);
 }
 
 @media (max-width: 768px) {
@@ -361,6 +568,7 @@ onBeforeUnmount(() => {
   :deep(.march-label-card) {
     min-width: 76px;
     padding: 5px 7px 6px;
+    left: 18px;
   }
 
   :deep(.march-label-card strong) {
@@ -371,8 +579,13 @@ onBeforeUnmount(() => {
     width: 18px;
   }
 
-  :deep(.march-label-card) {
-    left: 18px;
+  :deep(.march-label-anchor.is-flipped .march-label-card) {
+    right: 18px;
+  }
+
+  :deep(.march-label-anchor.is-flipped .march-label-beam) {
+    left: -18px;
+    width: 18px;
   }
 }
 </style>
