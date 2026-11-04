@@ -13,9 +13,13 @@ const props = defineProps({
   // 该节点在长征路线中的序号（从 1 开始）
   order: { type: Number, default: 0 },
   total: { type: Number, default: 12 },
+  // 这一站是否已经被点亮
+  lit: { type: Boolean, default: false },
+  // 一共点亮了几站
+  litCount: { type: Number, default: 0 },
 })
 
-const emit = defineEmits(['close', 'navigate'])
+const emit = defineEmits(['close', 'navigate', 'light-up'])
 
 /** 经纬度写成"29.91°N 102.23°E"这种军用风格，比裸数字好读。 */
 const coordinate = computed(() => {
@@ -59,6 +63,17 @@ function close() {
       <div class="detail-body">
         <p class="detail-text">{{ node.description }}</p>
       </div>
+
+      <button
+        class="detail-light"
+        :class="{ 'is-lit': lit }"
+        type="button"
+        :disabled="lit"
+        @click="emit('light-up', node.id)"
+      >
+        <span class="detail-light-dot" aria-hidden="true"></span>
+        {{ lit ? `已点亮 · 共 ${litCount} / ${total} 站` : '点亮此站' }}
+      </button>
 
       <footer class="detail-foot">
         <span class="detail-coordinate">{{ coordinate }}</span>
@@ -224,6 +239,59 @@ function close() {
   line-height: 2.05;
   letter-spacing: 0.02em;
   text-align: justify;
+}
+
+.detail-light {
+  display: flex;
+  width: 100%;
+  height: 42px;
+  margin-top: 18px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid rgba(196, 163, 90, 0.34);
+  border-radius: 2px;
+  background: rgba(196, 163, 90, 0.05);
+  color: #d8bd83;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  transition:
+    background 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    color 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.detail-light-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 10px 2px rgba(224, 189, 114, 0.5);
+  transition: box-shadow 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.detail-light:hover:not(:disabled),
+.detail-light:focus-visible:not(:disabled) {
+  border-color: rgba(224, 189, 114, 0.75);
+  background: rgba(196, 163, 90, 0.14);
+  box-shadow: 0 0 24px rgba(196, 163, 90, 0.16);
+  color: #f3d48c;
+  outline: none;
+}
+
+.detail-light.is-lit {
+  border-color: rgba(224, 189, 114, 0.55);
+  background: rgba(196, 163, 90, 0.12);
+  color: #f3d48c;
+  cursor: default;
+}
+
+.detail-light.is-lit .detail-light-dot {
+  box-shadow:
+    0 0 12px 3px rgba(246, 220, 156, 0.75),
+    0 0 26px 8px rgba(224, 189, 114, 0.28);
 }
 
 .detail-foot {

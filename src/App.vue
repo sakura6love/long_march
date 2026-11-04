@@ -6,7 +6,9 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import EarthGlobe from './components/EarthGlobe.vue'
 import DetailPanel from './components/DetailPanel.vue'
+import AskPanel from './components/AskPanel.vue'
 import longMarchNodes from './data.js'
+import { readLitIds, lightUp } from './lib/api.js'
 
 const globeRef = ref(null)
 // -1 表示"没有选中任何节点"，面板随之收起
@@ -15,6 +17,14 @@ const activeIndex = ref(-1)
 const activeNode = computed(() =>
   activeIndex.value >= 0 ? longMarchNodes[activeIndex.value] : null,
 )
+
+// 已点亮的站点 id：存在本机，刷新后还在
+const litIds = ref([])
+const activeLit = computed(() => (activeNode.value ? litIds.value.includes(activeNode.value.id) : false))
+
+function handleLightUp(id) {
+  litIds.value = lightUp(id)
+}
 
 /** 地球把点中的节点抛上来，这里换算成序号。 */
 function handleSelect(node) {
@@ -37,22 +47,30 @@ function handleKeydown(event) {
   if (event.key === 'Escape') closePanel()
 }
 
-onMounted(() => window.addEventListener('keydown', handleKeydown))
+onMounted(() => {
+  litIds.value = readLitIds()
+  window.addEventListener('keydown', handleKeydown)
+})
 onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 </script>
 
 <template>
   <div class="main-container">
     <!-- 这里就是把造好的地球仪放进网页 -->
-    <EarthGlobe ref="globeRef" @select="handleSelect" />
+    <EarthGlobe ref="globeRef" :lit-ids="litIds" @select="handleSelect" />
 
     <DetailPanel
       :node="activeNode"
       :order="activeIndex + 1"
       :total="longMarchNodes.length"
+      :lit="activeLit"
+      :lit-count="litIds.length"
       @close="closePanel"
       @navigate="navigate"
+      @light-up="handleLightUp"
     />
+
+    <AskPanel />
   </div>
 </template>
 
