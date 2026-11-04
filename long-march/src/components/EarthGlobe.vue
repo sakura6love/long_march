@@ -115,6 +115,10 @@ function setActive(id) {
 function handleNodeSelect(pointData) {
   if (!globe.value) return
 
+  // 用户在开场动画途中点了光点：立刻收掉剩余节奏，别让"点亮"追着镜头跑。
+  clearIntro()
+  revealAll()
+
   const controls = globe.value.controls()
   controls.autoRotate = false
   window.clearTimeout(rotationTimer)
@@ -147,7 +151,7 @@ function handleNodeSelect(pointData) {
 function createChineseLabel(pointData) {
   const anchor = document.createElement('button')
   anchor.type = 'button'
-  anchor.className = 'march-label-anchor'
+  anchor.className = 'march-label-anchor is-pending'
   anchor.dataset.nodeId = pointData.id
   anchor.setAttribute('aria-label', `查看${pointData.name}历史节点`)
   anchor.innerHTML = `
@@ -188,15 +192,83 @@ function createChineseLabel(pointData) {
   return anchor
 }
 
+/** 开场时临时放宽的相机距离上限（altitude 2.0 ≈ 3 个地球半径）。 */
+const INTRO_MAX_DISTANCE = 320
+
+/** 开场动画的定时器，卸载或用户提前点击时统一清空。 */
+let introTimers = []
+
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function clearIntro() {
+  introTimers.forEach((id) => window.clearTimeout(id))
+  introTimers = []
+}
+
+/** 直接点亮全部光点（无动画场景、减少动态偏好）。 */
+function revealAll() {
+  for (const record of labelRecords) {
+    record.el.classList.remove('is-pending')
+  }
+}
+
+/**
+ * 开场编排：先从"整球"起步（altitude 2.45，球缘弧线正好压在画面上沿），
+ * 再俯冲到 altitude 0.72，最后让 12 个光点按时间顺序依次点亮。
+ * 用户随时可以拖动或点击，提前点击会立刻中断后续节奏。
+ */
+function startIntro() {
+  if (prefersReducedMotion()) {
+    cameraRig.apply({ lat: 35.6921, lng: 105.0533, altitude: FRAME.altitude })
+    revealAll()
+    return
+  }
+
+  const controls = globe.value.controls()
+  controls.autoRotate = true
+  // 相机在 mount 时已经退到整球（见 onMounted），这里只等一拍再俯冲。
+  controls.maxDistance = INTRO_MAX_DISTANCE
+
+  introTimers.push(
+    window.setTimeout(() => {
+      cameraRig.flyTo({
+        lat: 35.6921,
+        lng: 105.0533,
+        altitude: FRAME.altitude,
+        duration: 2000,
+      })
+
+      introTimers.push(
+        window.setTimeout(() => {
+          controls.autoRotate = false
+          controls.maxDistance = 172
+          labelRecords.forEach((record, index) => {
+            introTimers.push(
+              window.setTimeout(() => {
+                record.el.classList.remove('is-pending')
+                record.el.classList.add('is-revealed')
+              }, index * 80),
+            )
+          })
+        }, 2100),
+      )
+    }, 600),
+  )
+}
+
 onMounted(() => {
   if (!globeContainer.value) return
 
+  // 贴图放在 public 里随包发布：比赛现场断网也能立刻出图，
+  // 不再等 unpkg 的 1.4MB（首屏黑屏两秒会毁掉开场）。
+  const assetBase = import.meta.env.BASE_URL
+
   globe.value = Globe()(globeContainer.value)
     .backgroundColor('rgba(0, 0, 0, 0)')
-    .globeImageUrl(
-      'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
-    )
-    .bumpImageUrl('/earth-topology.png')
+    .globeImageUrl(`${assetBase}earth-blue-marble.jpg`)
+    .bumpImageUrl(`${assetBase}earth-topology.png`)
     .showAtmosphere(true)
     .atmosphereColor('#4b7eb3')
     .atmosphereAltitude(0.13)
@@ -210,34 +282,34 @@ onMounted(() => {
 
   const scene = globe.value.scene()
 
-  // 极低环境光压住整体亮度，再用低位侧光刻出山脉和地形阴影。
-  scene.add(new AmbientLight(0x536273, 0.24))
+  // 光照只有一个目的：把山脊刻出来，而不是把地球照亮。
+  // 环境光偏暖、压得很低，保证背光那一侧仍是深蓝而不是死黑。
+  scene.add(new AmbientLight(0x4a4a3f, 0.16))
 
-  const terrainLight = new DirectionalLight(0xffdfad, 2.15)
-  terrainLight.position.set(-180, 34, 125)
+  // 主光：仰角约 9°，从西南方斜切过来 —— 山体阴影被拉长，
+  // 近景才有"摸得到"的起伏；再高就变成正午平光，地形立刻变平。
+  const terrainLight = new DirectionalLight(0xffd9a2, 2.35)
+  terrainLight.position.set(-180, 30, 125)
   scene.add(terrainLight)
 
-  const rimLight = new DirectionalLight(0x6f91b8, 0.35)
+  // 补光：极暗的冷色，只负责勾出右上方的球缘，避免边缘融进背景。
+  const rimLight = new DirectionalLight(0x5b7fa6, 0.26)
   rimLight.position.set(120, 18, -160)
   scene.add(rimLight)
 
   const globeMaterial = globe.value.globeMaterial()
-  globeMaterial.color.set('#ffffff')
-  globeMaterial.bumpScale = 0.24
-  globeMaterial.roughness = 0.88
-  globeMaterial.metalness = 0.03
-  globeMaterial.emissive.set('#111b27')
-  globeMaterial.emissiveIntensity = 0.06
+  // 微暖的基色乘上去，把贴图里过饱和的蓝绿压回 UI 的暖灰调子。
+  globeMaterial.color.set('#efe4cd')
+  // 近景靠 bump 撑立体：稍加深，山脊在 30% 主角线附近才立得起来。
+  globeMaterial.bumpScale = 0.34
+  globeMaterial.roughness = 0.9
+  globeMaterial.metalness = 0.02
+  globeMaterial.emissive.set('#121821')
+  globeMaterial.emissiveIntensity = 0.05
   globeMaterial.needsUpdate = true
 
-  // 机位统一交给 cameraRig：首屏把 1936 年会宁放在"主角线"（屏高 30%）上，
-  // 整条路线从会宁向左下方铺开 —— 构图 A 的锚点。
+  // 机位统一交给 cameraRig。
   cameraRig = createCameraRig(globe.value)
-  cameraRig.apply({
-    lat: 35.6921,
-    lng: 105.0533,
-    altitude: FRAME.altitude,
-  })
 
   const controls = globe.value.controls()
   controls.autoRotate = true
@@ -252,11 +324,30 @@ onMounted(() => {
   controls.dampingFactor = 0.07
 
   resizeGlobe()
+
+  // 首帧就站在"整球"的位置：球缘弧线正好压在画面上沿 12% 处。
+  // 先给 OrbitControls 放宽距离上限，否则它会把 3 个半径夹回近景。
+  if (!prefersReducedMotion()) {
+    controls.maxDistance = INTRO_MAX_DISTANCE
+    cameraRig.apply({ lat: 16, lng: 96, altitude: 2.0, pin: false })
+  }
+
   resizeObserver = new ResizeObserver(resizeGlobe)
   resizeObserver.observe(globeContainer.value)
 
   // 标签的遮挡 / 翻面判定跟着渲染帧走，成本是 12 次点积，可以忽略。
   tick()
+
+  // 开场要等贴图真的画出来再开始，否则"俯冲"发生在黑屏上。
+  // 同时留一个兜底：贴图迟迟不来（或加载失败）也不能让光点永远不出现。
+  let introStarted = false
+  const beginIntroOnce = () => {
+    if (introStarted) return
+    introStarted = true
+    startIntro()
+  }
+  globe.value.onGlobeReady(beginIntroOnce)
+  window.setTimeout(beginIntroOnce, 5000)
 
   // 仅供开发期截图/标定使用；生产构建会被 tree-shake 掉。
   if (import.meta.env.DEV) {
@@ -266,6 +357,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearIntro()
   cancelAnimationFrame(frameHandle)
   frameHandle = 0
 
@@ -439,9 +531,40 @@ onBeforeUnmount(() => {
     0 0 18px rgba(224, 189, 114, 0.95);
   transform: translate(-50%, -50%);
   transition:
+    opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1),
     transform 0.45s cubic-bezier(0.25, 1, 0.5, 1),
     box-shadow 0.45s cubic-bezier(0.25, 1, 0.5, 1),
     background 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 开场镜头还没停稳时，光点处于"未点亮"状态，也不接受点击。 */
+:deep(.march-label-anchor.is-pending) {
+  pointer-events: none;
+}
+
+:deep(.march-label-anchor.is-pending .march-label-node) {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+}
+
+/* 点亮的一瞬间：先胀开一圈光晕，再收回常态 —— 像有人在天上点了盏灯。 */
+:deep(.march-label-anchor.is-revealed .march-label-node) {
+  animation: march-node-bloom 900ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes march-node-bloom {
+  0% {
+    transform: translate(-50%, -50%) scale(2.2);
+    box-shadow:
+      0 0 0 0 rgba(243, 212, 140, 0.7),
+      0 0 34px rgba(243, 212, 140, 0.95);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      0 0 0 3px rgba(196, 163, 90, 0.18),
+      0 0 18px rgba(224, 189, 114, 0.95);
+  }
 }
 
 :deep(.march-label-beam) {

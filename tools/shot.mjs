@@ -139,9 +139,12 @@ try {
     return 0
   }
 
+  // --nowait：跳过等标签挂载的等待，用于抓开场动画的指定帧。
+  if (!process.argv.includes('--nowait')) {
   await waitForLabels()
   // 标签刚挂上 DOM 时还停在上一帧的投影位置，等两帧再量。
   await sleep(1200)
+  }
 
   // 可选：截图前在页面里执行一段脚本（标定机位、关掉自转等）。
   const evalExpr = arg('eval', '')
