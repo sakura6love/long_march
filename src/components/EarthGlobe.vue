@@ -414,10 +414,14 @@ onBeforeUnmount(() => {
       class="earth-globe"
       aria-label="长征路线数字地球，显示瑞金、遵义等历史节点"
     ></div>
-    <div class="orbital-readout" aria-hidden="true">
-      <span class="readout-dot"></span>
-      <span>LOW EARTH ORBIT / CN-ROUTE</span>
-    </div>
+    <header class="masthead">
+      <p class="masthead-kicker" aria-hidden="true">
+        <span class="readout-dot"></span>
+        LOW EARTH ORBIT / CN-ROUTE
+      </p>
+      <h1 class="masthead-title">长征万里 · 薪火千秋</h1>
+      <p class="masthead-sub">1934—1936 · 十二个坐标，一条改变中国的路</p>
+    </header>
   </div>
 </template>
 
@@ -481,18 +485,42 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-.orbital-readout {
+.masthead {
   position: absolute;
   z-index: 6;
-  top: 28px;
+  top: 26px;
   left: 34px;
+  max-width: 46vw;
+  pointer-events: none;
+}
+
+.masthead-kicker {
   display: flex;
+  margin: 0 0 12px;
   align-items: center;
   gap: 9px;
-  color: rgba(243, 241, 230, 0.62);
+  color: rgba(243, 241, 230, 0.5);
   font: 10px/1 'Space Mono', ui-monospace, monospace;
   letter-spacing: 0.14em;
-  pointer-events: none;
+}
+
+/* 标题是"抬头看得到、低头不抢戏"的存在感：小字号 + 宋体 + 大量字距。 */
+.masthead-title {
+  margin: 0;
+  color: rgba(243, 241, 230, 0.9);
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  line-height: 1.4;
+  text-shadow: 0 1px 18px rgba(4, 7, 12, 0.75);
+}
+
+.masthead-sub {
+  margin: 10px 0 0;
+  color: rgba(243, 241, 230, 0.34);
+  font-size: 11px;
+  letter-spacing: 0.16em;
 }
 
 .readout-dot {
@@ -731,10 +759,32 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
-  .orbital-readout {
-    top: 20px;
-    left: 20px;
+  /* 手机屏窄，地球铺满整屏：顶部压暗一层，标题才压得住画面。 */
+  .horizon-frame::after {
+    background:
+      linear-gradient(180deg, rgba(7, 11, 19, 0.78), transparent 26%, transparent 68%, rgba(7, 11, 19, 0.6)),
+      radial-gradient(ellipse at 50% 74%, transparent 34%, rgba(3, 6, 11, 0.5) 100%);
+  }
+
+  .masthead {
+    top: 18px;
+    left: 18px;
+    max-width: 72vw;
+  }
+
+  .masthead-kicker {
+    margin-bottom: 8px;
     font-size: 8px;
+  }
+
+  .masthead-title {
+    font-size: 15px;
+    letter-spacing: 0.24em;
+  }
+
+  .masthead-sub {
+    margin-top: 6px;
+    font-size: 9.5px;
   }
 
   :deep(.march-label-card) {
