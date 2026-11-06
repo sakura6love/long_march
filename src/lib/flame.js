@@ -1,11 +1,39 @@
 /**
- * 火焰头：一张 512px 的焰形贴图，靠缩放抖动与透明度呼吸"活"起来。
- * （图集方案在球面上会被压扁、且小尺寸下颜色被平均掉，弃用。）
+ * 火焰头：贴图焰舌 + 一层暗底。
+ * 暗底不是装饰：火焰压在明亮地表（黄土高原、雪线）时，没有暗底就读不出来。
  */
-import { Sprite, SpriteMaterial, TextureLoader } from 'three'
+import { CanvasTexture, Group, Sprite, SpriteMaterial, TextureLoader } from 'three'
+
+function backingTexture() {
+  const s = 256
+  const c = document.createElement('canvas')
+  c.width = s
+  c.height = s
+  const ctx = c.getContext('2d')
+  const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2)
+  g.addColorStop(0, 'rgba(0, 0, 0, 0.55)')
+  g.addColorStop(0.55, 'rgba(0, 0, 0, 0.3)')
+  g.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, s, s)
+  return new CanvasTexture(c)
+}
 
 export function createFlame() {
-  const tex = new TextureLoader().load(`${import.meta.env.BASE_URL}flame.png?v=4`)
+  const group = new Group()
+  group.visible = false
+
+  const back = new Sprite(
+    new SpriteMaterial({
+      map: backingTexture(),
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+    }),
+  )
+  back.renderOrder = 8
+
+  const tex = new TextureLoader().load(`${import.meta.env.BASE_URL}flame.png?v=5`)
   const material = new SpriteMaterial({
     map: tex,
     transparent: true,
@@ -13,19 +41,19 @@ export function createFlame() {
     depthTest: false,
   })
   const sprite = new Sprite(material)
-  sprite.frustumCulled = false
   sprite.renderOrder = 9
-  sprite.visible = false
+
+  group.add(back, sprite)
 
   return {
-    mesh: sprite,
+    mesh: group,
     update(time, size) {
-      // 两个不同频率的抖动叠在一起，避免"匀速呼吸"的规律感
       const f1 = Math.sin(time * 13.7)
       const f2 = Math.sin(time * 23.1 + 1.7)
       const k = 1 + f1 * 0.05 + f2 * 0.04
       sprite.scale.set(size * 0.82 * k, size * 1.28 * k, 1)
-      material.opacity = 0.88 + f1 * 0.06
+      back.scale.set(size * 1.5 * k, size * 1.6 * k, 1)
+      material.opacity = 0.9 + f1 * 0.06
     },
     dispose() {
       tex.dispose()
