@@ -563,6 +563,48 @@ onMounted(() => {
   globeMaterial.emissiveIntensity = 0.05
   globeMaterial.needsUpdate = true
 
+// —— 地区燃烧：三张烘焙图 + 四个 uniform ——
+const bakeBase = `${import.meta.env.BASE_URL}bake/`
+const bakeLoader = new TextureLoader()
+const ignTex = bakeLoader.load(`${bakeBase}ignition.png`)
+const cnTex = bakeLoader.load(`${bakeBase}china.png`)
+const crustTex = bakeLoader.load(`${bakeBase}crust.png`)
+const burnUniforms = {
+  uIgnition: { value: ignTex },
+  uChina: { value: cnTex },
+  uCrust: { value: crustTex },
+  uBurn: { value: 0.55 },
+}
+globeMaterial.defines = Object.assign({}, globeMaterial.defines, { USE_UV: '' })
+globeMaterial.needsUpdate = true
+globeMaterial.onBeforeCompile = (shader) => {
+  Object.assign(shader.uniforms, burnUniforms)
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      '#include <common>',
+      `#include <common>
+uniform sampler2D uIgnition;
+uniform sampler2D uChina;
+uniform sampler2D uCrust;
+uniform float uBurn;`,
+    )
+    .replace(
+      '#include <dithering_fragment>',
+      `{
+  float tIgn = texture2D(uIgnition, vUv).r;
+  float inCn = texture2D(uChina, vUv).r;
+  float bMask = step(tIgn, uBurn) * inCn;
+  vec3 crust = texture2D(uCrust, vUv * 6.0).rgb;
+  float crack = clamp(crust.r - crust.g * 0.55, 0.0, 1.0);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, crust * 0.22, bMask * 0.8);
+  gl_FragColor.rgb += vec3(1.0, 0.45, 0.18) * crack * bMask * 0.45;
+}
+#include <dithering_fragment>`,
+    )
+}
+window.__marchBurn = burnUniforms
+
+
   // 机位统一交给 cameraRig。
   cameraRig = createCameraRig(globe.value)
 
