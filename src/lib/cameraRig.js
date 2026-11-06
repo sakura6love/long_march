@@ -1,23 +1,24 @@
 /**
- * 相机机位（camera rig）—— 把"构图"拆成三个互不干扰的旋钮。
+ * 相机机位（camera rig）—— 低轨视角。
  *
- *   1. altitude      → 球多大（相机离地心多远）
- *   2. lookAt(pitch) → 相机站在目标点南侧几度，决定目标点在球面上的位置
- *   3. viewOffset    → 整幅画面上移/下移，把目标点精确顶到屏高 nodeY 那条线
+ * 模型只有三个旋钮：
  *
- * 三者分别调，不会出现"调了高度，光点就跑了"。
- * 位移只用 camera.setViewOffset（改投影矩阵，Canvas 与 CSS2D 一起动），
- * 绝不用 CSS transform 移容器 —— 那是"光点乱飞"的第一大根源。
+ *   1. lat / lng    → 镜头"看向"地表上的哪一点（点击光点后就是那个点）
+ *   2. altitude     → 相机离地心多远（越小越贴地、地平线越近）
+ *   3. aim          → 相机站在目标点南侧几度（0 = 正俯视；越大越"平视"，
+ *                     地球的弧形地平线就越往画面中间压）
+ *
+ * 相机永远 lookAt 目标点本身，所以目标点恒在屏幕正中；
+ * 地平线出现在它上方、由 aim 决定的弧度处。这样"点一个光点 → 它到画面中央、
+ * 地平线仍在原地"是几何自洽的，不需要再拿投影位移去凑。
  */
 
-/** 默认构图参数：只改这一处，整站构图跟着走。 */
+/** 默认构图：只改这一处，整站构图跟着走。 */
 export const FRAME = {
-  // 俯瞰位：中国中部压在屏高 28% 的"最高点"上
-  nodeY: 0.28,
-  // 相机站在目标点正上方（0°）：正俯视，地球其余部分向下沉出画面
-  pitch: 0,
-  // 视高 0.35（距地心 1.35 个地球半径）：整个屏幕都落在地球盘面内，看不到球缘
-  altitude: 0.35,
+  // 视高 0.28（距地心 1.28 个地球半径）≈ 1800 km，天宫空间站轨道量级
+  altitude: 0.28,
+  // 相机站在目标点南侧 16°，画面里能看见弧形地平线
+  aim: 16,
   // 飞行时长（ms），与 CSS 的 1.6s 对齐
   flightMs: 1600,
 }
@@ -39,7 +40,6 @@ function cubicBezier(p1x, p1y, p2x, p2y) {
     if (x <= 0) return 0
     if (x >= 1) return 1
 
-    // 牛顿迭代反解 t，再取 y —— 与浏览器 cubic-bezier 的手感一致。
     let t = x
     for (let i = 0; i < 6; i += 1) {
       const dx = sampleDX(t)
@@ -51,52 +51,29 @@ function cubicBezier(p1x, p1y, p2x, p2y) {
 }
 
 const ease = cubicBezier(0.25, 1, 0.5, 1)
-
 const lerp = (a, b, t) => a + (b - a) * t
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
 
 export function createCameraRig(globe) {
   const camera = globe.camera()
   const controls = globe.controls()
-  // pin=true → 目标点必须钉在主角线；false → 只摆机位、不动投影（开场整球）。
-  const state = { ...FRAME, lat: 35.6921, lng: 105.0533, pin: true }
+  const state = { ...FRAME, lat: 33, lng: 108 }
 
   let flightHandle = 0
   let flight = null
 
-  /** 目标点当前投在屏幕上的 y（px）。 */
-  function measureY(lat, lng) {
-    const point = globe.getScreenCoords(lat, lng, 0.01)
-    return point ? point.y : globe.height() / 2
-  }
-
-  /** 把相机放到 (lat - pitch, lng) 方向、离地心 altitude 个半径处，始终看向地心。 */
-  function placeCamera(lat, lng, altitude, pitch) {
-    const point = globe.getCoords(lat - pitch, lng, altitude)
-    camera.position.set(point.x, point.y, point.z)
-    camera.lookAt(0, 0, 0)
-    controls.target.set(0, 0, 0)
-    // 关键：getScreenCoords 走 vec.project(camera)，用的是 matrixWorldInverse。
-    // 手动改完相机姿态必须立刻刷新，否则量到的是上一帧的位置（会差出上百像素）。
+  /**
+   * 相机放到 (lat - aim, lng) 方向、离地心 altitude 个半径处，看向 (lat, lng)。
+   * aim = 0 时退化为"正上方俯视地心"，用于开场整球。
+   */
+  function placeCamera(lat, lng, altitude, aim) {
+    const eye = globe.getCoords(lat - aim, lng, altitude)
+    const target = globe.getCoords(lat, lng, 0.002)
+    camera.position.set(eye.x, eye.y, eye.z)
+    camera.lookAt(target.x, target.y, target.z)
+    controls.target.set(target.x, target.y, target.z)
+    // getScreenCoords 走 project(camera)，用 matrixWorldInverse；不刷新会量到上一帧。
     camera.updateMatrixWorld(true)
-  }
-
-  /** 最近一次生效的位移，供 ensureOffset 自愈时使用。 */
-  let lastOffsetY = 0
-
-  function setOffset(offsetY) {
-    const width = globe.width()
-    const height = globe.height()
-    if (!width || !height) return
-    lastOffsetY = offsetY
-    camera.setViewOffset(width, height, 0, offsetY, width, height)
-    camera.updateProjectionMatrix()
-  }
-  /** 在"当前相机位置"下，目标点要钉到 nodeY 所需的 offsetY。 */
-  function solveOffsetY(lat, lng) {
-    const height = globe.height()
-    camera.clearViewOffset()
-    camera.updateProjectionMatrix()
-    return measureY(lat, lng) - state.nodeY * height
   }
 
   function cancelFlight() {
@@ -105,57 +82,30 @@ export function createCameraRig(globe) {
     flight = null
   }
 
-  /**
-   * 立即落位（无动画）。用于首屏、窗口 resize。
-   */
+  /** 立即落位（无动画）。 */
   function apply(next = {}) {
     cancelFlight()
-    // pin=false：不把目标点钉到主角线，只把相机摆在指定机位（开场整球用）。
-    const { pin = true, ...pose } = next
-    state.pin = pin
-    Object.assign(state, pose)
-
+    Object.assign(state, next)
     if (!globe.width() || !globe.height()) return
-
-    placeCamera(state.lat, state.lng, state.altitude, state.pitch)
-    setOffset(pin ? solveOffsetY(state.lat, state.lng) : 0)
-    controls.update()
+    placeCamera(state.lat, state.lng, state.altitude, state.aim)
   }
 
-  /**
-   * 统一飞行入口：所有"点一个光点 → 镜头过去"都必须走这里。
-   * 飞行期间接管 controls，结束后再交还 —— 避免补间与 OrbitControls 打架。
-   */
-  function flyTo({ lat, lng, altitude = state.altitude, pitch = state.pitch, duration = state.flightMs } = {}) {
+  /** 统一飞行入口：所有"点一个光点 → 镜头过去"都必须走这里。 */
+  function flyTo({ lat, lng, altitude = state.altitude, aim = state.aim, duration = state.flightMs } = {}) {
     cancelFlight()
-    controls.enabled = false
 
-    const from = {
-      lat: state.lat,
-      lng: state.lng,
-      altitude: state.altitude,
-      pitch: state.pitch,
-      offsetY: camera.view ? camera.view.offsetY : 0,
-    }
-
-    // 先把终点算出来：落点的 offsetY 依赖终点的相机姿态，所以先"试放"一次。
-    placeCamera(lat, lng, altitude, pitch)
-    const toOffsetY = solveOffsetY(lat, lng)
-    // 复位到起点，准备逐帧插值。
-    placeCamera(from.lat, from.lng, from.altitude, from.pitch)
-    setOffset(from.offsetY)
+    const from = { lat: state.lat, lng: state.lng, altitude: state.altitude, aim: state.aim }
 
     // 经度走最短弧：避免从 179° 飞到 -179° 时绕地球一整圈。
     let deltaLng = lng - from.lng
     if (deltaLng > 180) deltaLng -= 360
     if (deltaLng < -180) deltaLng += 360
 
-    flight = { from, to: { lat, lng, altitude, pitch, offsetY: toOffsetY }, deltaLng, startedAt: 0 }
     state.lat = lat
     state.lng = lng
     state.altitude = altitude
-    state.pitch = pitch
-    state.pin = true
+    state.aim = aim
+    flight = { from, to: { lat, lng, altitude, aim }, deltaLng, startedAt: 0 }
 
     const step = (time) => {
       if (!flight) return
@@ -164,60 +114,66 @@ export function createCameraRig(globe) {
       const t = Math.min(1, (time - flight.startedAt) / duration)
       const k = ease(t)
 
-      const latNow = lerp(flight.from.lat, flight.to.lat, k)
-      const lngNow = flight.from.lng + flight.deltaLng * k
-      const altitudeNow = lerp(flight.from.altitude, flight.to.altitude, k)
-      const pitchNow = lerp(flight.from.pitch, flight.to.pitch, k)
-      const offsetNow = lerp(flight.from.offsetY, flight.to.offsetY, k)
-
-      placeCamera(latNow, lngNow, altitudeNow, pitchNow)
-      setOffset(offsetNow)
-      controls.update()
+      placeCamera(
+        lerp(flight.from.lat, flight.to.lat, k),
+        flight.from.lng + flight.deltaLng * k,
+        lerp(flight.from.altitude, flight.to.altitude, k),
+        lerp(flight.from.aim, flight.to.aim, k),
+      )
 
       if (t < 1) {
         flightHandle = requestAnimationFrame(step)
         return
       }
 
-      // 落位误差兜底：终点再用测量值精确校正一次（浮点插值可能差 1~2px）。
-      placeCamera(lat, lng, altitude, pitch)
-      setOffset(toOffsetY)
-      controls.update()
-
+      placeCamera(lat, lng, altitude, aim)
       flightHandle = 0
       flight = null
-      controls.enabled = true
     }
 
     flightHandle = requestAnimationFrame(step)
   }
 
+  /** 拖动旋转：按屏幕位移改经纬度，绕地心转 —— 与普通地球仪手感一致。 */
+  function orbitBy(deltaLng, deltaLat) {
+    if (flight) return
+    state.lng = ((state.lng + deltaLng + 540) % 360) - 180
+    state.lat = clamp(state.lat + deltaLat, -65, 65)
+    placeCamera(state.lat, state.lng, state.altitude, state.aim)
+  }
+
+  /** 滚轮变焦：只动 altitude，构图（aim）不变。 */
+  function zoomBy(delta) {
+    if (flight) return
+    state.altitude = clamp(state.altitude * (1 + delta), 0.12, 0.9)
+    placeCamera(state.lat, state.lng, state.altitude, state.aim)
+  }
+
   /**
-   * 自愈：three-render-objects 在初始化（以及它自己的 viewOffset 属性变化）时
-   * 会调用一次 camera.clearViewOffset()，把我们设好的投影位移清掉 ——
-   * 表现就是"首屏一切正常，刷新一下就整体上移 64px"。
-   * 位移是我们唯一的构图旋钮，所以每帧确认它还活着，被清了就补回去。
+   * 自愈：three-render-objects 初始化时会 clearViewOffset()。
+   * 新模型不再用投影位移，但仍然每帧确认 offset 是干净的，
+   * 否则残留的位移会把整幅画面顶偏。
    */
   function ensureOffset() {
     if (flight) return
-    if (!camera.view || !camera.view.enabled || camera.view.offsetY !== lastOffsetY) {
-      setOffset(lastOffsetY)
+    if (camera.view && camera.view.enabled) {
+      camera.clearViewOffset()
+      camera.updateProjectionMatrix()
     }
   }
 
-  /** 窗口尺寸变化：offsetY 是像素值，必须重算。 */
+  /** 窗口尺寸变化：重新落位即可（不再有像素单位的位移）。 */
   function reframe() {
     if (flight) return
     if (!globe.width() || !globe.height()) return
-    setOffset(state.pin ? solveOffsetY(state.lat, state.lng) : 0)
+    placeCamera(state.lat, state.lng, state.altitude, state.aim)
   }
 
-  /** 当前镜头注视点是否就是某个坐标（调试用）。 */
   function isFocusedOn(lat, lng, tolerance = 0.01) {
     return Math.abs(state.lat - lat) < tolerance && Math.abs(state.lng - lng) < tolerance
   }
 
-  return { state, apply, flyTo, reframe, ensureOffset, isFocusedOn, cancelFlight }
+  return { state, apply, flyTo, reframe, ensureOffset, isFocusedOn, cancelFlight, orbitBy, zoomBy }
 }
 
 export default createCameraRig
