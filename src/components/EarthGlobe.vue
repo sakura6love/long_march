@@ -16,6 +16,7 @@ import Globe from 'globe.gl'
 import { AmbientLight, DirectionalLight, HemisphereLight, LinearFilter, LinearMipmapLinearFilter, TextureLoader } from 'three'
 import longMarchNodes from '../data.js'
 import { createCameraRig, FRAME } from '../lib/cameraRig.js'
+import { createRouteLine } from '../lib/routeLine.js'
 
 const props = defineProps({
   // 已点亮的站点 id，用来给光点加一层更暖的光晕
@@ -30,6 +31,9 @@ const globe = shallowRef(null)
 
 // 相机机位：三个旋钮（altitude / pitch / viewOffset）全部收口在 lib/cameraRig.js。
 let cameraRig = null
+
+// 路线火线：余烬虚线 + 已点燃的亮橙光带，几何挂在 globe.scene() 下。
+let routeLine = null
 
 // —— 渲染循环共享的普通变量，绝不进入响应式系统 ——
 let resizeObserver = null
@@ -54,6 +58,7 @@ function resizeGlobe() {
   if (clientWidth > 0 && clientHeight > 0) {
     globe.value.width(clientWidth).height(clientHeight)
     cameraRig?.reframe()
+    routeLine?.resize(clientWidth, clientHeight)
   }
 }
 
@@ -87,6 +92,7 @@ watch(
   () => props.litIds,
   (ids) => {
     litIdSet = new Set(ids || [])
+    routeLine?.update(ids)
   },
   { immediate: true, deep: true },
 )
@@ -411,6 +417,10 @@ onMounted(() => {
   rimLight.position.set(120, 18, -160)
   scene.add(rimLight)
 
+  // 路线火线：先铺一条余烬虚线，点亮的段由 watch(litIds) 重建。
+  routeLine = createRouteLine(globe.value, longMarchNodes)
+  routeLine.update(props.litIds)
+
   const globeMaterial = globe.value.globeMaterial()
 
   // 法线与高光贴图：让"山脊有起伏、海面有反光"。
@@ -490,6 +500,9 @@ onBeforeUnmount(() => {
 
   cameraRig?.cancelFlight()
   cameraRig = null
+
+  routeLine?.dispose()
+  routeLine = null
   window.clearTimeout(rotationTimer)
   resizeObserver?.disconnect()
   resizeObserver = null
