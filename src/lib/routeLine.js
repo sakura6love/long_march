@@ -256,14 +256,14 @@ export function createRouteLine(globe, nodes) {
   headGroup.add(headSmoke, headFlame, headCore)
   // 着色器火焰：屏幕空间定尺寸，任何视高都是 40~60px
   const flame = createFlame()
-  headCore.visible = true
-  headFlame.visible = true
-  headSmoke.visible = true
-  flame.mesh.visible = false
+  headCore.visible = false
+  headFlame.visible = false
+  headSmoke.visible = false
+  flame.mesh.visible = true
   flame.mesh.renderOrder = 9
   flame.mesh.scale.set(1, 1, 1)
-  flame.mesh.position.set(0, 2.2, 0)
-  headGroup.add(flame.mesh)
+  flame.mesh.position.set(0, 0, 0)
+  group.add(flame.mesh)
 
   // 火星粒子池（InstancedMesh，一次 draw call）
   const sparkPool = createSparks(160)
@@ -336,6 +336,7 @@ export function createRouteLine(globe, nodes) {
 
     if (count > 1) {
       headGroup.position.copy(samples[Math.min(samples.length - 1, count - 1)])
+      flame.mesh.position.copy(headGroup.position).multiplyScalar(1.03)
       headGroup.visible = true
     } else {
       headGroup.visible = false

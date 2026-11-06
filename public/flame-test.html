@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>火焰调试</title>
+<style>
+  body { margin: 0; background: #06090f; color: #cfc6b6; font: 12px/1.6 ui-serif, serif; }
+  .row { display: flex; gap: 64px; align-items: flex-end; padding: 40px 56px; }
+  .cell { position: relative; }
+  canvas { display: block; }
+  .cap { position: absolute; left: 0; bottom: -22px; letter-spacing: .2em; opacity: .5; }
+  .dark { background: #06090f; }
+  .light { background: linear-gradient(180deg, #6f7a55, #3d4a37); }
+  .line { height: 2px; background: #b0301c; width: 100%; }
+</style>
+</head>
+<body>
+  <div class="row dark" id="rowDark"></div>
+  <div class="row light" id="rowLight"></div>
+  <script>
+    const FRAMES = 32, COLS = 8, ROWS = 4, CELL = 128
+    function drawFrame(ctx, f) {
+      const ox = (f % COLS) * CELL, oy = Math.floor(f / COLS) * CELL
+      ctx.save(); ctx.translate(ox, oy); ctx.clearRect(0, 0, CELL, CELL)
+      ctx.globalCompositeOperation = 'lighter'
+      const t = f / FRAMES
+      const sway = Math.sin(t * Math.PI * 2) * 6
+      const tipY = 14 + Math.sin(t * Math.PI * 2 + 1.2) * 6
+      const body = new Path2D()
+      body.moveTo(64 - 20, 112)
+      body.quadraticCurveTo(64 - 16 + sway * 0.5, 70, 64 + sway, tipY)
+      body.quadraticCurveTo(64 + 16 + sway * 0.5, 70, 64 + 20, 112)
+      body.closePath()
+      const g = ctx.createLinearGradient(0, 116, 0, tipY)
+      g.addColorStop(0, 'rgba(255, 246, 224, 0.95)')
+      g.addColorStop(0.28, 'rgba(255, 214, 140, 0.9)')
+      g.addColorStop(0.62, 'rgba(255, 138, 52, 0.72)')
+      g.addColorStop(1, 'rgba(196, 54, 20, 0)')
+      ctx.fillStyle = g; ctx.fill(body)
+      for (const dir of [-1, 1]) {
+        const p = new Path2D(); const h = 60 + Math.random() * 18
+        p.moveTo(64 + dir * 12, 108)
+        p.bezierCurveTo(64 + dir * 26, 108 - h * 0.45, 64 + dir * (16 + Math.random() * 8), 108 - h, 64 + dir * (8 + Math.random() * 6), 108 - h * 0.92)
+        p.bezierCurveTo(64 + dir * 18, 108 - h * 0.5, 64 + dir * 16, 100, 64 + dir * 12, 108)
+        p.closePath(); ctx.fillStyle = `rgba(255, 150, 60, ${0.28 + Math.random() * 0.18})`; ctx.fill(p)
+      }
+      const core = ctx.createRadialGradient(64 + sway * 0.4, 102, 1, 64 + sway * 0.4, 102, 11)
+      core.addColorStop(0, 'rgba(255, 252, 232, 0.7)')
+      core.addColorStop(0.5, 'rgba(255, 232, 180, 0.5)')
+      core.addColorStop(1, 'rgba(255, 180, 90, 0)')
+      ctx.fillStyle = core; ctx.beginPath(); ctx.arc(64 + sway * 0.4, 102, 11, 0, Math.PI * 2); ctx.fill()
+      ctx.restore()
+    }
+    const src = document.createElement('canvas'); src.width = COLS * CELL; src.height = ROWS * CELL
+    const sctx = src.getContext('2d')
+    for (let f = 0; f < FRAMES; f++) drawFrame(sctx, f)
+
+    const sizes = [48, 64, 96]
+    const cells = []
+    for (const host of [document.getElementById('rowDark'), document.getElementById('rowLight')]) {
+      for (const s of sizes) {
+        const cell = document.createElement('div'); cell.className = 'cell'
+        const c = document.createElement('canvas'); c.width = s * 1.6; c.height = s
+        cell.appendChild(c)
+        const cap = document.createElement('div'); cap.className = 'cap'; cap.textContent = s + 'px'
+        cell.appendChild(cap)
+        host.appendChild(cell); cells.push({ ctx: c.getContext('2d'), w: c.width, h: c.height })
+      }
+    }
+
+    let frame = 0
+    function tick() {
+      frame = (frame + 1) % FRAMES
+      const sx = (frame % COLS) * CELL, sy = Math.floor(frame / COLS) * CELL
+      for (const c of cells) c.ctx.drawImage(src, sx, sy, CELL, CELL, 0, 0, c.w, c.h)
+      setTimeout(tick, 1000 / 24)
+    }
+    tick()
+  </script>
+</body>
+</html>

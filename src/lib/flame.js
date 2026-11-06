@@ -31,9 +31,9 @@ function buildAtlas() {
     // 主焰舌：底部宽 44，顶端收到 6，左右各摆一次
     const tipY = 14 + Math.sin(t * Math.PI * 2 + 1.2) * 6
     const body = new Path2D()
-    body.moveTo(64 - 22, 112)
-    body.bezierCurveTo(64 - 26, 78 + sway, 64 - 10 + sway, 52, 64 + sway * 0.6, tipY)
-    body.bezierCurveTo(64 + 12 + sway, 54, 64 + 26, 80 - sway, 64 + 22, 112)
+    body.moveTo(64 - 20, 112)
+    body.quadraticCurveTo(64 - 16 + sway * 0.5, 70, 64 + sway, tipY)
+    body.quadraticCurveTo(64 + 16 + sway * 0.5, 70, 64 + 20, 112)
     body.closePath()
 
     const g = ctx.createLinearGradient(0, 116, 0, tipY)
@@ -64,13 +64,13 @@ function buildAtlas() {
     }
 
     // 白心
-    const core = ctx.createRadialGradient(64 + sway * 0.4, 96, 1, 64 + sway * 0.4, 96, 20)
+    const core = ctx.createRadialGradient(64 + sway * 0.4, 102, 1, 64 + sway * 0.4, 102, 11)
     core.addColorStop(0, 'rgba(255, 255, 244, 0.95)')
     core.addColorStop(0.5, 'rgba(255, 232, 180, 0.5)')
     core.addColorStop(1, 'rgba(255, 180, 90, 0)')
     ctx.fillStyle = core
     ctx.beginPath()
-    ctx.arc(64 + sway * 0.4, 96, 20, 0, Math.PI * 2)
+    ctx.arc(64 + sway * 0.4, 102, 11, 0, Math.PI * 2)
     ctx.fill()
 
     ctx.restore()
