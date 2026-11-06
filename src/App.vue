@@ -1,7 +1,13 @@
 <script setup>
 /**
- * App —— 装地球、装面板、把"选中了谁"这件事在两者之间传话。
- * 另外负责"长征叙事"的播放状态机：每一次点击，只往前走一步。
+ * App —— 只做四件事：
+ *   1. 装地球、装面板；
+ *   2. 记"哪些站被点亮了"，并把"火线该不该烧"算出来；
+ *   3. 事件暂停时把事件卡推上来；
+ *   4. 把"点空白"的两种含义分清楚（继续烧 / 关面板）。
+ *
+ * 火的规则（唯一一条）：
+ *   以瑞金为起点，连续点亮的站才有火线；中间缺一个站，火就停在那儿。
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import EarthGlobe from './components/EarthGlobe.vue'
@@ -10,196 +16,158 @@ import AskPanel from './components/AskPanel.vue'
 import EventScene from './components/EventScene.vue'
 import longMarchNodes from './data.js'
 import { readLitIds, lightUp } from './lib/api.js'
-import { STORY_EVENTS } from './lib/story.js'
 
 const globeRef = ref(null)
-// -1 表示"没有选中任何节点"，面板随之收起
 const activeIndex = ref(-1)
-
 const activeNode = computed(() =>
   activeIndex.value >= 0 ? longMarchNodes[activeIndex.value] : null,
 )
 
-// 已点亮的站点 id：存在本机，刷新后还在
+// —— 已点亮的站（本机持久化那一份仍走 api.js） ——
 const litIds = ref([])
 const activeLit = computed(() => (activeNode.value ? litIds.value.includes(activeNode.value.id) : false))
+
+const litSet = computed(() => new Set(litIds.value.map((id) => indexOfId(id))))
+function indexOfId(id) {
+  return longMarchNodes.findIndex((n) => n.id === id)
+}
+
+/**
+ * 火线走到第几段：从瑞金开始数，连续点亮的站的个数。
+ * chainEnd = 3 表示 瑞金/于都/湘江 亮着，火线烧到第 2 段（于都→湘江）。
+ */
+const chainEnd = computed(() => {
+  let k = 0
+  while (k < longMarchNodes.length && litSet.value.has(k)) k += 1
+  return k
+})
+
+const burning = ref(null) // 正在燃烧的段号，null = 没在烧
+const pausedEvent = ref(null) // 停住的事件（null = 没停）
+const showingEvent = ref(null) // 事件卡正在展示哪一条
 
 function handleLightUp(id) {
   litIds.value = lightUp(id)
 }
 
-/** 地球把点中的节点抛上来，这里换算成序号。 */
+/** 地球把点中的节点抛上来：开面板 + 点亮 + 可能点火。 */
 function handleSelect(node) {
+  // 事件暂停时点标签 = 跳过这个事件
+  if (pausedEvent.value) skipEvent()
+
   const index = longMarchNodes.findIndex((item) => item.id === node.id)
   if (index >= 0) {
     activeIndex.value = index
-    // 自由点击 = 直接把播放进度挪到这一站，不要再补播前面的事件。
-    if (story.active) {
-      story.index = index
-      story.lastEventAt = index
-      closeEvent()
-      story.phase = 'prompt'
-    }
+    igniteIfChainGrew(index)
   }
+}
+
+/** 点亮第 index 站；如果它让"连续前缀"变长，就把新增的段从头到尾烧过去。 */
+function igniteIfChainGrew(index) {
+  if (litIds.value.includes(longMarchNodes[index].id)) return
+
+  const before = chainEnd.value
+  litIds.value = [...litIds.value, longMarchNodes[index].id]
+  const after = chainEnd.value
+  if (after <= before) return
+
+  // 段号：before 站亮着 → 已烧 0..before-2 段；现在烧 before-1 .. after-2
+  const from = Math.max(0, before - 1)
+  const to = after - 2
+  if (to < from) return
+
+  burning.value = { from, to }
+  globeRef.value?.ignite(from, to, {
+    onEvent(event) {
+      pausedEvent.value = event
+      showingEvent.value = event
+      activeIndex.value = -1
+    },
+    onSegment() {},
+    onDone() {
+      burning.value = null
+    },
+  })
 }
 
 function closePanel() {
   activeIndex.value = -1
 }
 
-/** 面板里的 ← → ：按时间顺序在路线上一站一站走。 */
 function navigate(step) {
   if (activeIndex.value < 0) return
   const next = (activeIndex.value + step + longMarchNodes.length) % longMarchNodes.length
   globeRef.value?.focusNode(longMarchNodes[next])
 }
 
-/* ------------------------------------------------------------------ *
- * 长征叙事：一次点击走一步
- *   idle → prompt（等点击）→ travel（镜头飞过去、火线接上）
- *        → event（事件卡，等点击）→ prompt → … → done
- * ------------------------------------------------------------------ */
-const story = ref({
-  active: false,
-  phase: 'idle', // idle | prompt | travel | event | done
-  index: 0, // 已经走到第几站
-  lastEventAt: -1, // 避免同一事件重复播
-  event: null,
-})
-
-const routeProgress = computed(() => (story.value.active ? story.value.index : -1))
-
-const storyLitIds = computed(() => {
-  if (!story.value.active) return litIds.value
-  return longMarchNodes.slice(0, story.value.index + 1).map((node) => node.id)
-})
-
-const backdropImage = computed(() => (story.value.event ? story.value.event.image : ''))
-const globeDimmed = computed(() => story.value.phase === 'event')
-
-const storyHint = computed(() => {
-  const s = story.value
-  if (!s.active) return ''
-  if (s.phase === 'done') return '长征走完了 · 双击复位'
-  if (s.phase === 'prompt') {
-    return s.index === 0
-      ? '点击出发 · 瑞金'
-      : `点击继续 · 下一站 ${longMarchNodes[s.index + 1]?.name ?? ''}`
-  }
-  if (s.phase === 'travel') return '火线正在往前烧…'
-  return ''
-})
-
-function startStory() {
-  if (story.value.active) return
-  closePanel()
-  story.value = { active: true, phase: 'prompt', index: 0, lastEventAt: -1, event: null }
-}
-
-function advance() {
-  const s = story.value
-  if (s.index >= longMarchNodes.length - 1) {
-    s.phase = 'done'
-    return
-  }
-
-  const from = s.index
-  const next = from + 1
-  s.phase = 'travel'
-  closePanel()
-  globeRef.value?.focusNode(longMarchNodes[next], { silent: true })
-
-  window.setTimeout(() => {
-    if (!story.value.active) return
-    s.index = next
-    const candidates = STORY_EVENTS.filter((e) => e.at > s.lastEventAt && e.at <= next)
-    if (candidates.length) {
-      const event = candidates[0]
-      s.event = event
-      s.lastEventAt = event.at
-      s.phase = 'event'
-    } else {
-      s.phase = next >= longMarchNodes.length - 1 ? 'done' : 'prompt'
-    }
-  }, 1700)
-}
-
-function closeEvent() {
-  story.value.event = null
-  if (story.value.active) {
-    story.value.phase = story.value.index >= longMarchNodes.length - 1 ? 'done' : 'prompt'
-  }
-}
-
+/** 事件暂停中：继续烧 */
 function skipEvent() {
-  const event = story.value.event
-  if (event) story.value.lastEventAt = event.at
-  closeEvent()
+  if (!pausedEvent.value) return
+  pausedEvent.value = null
+  showingEvent.value = null
+  globeRef.value?.resumeFire()
 }
 
-function quitStory() {
-  story.value.active = false
-  story.value.phase = 'idle'
-  story.value.event = null
-  story.value.index = longMarchNodes.length - 1
+/** 燃烧中：快进到本段终点（事件照常弹） */
+function skipBurn() {
+  globeRef.value?.skipFire()
 }
 
-/** 点画面 = 继续；正在飞的时候点了没用（等它落稳）。 */
+/** 点空白：只有两种含义 */
 function handleTap() {
-  const s = story.value
-  if (!s.active) return
-  if (s.phase === 'event') {
-    closeEvent()
-    return
-  }
-  if (s.phase === 'prompt') advance()
-}
-
-function handleKeydown(event) {
-  if (event.key !== 'Escape') return
-  if (story.value.event) {
+  if (pausedEvent.value) {
     skipEvent()
     return
   }
-  if (story.value.active) {
-    quitStory()
+  if (activeIndex.value >= 0) closePanel()
+}
+
+const hint = computed(() => {
+  if (pausedEvent.value) return '点击空白 · 继续'
+  if (activeIndex.value >= 0) return '点击空白 · 关闭'
+  if (chainEnd.value >= longMarchNodes.length) return '长征走完了 · 双击复位'
+  const next = longMarchNodes[chainEnd.value]
+  return next ? `点击光点 · ${next.name}` : ''
+})
+
+const backdropImage = computed(() => (showingEvent.value ? showingEvent.value.image : ''))
+const globeDimmed = computed(() => !!showingEvent.value)
+
+function handleKeydown(event) {
+  if (event.key !== 'Escape') return
+  if (pausedEvent.value) {
+    skipEvent()
     return
   }
   closePanel()
 }
 
-let storyTimer = 0
-
 onMounted(() => {
-  litIds.value = readLitIds()
+  const saved = readLitIds()
+  litIds.value = saved
   window.addEventListener('keydown', handleKeydown)
-  // 开场动画约 5.2s；等它落稳，再把第一站推到用户面前。
-  storyTimer = window.setTimeout(() => {
-    if (activeIndex.value < 0 && !story.value.active) startStory()
-  }, 7200)
 
   if (import.meta.env.DEV) {
-    window.__marchStory = story
-    window.__marchAdvance = advance
+    window.__march = {
+      lit: litIds,
+      chainEnd,
+      burning,
+      pausedEvent,
+      igniteIfChainGrew,
+    }
   }
 })
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  window.clearTimeout(storyTimer)
-})
+onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 </script>
 
 <template>
   <div class="main-container">
-    <!-- 这里就是把造好的地球仪放进网页 -->
     <EarthGlobe
       ref="globeRef"
-      :lit-ids="storyLitIds"
-      :route-progress="routeProgress"
+      :lit-ids="litIds"
       :backdrop="backdropImage"
       :dim="globeDimmed"
-      :story-active="story.active"
+      :story-active="!!activeNode || !!pausedEvent"
       @select="handleSelect"
       @tap="handleTap"
       @reset="closePanel"
@@ -216,26 +184,30 @@ onBeforeUnmount(() => {
       @light-up="handleLightUp"
     />
 
-    <EventScene
-      :event="story.event"
-      @skip="skipEvent"
-      @quit="quitStory"
-    />
+    <EventScene :event="showingEvent" />
 
-    <p v-if="storyHint" class="story-hint" aria-hidden="true">{{ storyHint }}</p>
+    <p v-if="hint" class="story-hint" aria-hidden="true">{{ hint }}</p>
+
+    <button
+      v-if="burning && !pausedEvent"
+      class="skip-burn"
+      type="button"
+      @click.stop="skipBurn"
+    >
+      跳过
+    </button>
 
     <AskPanel />
   </div>
 </template>
 
 <style>
-/* 这一步极其致命！必须强制网页占满全屏，否则地球高度是0，就会看不见 */
 html, body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  background-color: #0b0f19; /* 深空背景色 */
+  background-color: #0b0f19;
   overflow: hidden;
 }
 
@@ -268,5 +240,25 @@ html, body {
   50% {
     opacity: 1;
   }
+}
+
+.skip-burn {
+  position: fixed;
+  right: 8vw;
+  bottom: 4.5vh;
+  z-index: 8;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: rgba(243, 241, 230, 0.4);
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.skip-burn:hover {
+  color: #e9e2d4;
 }
 </style>

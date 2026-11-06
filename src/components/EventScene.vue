@@ -9,7 +9,6 @@ defineProps({
   event: { type: Object, default: null },
 })
 
-defineEmits(['skip', 'quit'])
 </script>
 
 <template>
@@ -45,12 +44,6 @@ defineEmits(['skip', 'quit'])
         <p class="event-credit">{{ event.credit }}</p>
       </div>
 
-      <div class="event-actions">
-        <button type="button" @click.stop="$emit('skip')">跳过本段</button>
-        <button type="button" @click.stop="$emit('quit')">结束播放</button>
-      </div>
-
-      <p class="event-continue" aria-hidden="true">点击继续</p>
     </div>
   </Transition>
 </template>

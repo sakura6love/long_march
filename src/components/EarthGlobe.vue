@@ -17,6 +17,7 @@ import { AmbientLight, DirectionalLight, HemisphereLight, LinearFilter, LinearMi
 import longMarchNodes from '../data.js'
 import { createCameraRig, FRAME } from '../lib/cameraRig.js'
 import { createRouteLine } from '../lib/routeLine.js'
+import { STORY_EVENTS } from '../lib/story.js'
 
 const props = defineProps({
   litIds: { type: Array, default: () => [] },
@@ -29,7 +30,7 @@ const props = defineProps({
   dim: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['select', 'tap'])
+const emit = defineEmits(['select', 'tap', 'reset'])
 
 // 只让 DOM 容器参与 Vue 响应式；WebGL 实例使用 shallowRef，避免深度代理。
 const globeContainer = ref(null)
@@ -97,11 +98,30 @@ let litIdSet = new Set()
 watch(
   () => props.litIds,
   (ids) => {
-    litIdSet = new Set(ids || [])
-    routeLine?.update(ids)
+    const next = new Set(ids || [])
+    // 新点亮的站：补一个 0.8s 的"点燃"动画（只跑一次，不常驻）
+    for (const id of next) {
+      if (!litIdSet.has(id)) igniteLabel(id)
+    }
+    litIdSet = next
+    const indices = (ids || [])
+      .map((id) => longMarchNodes.findIndex((n) => n.id === id))
+      .filter((i) => i >= 0)
+    routeLine?.setLit(indices)
   },
   { immediate: true, deep: true },
 )
+
+/** 一次性的点燃动画：光点弹一下 + 一圈金环扩散。 */
+function igniteLabel(id) {
+  const record = labelRecords.find((r) => r.id === id)
+  if (!record) return
+  const el = record.el
+  el.classList.remove('is-igniting')
+  void el.offsetWidth
+  el.classList.add('is-igniting')
+  window.setTimeout(() => el.classList.remove('is-igniting'), 900)
+}
 
 function updateLabelStates() {
   if (!globe.value || labelRecords.length === 0) return
@@ -245,7 +265,12 @@ function handleDoubleClick(event) {
 }
 
 // 面板上的"上一站 / 下一站"从外部调用它。
-defineExpose({ focusNode })
+defineExpose({
+  focusNode,
+  ignite: (from, to, handlers) => routeLine?.ignite(from, to, handlers),
+  skipFire: () => routeLine?.skip(),
+  resumeFire: () => routeLine?.resume(),
+})
 
 /* 拖动旋转：OrbitControls 已关闭输入，这里按屏幕位移直接改经纬度。
    灵敏度 0.22°/px，横向拖 → 地球跟着手指走。 */
@@ -475,8 +500,10 @@ onMounted(() => {
   scene.add(rimLight)
 
   // 路线火线：先铺一条余烬虚线，点亮的段由 watch(litIds) 重建。
-  routeLine = createRouteLine(globe.value, longMarchNodes)
-  routeLine.update(props.litIds, props.routeProgress)
+  routeLine = createRouteLine(globe.value, longMarchNodes, STORY_EVENTS)
+  routeLine.setLit(
+    props.litIds.map((id) => longMarchNodes.findIndex((n) => n.id === id)).filter((i) => i >= 0),
+  )
 
   const globeMaterial = globe.value.globeMaterial()
 
@@ -993,6 +1020,32 @@ onBeforeUnmount(() => {
   box-shadow:
     0 0 0 1px rgba(246, 220, 156, 0.45),
     0 0 14px 3px rgba(224, 189, 114, 0.55);
+}
+
+/* 刚被点亮的瞬间：光点弹一下、金环炸开一次，然后回到常亮态。 */
+:deep(.march-label-anchor.is-igniting .march-label-node) {
+  animation: node-ignite 900ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes node-ignite {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      0 0 0 0 rgba(255, 226, 180, 0.85),
+      0 0 18px rgba(255, 150, 80, 0.5);
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(2.1);
+    box-shadow:
+      0 0 0 13px rgba(255, 226, 180, 0),
+      0 0 30px rgba(255, 150, 80, 0.95);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      0 0 0 0 rgba(255, 226, 180, 0),
+      0 0 14px 3px rgba(224, 189, 114, 0.55);
+  }
 }
 
 :deep(.march-label-anchor.is-active .march-label-node) {
