@@ -174,6 +174,13 @@ function skipBurn() {
 /* ---------------- 点击与键盘 ---------------- */
 
 function handleTap() {
+  // 章卡优先：点一下先收起章卡，不推进播放
+  if (activeChapter.value) {
+    window.clearTimeout(chapterTimer)
+    activeChapter.value = null
+    return
+  }
+
   if (pausedEvent.value) {
     closeEvent()
     return
