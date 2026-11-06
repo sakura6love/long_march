@@ -19,11 +19,17 @@ import { createCameraRig, FRAME } from '../lib/cameraRig.js'
 import { createRouteLine } from '../lib/routeLine.js'
 
 const props = defineProps({
-  // 已点亮的站点 id，用来给光点加一层更暖的光晕
   litIds: { type: Array, default: () => [] },
+  /** 播放进度：已点亮的段数（0~11）。播放时用它，自由浏览时用 litIds。 */
+  routeProgress: { type: Number, default: -1 },
+  /** 事件背景图（垫在画布下方、星空层之上） */
+  backdrop: { type: String, default: '' },
+  storyActive: { type: Boolean, default: false },
+  /** 播放事件时把星球压暗成剪影 */
+  dim: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['select'])
+const emit = defineEmits(['select', 'tap'])
 
 // 只让 DOM 容器参与 Vue 响应式；WebGL 实例使用 shallowRef，避免深度代理。
 const globeContainer = ref(null)
@@ -123,6 +129,17 @@ function tick() {
   // 位移被库内部清掉时立刻补回，保证"点恒在 30% 那条线上"。
   cameraRig?.ensureOffset()
   updateLabelStates()
+
+  // 事件场景：星球缓缓退到剪影，让背景影像浮出来。
+  const dimTarget = props.dim ? 1 : 0
+  if (Math.abs(dimLevel - dimTarget) > 0.001) {
+    dimLevel += (dimTarget - dimLevel) * 0.14
+    const k = 1 - 0.93 * dimLevel
+    if (hemiLight) hemiLight.intensity = 0.55 * k
+    if (ambientLight) ambientLight.intensity = 0.12 * k
+    if (terrainLight) terrainLight.intensity = 3.05 * k
+    if (rimLight) rimLight.intensity = 0.26 * k
+  }
 }
 
 /** 切换选中态：保证任何时刻最多只有一个 is-active。 */
@@ -139,14 +156,15 @@ function setActive(id) {
  * 让镜头飞向某个节点（点击、面板上的 ← → 都走这里）。
  * 只做一件事：把"选中"这件事在地球这一侧执行完，再把节点抛给 App。
  */
-function focusNode(pointData) {
+function focusNode(pointData, options = {}) {
   if (!globe.value) return
 
   // 用户在开场动画途中点了光点：立刻收掉剩余节奏，别让"点亮"追着镜头跑。
   clearIntro()
   revealAll()
 
-  setActive(pointData.id)
+  // 播放模式下不弹小卡片：此刻由事件卡承担叙事，卡片会挡住画面中心。
+  if (!options.silent) setActive(pointData.id)
 
   // 统一机位：飞行 1.6s，落点固定在屏高 30% 的"主角线"上。
   // 不再用 pointOfView —— 它只管中心，管不了"点落在哪条线上"。
@@ -157,7 +175,7 @@ function focusNode(pointData) {
     duration: FRAME.flightMs,
   })
 
-  emit('select', pointData)
+  if (!options.silent) emit('select', pointData)
 }
 
 function handleNodeSelect(pointData) {
@@ -168,6 +186,37 @@ function handleNodeSelect(pointData) {
 const DEFAULT_VIEW = { lat: 33, lng: 108 }
 
 const hintVisible = ref(false)
+
+// —— 事件背景层：两张图交替淡入，切换照片时不会黑一下 ——
+const backdropOn = ref(false)
+const bgA = ref('')
+const bgB = ref('')
+const activeLayer = ref(0)
+let backdropUrl = ''
+
+watch(
+  () => props.backdrop,
+  (url) => {
+    if (!url) {
+      backdropOn.value = false
+      return
+    }
+    if (url === backdropUrl) return
+    backdropUrl = url
+    const next = activeLayer.value === 0 ? 1 : 0
+    if (next === 0) bgA.value = url
+    else bgB.value = url
+    activeLayer.value = next
+    backdropOn.value = true
+  },
+)
+
+// —— 事件播放时把星球压暗成剪影 ——
+let hemiLight = null
+let ambientLight = null
+let terrainLight = null
+let rimLight = null
+let dimLevel = 0
 
 function resetView() {
   if (!globe.value) return
@@ -203,10 +252,13 @@ defineExpose({ focusNode })
 let dragging = false
 let lastPointer = { x: 0, y: 0 }
 
+let pointerTravel = 0
+
 function handlePointerDown(event) {
   if (event.target?.closest?.('.march-label-anchor')) return
   if (!cameraRig || event.button > 0) return
   dragging = true
+  pointerTravel = 0
   lastPointer = { x: event.clientX, y: event.clientY }
 }
 
@@ -214,11 +266,14 @@ function handlePointerMove(event) {
   if (!dragging || !cameraRig) return
   const dx = event.clientX - lastPointer.x
   const dy = event.clientY - lastPointer.y
+  pointerTravel += Math.abs(dx) + Math.abs(dy)
   lastPointer = { x: event.clientX, y: event.clientY }
   cameraRig.orbitBy(-dx * 0.22, dy * 0.22)
 }
 
 function handlePointerUp() {
+  // 拖拽不算点击：位移超过 6px 就当用户在转地球。
+  if (dragging && pointerTravel < 6) emit('tap')
   dragging = false
 }
 
@@ -403,23 +458,25 @@ onMounted(() => {
   // 光照只有一个目的：把山脊刻出来，而不是把地球照亮。
   // 环境光偏暖、压得很低，保证背光那一侧仍是深蓝而不是死黑。
   // 天空/地面双色环境光：天空偏冷、地面偏暖，比纯环境光更有"大气"。
-  scene.add(new HemisphereLight(0x9fc4e8, 0x2b2418, 0.55))
-  scene.add(new AmbientLight(0x3a3a32, 0.12))
+  hemiLight = new HemisphereLight(0x9fc4e8, 0x2b2418, 0.55)
+  ambientLight = new AmbientLight(0x3a3a32, 0.12)
+  scene.add(hemiLight)
+  scene.add(ambientLight)
 
   // 主光：仰角约 9°，从西南方斜切过来 —— 山体阴影被拉长，
   // 近景才有"摸得到"的起伏；再高就变成正午平光，地形立刻变平。
-  const terrainLight = new DirectionalLight(0xffe6c0, 3.05)
+  terrainLight = new DirectionalLight(0xffe6c0, 3.05)
   terrainLight.position.set(-180, 30, 125)
   scene.add(terrainLight)
 
   // 补光：极暗的冷色，只负责勾出右上方的球缘，避免边缘融进背景。
-  const rimLight = new DirectionalLight(0x5b7fa6, 0.26)
+  rimLight = new DirectionalLight(0x5b7fa6, 0.26)
   rimLight.position.set(120, 18, -160)
   scene.add(rimLight)
 
   // 路线火线：先铺一条余烬虚线，点亮的段由 watch(litIds) 重建。
   routeLine = createRouteLine(globe.value, longMarchNodes)
-  routeLine.update(props.litIds)
+  routeLine.update(props.litIds, props.routeProgress)
 
   const globeMaterial = globe.value.globeMaterial()
 
@@ -531,6 +588,10 @@ onBeforeUnmount(() => {
     @pointerleave="handlePointerUp"
     @wheel.prevent="handleWheel"
   >
+    <div class="event-backdrop" :class="{ 'is-on': backdropOn }" aria-hidden="true">
+      <img class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 0 }" :src="bgA" alt="" />
+      <img class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 1 }" :src="bgB" alt="" />
+    </div>
     <div
       ref="globeContainer"
       class="earth-globe"
@@ -546,7 +607,7 @@ onBeforeUnmount(() => {
     </header>
 
     <Transition name="hint">
-      <p v-if="hintVisible" class="overlook-hint" aria-hidden="true">双击复位</p>
+      <p v-if="hintVisible && !storyActive" class="overlook-hint" aria-hidden="true">双击复位</p>
     </Transition>
   </div>
 </template>
@@ -591,6 +652,44 @@ onBeforeUnmount(() => {
    那是库的预制 UI，和整体设计不搭，直接藏掉。 */
 :deep(.scene-nav-info) {
   display: none !important;
+}
+
+/* 事件背景：垫在画布下方、星空上方；只在事件播放时显形。 */
+.event-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s ease;
+}
+
+.event-backdrop.is-on {
+  opacity: 1;
+}
+
+.event-backdrop::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(3, 6, 11, 0.2) 0%, rgba(3, 6, 11, 0) 38%, rgba(3, 6, 11, 0.72) 100%);
+  content: '';
+}
+
+.event-backdrop-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.06);
+  filter: blur(11px) saturate(0.78) brightness(0.62);
+  transition: opacity 1.1s ease;
+}
+
+.event-backdrop-img.is-shown {
+  opacity: 0.95;
 }
 
 /* 画布本身严格覆盖全屏。 */

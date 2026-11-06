@@ -22,11 +22,12 @@ import {
   Vector3,
 } from 'three'
 import { Line2 } from 'three/addons/lines/Line2.js'
+import { ROUTE_SEGMENTS } from './routePath.js'
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 
-// 每一段大圆弧采样多少个点：24 个足够贴合球面，肉眼看不出折线。
-const SAMPLES_PER_SEGMENT = 24
+// 每两个途经点之间采样多少个点：8 个足够贴合球面，肉眼看不出折线。
+const SAMPLES_PER_WAYPOINT = 8
 // 抬离地表的比例（以球半径为单位）。
 const ALTITUDE_LIFT = 0.004
 
@@ -61,23 +62,28 @@ function slerp(a, b, t) {
 export function createRouteLine(globe, nodes) {
   const radius = globe.getGlobeRadius() * (1 + ALTITUDE_LIFT)
 
-  // 每个节点的三维坐标（单位向量），用来做球面插值。
-  const anchors = nodes.map((node) => {
-    const c = globe.getCoords(node.lat, node.lng, 0)
+  // 经纬度 → 单位向量，用来做球面插值。
+  const toVec = (lat, lng) => {
+    const c = globe.getCoords(lat, lng, 0)
     return new Vector3(c.x, c.y, c.z).normalize()
-  })
-
-  // 预先把 11 段曲线的采样点算好，之后每次点亮只需要重组几何。
-  const segments = []
-  for (let i = 0; i < anchors.length - 1; i += 1) {
-    const points = []
-    for (let s = 0; s <= SAMPLES_PER_SEGMENT; s += 1) {
-      const t = s / SAMPLES_PER_SEGMENT
-      const p = slerp(anchors[i], anchors[i + 1], t).multiplyScalar(radius)
-      points.push(p.x, p.y, p.z)
-    }
-    segments.push(points)
   }
+
+  // 按真实途经点铺线：每两个途经点之间仍走大圆弧，但拐点处会跟着史料转弯。
+  const segments = ROUTE_SEGMENTS.map((waypoints) => {
+    const points = []
+    for (let w = 0; w < waypoints.length - 1; w += 1) {
+      const a = toVec(waypoints[w].lat, waypoints[w].lng)
+      const b = toVec(waypoints[w + 1].lat, waypoints[w + 1].lng)
+      const isLast = w === waypoints.length - 2
+      const count = SAMPLES_PER_WAYPOINT + (isLast ? 1 : 0)
+      for (let s = 0; s < count; s += 1) {
+        const t = s / SAMPLES_PER_WAYPOINT
+        const p = slerp(a, b, t).multiplyScalar(radius)
+        points.push(p.x, p.y, p.z)
+      }
+    }
+    return points
+  })
 
   // 火头：用 canvas 现画一张径向渐变，避免再多一个图片资源。
   function makeHeadTexture() {
@@ -151,13 +157,17 @@ export function createRouteLine(globe, nodes) {
    * 把连续点亮的段合并成一条折线，这样颜色可以沿整条火线
    * 从橙红烧到浅金，而不是每段各烧一遍（否则接缝处会反复回色）。
    */
-  function rebuildFire() {
+  function rebuildFire(progress = -1) {
     clearFire()
 
     // 找出所有连续点亮的区间 [start, end]
     const runs = []
-    let start = -1
-    for (let i = 0; i <= segments.length; i += 1) {
+    if (progress >= 0) {
+      // 播放模式：从瑞金开始一段一段烧过来，颜色自然是一头橙一头金。
+      if (progress > 0) runs.push([0, Math.min(progress, segments.length) - 1])
+    }
+    let start = progress >= 0 ? -2 : -1
+    for (let i = 0; progress < 0 && i <= segments.length; i += 1) {
       const lit = i < segments.length && currentLit.has(nodes[i].id)
       if (lit && start === -1) start = i
       if (!lit && start !== -1) {
@@ -222,17 +232,21 @@ export function createRouteLine(globe, nodes) {
     }
   }
 
-  function update(litIds) {
+  function update(litIds, progress = -1) {
     currentLit = new Set(litIds || [])
-    rebuildFire()
+    rebuildFire(progress)
 
-    // 火头停在全路线里"最后一个被点亮"的站点上。
+    // 火头停在"走到的最远一站"上。
     let lastIndex = -1
-    for (let i = 0; i < nodes.length; i += 1) {
-      if (currentLit.has(nodes[i].id)) lastIndex = i
+    if (progress >= 0) {
+      lastIndex = Math.min(progress, nodes.length - 1)
+    } else {
+      for (let i = 0; i < nodes.length; i += 1) {
+        if (currentLit.has(nodes[i].id)) lastIndex = i
+      }
     }
     if (lastIndex >= 0) {
-      const p = anchors[lastIndex].clone().multiplyScalar(radius)
+      const p = toVec(nodes[lastIndex].lat, nodes[lastIndex].lng).multiplyScalar(radius)
       head.position.copy(p)
       head.visible = true
     } else {
