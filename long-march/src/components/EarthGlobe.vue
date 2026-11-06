@@ -140,10 +140,6 @@ function focusNode(pointData) {
   clearIntro()
   revealAll()
 
-  const controls = globe.value.controls()
-  controls.autoRotate = false
-  window.clearTimeout(rotationTimer)
-
   setActive(pointData.id)
 
   // 统一机位：飞行 1.6s，落点固定在屏高 30% 的"主角线"上。
@@ -174,7 +170,6 @@ function resetView() {
   revealAll()
   setActive(null)
 
-  globe.value.controls().autoRotate = false
   cameraRig?.flyTo({
     lat: DEFAULT_VIEW.lat,
     lng: DEFAULT_VIEW.lng,
@@ -196,6 +191,36 @@ function handleDoubleClick(event) {
 
 // 面板上的"上一站 / 下一站"从外部调用它。
 defineExpose({ focusNode })
+
+/* 拖动旋转：OrbitControls 已关闭输入，这里按屏幕位移直接改经纬度。
+   灵敏度 0.22°/px，横向拖 → 地球跟着手指走。 */
+let dragging = false
+let lastPointer = { x: 0, y: 0 }
+
+function handlePointerDown(event) {
+  if (event.target?.closest?.('.march-label-anchor')) return
+  if (!cameraRig || event.button > 0) return
+  dragging = true
+  lastPointer = { x: event.clientX, y: event.clientY }
+}
+
+function handlePointerMove(event) {
+  if (!dragging || !cameraRig) return
+  const dx = event.clientX - lastPointer.x
+  const dy = event.clientY - lastPointer.y
+  lastPointer = { x: event.clientX, y: event.clientY }
+  cameraRig.orbitBy(-dx * 0.22, dy * 0.22)
+}
+
+function handlePointerUp() {
+  dragging = false
+}
+
+/** 滚轮变焦：只改视高，不改构图。 */
+function handleWheel(event) {
+  if (!cameraRig) return
+  cameraRig.zoomBy(event.deltaY * 0.0009)
+}
 
 /**
  * 外层元素严格保持 0x0。
@@ -282,24 +307,19 @@ function startIntro() {
     return
   }
 
-  const controls = globe.value.controls()
-  controls.autoRotate = true
   // 相机在 mount 时已经退到整球（见 onMounted），这里只等一拍再俯冲。
-  controls.maxDistance = INTRO_MAX_DISTANCE
-
   introTimers.push(
     window.setTimeout(() => {
       cameraRig.flyTo({
         lat: DEFAULT_VIEW.lat,
         lng: DEFAULT_VIEW.lng,
         altitude: FRAME.altitude,
+        aim: FRAME.aim,
         duration: 2000,
       })
 
       introTimers.push(
         window.setTimeout(() => {
-          controls.autoRotate = false
-          controls.maxDistance = 172
           labelRecords.forEach((record, index) => {
             introTimers.push(
               window.setTimeout(() => {
@@ -362,8 +382,8 @@ onMounted(() => {
     .backgroundColor('rgba(0, 0, 0, 0)')
     .globeImageUrl(`${assetBase}earth-8k.jpg`)
     .showAtmosphere(true)
-    .atmosphereColor('#4b7eb3')
-    .atmosphereAltitude(0.13)
+    .atmosphereColor('#a8d4ff')
+    .atmosphereAltitude(0.22)
     // 保持原有所有节点的经纬度与标签高度不变。
     .htmlElementsData(longMarchNodes)
     .htmlLat((point) => point.lat)
@@ -419,25 +439,21 @@ onMounted(() => {
   // 机位统一交给 cameraRig。
   cameraRig = createCameraRig(globe.value)
 
+  // 新机位模型自己管相机：OrbitControls 只保留 target 同步，输入全部关闭，
+  // 免得它和 placeCamera 抢相机的朝向。
   const controls = globe.value.controls()
-  controls.autoRotate = true
-  controls.autoRotateSpeed = 0.08
-  controls.enableZoom = true
-  // 俯瞰位视高锁在 altitude 0.25 ~ 0.72（distance 125 ~ 172）：
-  // 最近处仍要保证整屏落在地球盘面内，看不到球缘。
-  controls.minDistance = 125
-  controls.maxDistance = 172
+  controls.enabled = false
+  controls.enableZoom = false
   controls.enablePan = false
-  controls.enableDamping = true
-  controls.dampingFactor = 0.07
+  controls.enableRotate = false
+  controls.enableDamping = false
 
   resizeGlobe()
 
   // 首帧就站在"整球"的位置：球缘弧线正好压在画面上沿 12% 处。
   // 先给 OrbitControls 放宽距离上限，否则它会把 3 个半径夹回近景。
   if (!prefersReducedMotion()) {
-    controls.maxDistance = INTRO_MAX_DISTANCE
-    cameraRig.apply({ lat: 16, lng: 96, altitude: 2.0, pin: false })
+    cameraRig.apply({ lat: 16, lng: 96, altitude: 2.0, aim: 0 })
   }
 
   resizeObserver = new ResizeObserver(resizeGlobe)
@@ -495,6 +511,12 @@ onBeforeUnmount(() => {
     class="horizon-frame"
     aria-label="长征路线俯瞰地球，显示中国境内的十二个历史节点"
     @dblclick="handleDoubleClick"
+    @pointerdown="handlePointerDown"
+    @pointermove="handlePointerMove"
+    @pointerup="handlePointerUp"
+    @pointercancel="handlePointerUp"
+    @pointerleave="handlePointerUp"
+    @wheel.prevent="handleWheel"
   >
     <div
       ref="globeContainer"
@@ -524,9 +546,21 @@ onBeforeUnmount(() => {
   min-height: 360px;
   overflow: hidden;
   isolation: isolate;
+  touch-action: none;
   background:
-    radial-gradient(ellipse at 50% 30%, rgba(71, 102, 126, 0.26), transparent 52%),
-    linear-gradient(180deg, #070b13 0%, #0b1420 62%, #0d1722 100%);
+    radial-gradient(ellipse at 50% 46%, rgba(58, 96, 130, 0.22), transparent 58%),
+    linear-gradient(180deg, #03060b 0%, #050a12 48%, #0a1622 100%);
+}
+
+/* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
+.horizon-frame::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: url('/stars.png') center / cover no-repeat;
+  opacity: 0.85;
+  content: '';
+  pointer-events: none;
 }
 
 .horizon-frame::after {
@@ -860,7 +894,18 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   /* 手机屏窄，地球铺满整屏：顶部压暗一层，标题才压得住画面。 */
-  .horizon-frame::after {
+  /* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
+.horizon-frame::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: url('/stars.png') center / cover no-repeat;
+  opacity: 0.85;
+  content: '';
+  pointer-events: none;
+}
+
+.horizon-frame::after {
     background:
       linear-gradient(180deg, rgba(7, 11, 19, 0.78), transparent 26%, transparent 68%, rgba(7, 11, 19, 0.6)),
       radial-gradient(ellipse at 50% 74%, transparent 34%, rgba(3, 6, 11, 0.5) 100%);
