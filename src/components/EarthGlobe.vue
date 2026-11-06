@@ -469,6 +469,12 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
+/* globe.gl 会往容器里塞一个自带的操作提示条（.scene-nav-info），
+   那是库的预制 UI，和整体设计不搭，直接藏掉。 */
+:deep(.scene-nav-info) {
+  display: none !important;
+}
+
 /* 画布本身严格覆盖全屏。 */
 .earth-globe {
   position: absolute;

@@ -1,5 +1,97 @@
-# Vue 3 + Vite
+# 长征万里 · 薪火千秋
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+一个用 3D 地球讲述长征的交互作品：镜头从太空俯冲到中国西南，十二个历史节点按时间顺序亮起，点开任意一站，镜头飞过去，右侧浮出那一站的故事。
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+**单屏、无滚动、可离线运行**——所有贴图都在本地 `public/` 里，断网也能完整演示。
+
+---
+
+## 一、运行方式
+
+```bash
+cd long-march
+npm install
+npm run dev      # 开发：http://127.0.0.1:5173/
+npm run build    # 构建：产物在 dist/，可直接静态部署
+```
+
+建议用 Chrome / Edge 打开；需要支持 WebGL 2。
+
+---
+
+## 二、技术栈与第三方库说明
+
+> 按赛事规则要求，逐项说明所用库的**名称、用途、在本项目中的具体作用**。
+
+| 库 | 用途 | 在本项目中的具体作用 |
+|---|---|---|
+| **Vue 3** | 前端框架 | 组件化组织页面：地球视口、详情面板、问答面板各为一个组件，由 `App.vue` 串联状态（当前选中哪一站）。 |
+| **Vite** | 构建 / 开发服务器 | 开发时的热更新与生产打包；`npm run build` 输出静态文件。 |
+| **globe.gl** | 功能性 3D 库（地球渲染） | 把 12 个经纬度节点绘制成球面上的光点；提供「经纬度 → 三维坐标 / 屏幕坐标」的投影能力（`getCoords` / `getScreenCoords`），以及相机与轨道控制。没有它，就需要自己写球面投影与 WebGL 渲染。 |
+| **three.js** | 3D 引擎（globe.gl 的底层依赖） | 提供 WebGL 渲染器、球体几何、材质（Phong）、方向光/环境光；本项目的材质与光照参数直接作用在它上面。 |
+
+**未使用的部分（特此声明）**：本项目**没有**使用 Bootstrap、Element Plus、Ant Design、Tailwind CSS 或任何 UI 组件库、CSS 框架、现成页面模板。所有布局、面板、按钮、光点、动画均为**原生 HTML + CSS 手写**（样式全部写在各自的 `.vue` 文件里）。后端与内容管理系统：**未使用**（「点亮」记录存在浏览器 localStorage）。
+
+---
+
+## 三、目录结构
+
+```
+long-march/
+├── index.html                 入口
+├── public/                    贴图（全部本地，离线可用）
+│   ├── earth-blue-marble.jpg  地球颜色贴图 4096×2048
+│   ├── earth-topology.png     地形贴图 2048×1024
+│   ├── earth_color.jpg        备用颜色贴图 2048×1024
+│   ├── earth_normal.jpg       法线贴图 2048×1024
+│   └── earth_specular.jpg     海面高光遮罩 2048×1024
+└── src/
+    ├── App.vue                页面骨架：地球 + 详情面板 + 问答面板
+    ├── data.js                12 个历史节点（经纬度、日期、文案）
+    ├── style.css              全局基础样式
+    ├── lib/
+    │   ├── cameraRig.js       相机机位：俯冲、飞行、30% 主角线
+    │   └── api.js             数据层收口（点亮记录，未来可换后端）
+    └── components/
+        ├── EarthGlobe.vue     地球、光点、标签、开场动画
+        ├── DetailPanel.vue    右侧详情面板 / 手机底部抽屉
+        └── AskPanel.vue       预设问答（离线）
+```
+
+---
+
+## 四、交互说明
+
+| 操作 | 效果 |
+|---|---|
+| 打开页面 | 整球悬于深空 → 俯冲到中国 → 12 个光点依次亮起 |
+| 悬停光点 | 展开该站卡片（同屏只展开一张） |
+| 点击光点 | 镜头飞到该站，光点压在屏幕 30% 处，详情面板滑出 |
+| 面板 ← → | 按时间顺序上一站 / 下一站 |
+| 点亮此站 | 记录到本机，光点常亮一层金晕 |
+| 左下角「问」 | 5 组已核对史实的预设问答，离线可用 |
+| Esc | 关闭面板 |
+| 拖动 / 滚轮 | 自由旋转与缩放，不锁定流程 |
+
+---
+
+## 五、数据与素材
+
+- 历史节点的坐标、日期、文案见 `src/data.js`，共 12 站：瑞金、于都、湘江、遵义、赤水、泸定桥、夹金山、草地、腊子口、吴起镇、直罗镇、会宁。
+- 地球贴图来自 NASA Blue Marble 与 three-globe 示例资源（公有领域），已全部下载到 `public/`，运行时不请求任何外部地址。
+- 字体使用系统自带的宋体 / 等宽字体，不加载外部字体文件。
+
+---
+
+## 六、兼容与性能
+
+- 桌面端 1920×1080 为主要目标，1440×900 已验证落点误差 < 1px。
+- 宽高 ≤ 768px 时，详情面板自动改为底部抽屉（最高 50vh，内部滚动）。
+- 支持 `prefers-reduced-motion`：关闭开场动画，直接落在最终机位。
+- 全部资源本地化，首屏不依赖网络。
+
+---
+
+## 七、说明
+
+`tools/shot.mjs` 是开发期用于自动截图的辅助脚本（不在交付物内，也不参与构建）。
