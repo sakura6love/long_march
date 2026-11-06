@@ -49,14 +49,16 @@ function cn(n) {
 
 .chapter-card {
   position: absolute;
-  top: 50%;
-  left: 8vw;
-  max-width: 520px;
-  transform: translateY(-50%);
-  padding: 28px 32px 30px;
-  border-left: 1px solid rgba(196, 163, 90, 0.45);
-  background: linear-gradient(90deg, rgba(8, 11, 18, 0.82), rgba(8, 11, 18, 0.1));
-  backdrop-filter: blur(6px);
+  top: 13vh;
+  left: 50%;
+  width: min(560px, 78vw);
+  transform: translateX(-50%);
+  padding: 24px 28px 26px;
+  text-align: center;
+  border-top: 1px solid rgba(196, 163, 90, 0.45);
+  border-bottom: 1px solid rgba(196, 163, 90, 0.18);
+  background: linear-gradient(180deg, rgba(8, 11, 18, 0.86), rgba(8, 11, 18, 0.45));
+  backdrop-filter: blur(8px);
 }
 
 .chapter-no {
@@ -88,8 +90,9 @@ function cn(n) {
 
 .rail {
   position: absolute;
-  right: 40px;
-  bottom: 30px;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
   display: flex;
   gap: 10px;
 }
@@ -117,13 +120,14 @@ function cn(n) {
 .card-enter-from,
 .card-leave-to {
   opacity: 0;
-  transform: translateY(calc(-50% + 10px));
+  transform: translate(-50%, 8px);
 }
 
 @media (max-width: 768px) {
   .chapter-card {
-    left: 6vw;
-    right: 6vw;
+    left: 50%;
+    right: auto;
+    width: 86vw;
     max-width: none;
     padding: 22px 20px 24px;
   }
