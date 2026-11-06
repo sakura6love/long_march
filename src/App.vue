@@ -208,7 +208,7 @@ watch(chainEnd, (k) => {
   window.clearTimeout(chapterTimer)
   chapterTimer = window.setTimeout(() => {
     activeChapter.value = null
-  }, 2500)
+  }, 4500)
 })
 
 watch(chainEnd, (k) => {
@@ -381,4 +381,6 @@ body {
   color: #e9e2d4;
 }
 </style>
+
+
 
