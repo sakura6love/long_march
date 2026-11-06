@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 火焰头：贴图焰舌 + 一层暗底。
  * 暗底不是装饰：火焰压在明亮地表（黄土高原、雪线）时，没有暗底就读不出来。
  */
@@ -11,7 +11,7 @@ function backingTexture() {
   c.height = s
   const ctx = c.getContext('2d')
   const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2)
-  g.addColorStop(0, 'rgba(0, 0, 0, 0.55)')
+  g.addColorStop(0, 'rgba(0, 0, 0, 0.72)')
   g.addColorStop(0.55, 'rgba(0, 0, 0, 0.3)')
   g.addColorStop(1, 'rgba(0, 0, 0, 0)')
   ctx.fillStyle = g
@@ -33,7 +33,7 @@ export function createFlame() {
   )
   back.renderOrder = 8
 
-  const tex = new TextureLoader().load(`${import.meta.env.BASE_URL}flame.png?v=5`)
+  const tex = new TextureLoader().load(`${import.meta.env.BASE_URL}flame.png?v=6`)
   const material = new SpriteMaterial({
     map: tex,
     transparent: true,
@@ -61,3 +61,4 @@ export function createFlame() {
     },
   }
 }
+
