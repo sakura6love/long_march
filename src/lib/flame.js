@@ -37,9 +37,9 @@ function buildAtlas() {
     body.closePath()
 
     const g = ctx.createLinearGradient(0, 116, 0, tipY)
-    g.addColorStop(0, 'rgba(255, 246, 224, 0.95)')
-    g.addColorStop(0.28, 'rgba(255, 196, 104, 0.95)')
-    g.addColorStop(0.62, 'rgba(255, 120, 36, 0.8)')
+    g.addColorStop(0, 'rgba(255, 232, 186, 0.95)')
+    g.addColorStop(0.28, 'rgba(255, 164, 64, 0.96)')
+    g.addColorStop(0.62, 'rgba(248, 96, 24, 0.85)')
     g.addColorStop(1, 'rgba(196, 54, 20, 0)')
     ctx.fillStyle = g
     ctx.fill(body)
@@ -64,13 +64,13 @@ function buildAtlas() {
     }
 
     // 白心
-    const core = ctx.createRadialGradient(64 + sway * 0.4, 104, 1, 64 + sway * 0.4, 104, 7)
+    const core = ctx.createRadialGradient(64 + sway * 0.4, 104, 1, 64 + sway * 0.4, 104, 4)
     core.addColorStop(0, 'rgba(255, 255, 244, 0.95)')
     core.addColorStop(0.5, 'rgba(255, 232, 180, 0.5)')
     core.addColorStop(1, 'rgba(255, 180, 90, 0)')
     ctx.fillStyle = core
     ctx.beginPath()
-    ctx.arc(64 + sway * 0.4, 104, 7, 0, Math.PI * 2)
+    ctx.arc(64 + sway * 0.4, 104, 4, 0, Math.PI * 2)
     ctx.fill()
 
     ctx.restore()
@@ -110,7 +110,7 @@ export function createFlame() {
       }
       material.opacity = 0.9 * intensity
       // 高度 = size，宽度按焰舌比例略窄
-      sprite.scale.set(size * 1.15, size * 1.7, 1)
+      sprite.scale.set(size * 1.0, size * 1.1, 1)
     },
     dispose() {
       tex.dispose()
