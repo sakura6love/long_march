@@ -271,7 +271,7 @@ export function createRouteLine(globe, nodes) {
   group.add(sparkPool.mesh)
   headGroup.renderOrder = 7
   headGroup.visible = false
-  group.add(headGroup)
+  // 旧柔光 headGroup 不再入场，全部由 flame.mesh 承担
 
   // 姣忎釜閲囨牱鐐硅鐑у埌鐨勬椂鍒伙紙-1 = 杩樻病鐑у埌锛夆€斺€斿喎鍗存寜鐪熷疄鏃堕棿绠?
   const burnTime = new Float32Array(samples.length).fill(-1)
@@ -599,6 +599,7 @@ export function createRouteLine(globe, nodes) {
     },
   }
 }
+
 
 
 
