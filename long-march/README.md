@@ -40,11 +40,13 @@ npm run build    # 构建：产物在 dist/，可直接静态部署
 long-march/
 ├── index.html                 入口
 ├── public/                    贴图（全部本地，离线可用）
-│   ├── earth-blue-marble.jpg  地球颜色贴图 4096×2048
-│   ├── earth-topology.png     地形贴图 2048×1024
-│   ├── earth_color.jpg        备用颜色贴图 2048×1024
-│   ├── earth_normal.jpg       法线贴图 2048×1024
-│   └── earth_specular.jpg     海面高光遮罩 2048×1024
+│   ├── earth-8k.jpg           地球颜色贴图 8192×4096（实际使用）
+│   ├── earth-normal.png       法线贴图 2048×1024（实际使用）
+│   ├── earth-specular.png     海面高光遮罩 2048×1024（实际使用）
+│   ├── earth-blue-marble.jpg  备用颜色贴图 4096×2048（未引用）
+│   ├── earth_color.jpg        备用颜色贴图 2048×1024（未引用）
+│   ├── earth_normal.jpg       备用法线贴图（未引用）
+│   └── earth_specular.jpg     备用高光贴图（未引用）
 └── src/
     ├── App.vue                页面骨架：地球 + 详情面板 + 问答面板
     ├── data.js                12 个历史节点（经纬度、日期、文案）
@@ -78,8 +80,14 @@ long-march/
 ## 五、数据与素材
 
 - 历史节点的坐标、日期、文案见 `src/data.js`，共 12 站：瑞金、于都、湘江、遵义、赤水、泸定桥、夹金山、草地、腊子口、吴起镇、直罗镇、会宁。
-- 地球贴图来自 NASA Blue Marble 与 three-globe 示例资源（公有领域），已全部下载到 `public/`，运行时不请求任何外部地址。
+- 地球颜色贴图（`earth-8k.jpg`，8192×4096）与法线、高光贴图（`earth-normal.png`、`earth-specular.png`）来自
+  [Solar System Scope – Solar Textures](https://www.solarsystemscope.com/textures/)，
+  以 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 授权使用，已按项目色调做过轻度调色（降饱和、压暗、轻微暖调）与 PNG 转换。
+- 备用贴图（`earth-blue-marble.jpg` 等）来自 NASA Blue Marble 与 three-globe 示例资源（公有领域），当前未引用，仅作素材留存。
+- 所有贴图均已下载到 `public/`，运行时不请求任何外部地址。
 - 字体使用系统自带的宋体 / 等宽字体，不加载外部字体文件。
+
+**清晰度说明**：地球贴图按“屏幕中心 1:1”反推分辨率——1080p、视高 0.72 时屏幕中心约 19.9 px/°，对应贴图宽度约 7147 px，因此选 8192 宽而非 4096；同时对贴图开启各向异性过滤（`anisotropy = maxAnisotropy`），避免斜视区域被 mipmap 抹平。
 
 ---
 

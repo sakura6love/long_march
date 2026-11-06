@@ -13,7 +13,7 @@
  */
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import Globe from 'globe.gl'
-import { AmbientLight, DirectionalLight } from 'three'
+import { AmbientLight, DirectionalLight, LinearFilter, LinearMipmapLinearFilter, TextureLoader } from 'three'
 import longMarchNodes from '../data.js'
 import { createCameraRig, FRAME } from '../lib/cameraRig.js'
 
@@ -286,6 +286,36 @@ function startIntro() {
   )
 }
 
+/**
+ * 贴图放大倍数太大是"糊"的第一主因：4096 宽的图在 1080p 下已经被放大 1.74 倍。
+ * 各向异性过滤是第二主因 —— three-globe 从不设置它，默认值 1 会让斜视区域
+ * （尤其是球缘）强制降 mipmap。这里把两项都拉到硬件上限。
+ */
+function sharpenGlobeTexture() {
+  const g = globe.value
+  if (!g) return
+
+  const renderer = g.renderer?.()
+  const maxAniso = renderer?.capabilities?.getMaxAnisotropy?.() || 1
+  const material = g.globeMaterial()
+
+  if (material.map) {
+    material.map.anisotropy = maxAniso
+    material.map.minFilter = LinearMipmapLinearFilter
+    material.map.magFilter = LinearFilter
+    material.map.needsUpdate = true
+  }
+  if (material.normalMap) {
+    material.normalMap.anisotropy = maxAniso
+    material.normalMap.needsUpdate = true
+  }
+  if (material.specularMap) {
+    material.specularMap.anisotropy = maxAniso
+    material.specularMap.needsUpdate = true
+  }
+  material.needsUpdate = true
+}
+
 onMounted(() => {
   if (!globeContainer.value) return
 
@@ -295,8 +325,7 @@ onMounted(() => {
 
   globe.value = Globe()(globeContainer.value)
     .backgroundColor('rgba(0, 0, 0, 0)')
-    .globeImageUrl(`${assetBase}earth-blue-marble.jpg`)
-    .bumpImageUrl(`${assetBase}earth-topology.png`)
+    .globeImageUrl(`${assetBase}earth-8k.jpg`)
     .showAtmosphere(true)
     .atmosphereColor('#4b7eb3')
     .atmosphereAltitude(0.13)
@@ -326,10 +355,24 @@ onMounted(() => {
   scene.add(rimLight)
 
   const globeMaterial = globe.value.globeMaterial()
+
+  // 法线与高光贴图：让"山脊有起伏、海面有反光"。
+  // 两张都是数据图，必须保持线性色彩空间（不要设 SRGBColorSpace）。
+  const maxAniso = globe.value.renderer().capabilities.getMaxAnisotropy()
+  const textureLoader = new TextureLoader()
+  const normalTexture = textureLoader.load(`${assetBase}earth-normal.png`)
+  const specularTexture = textureLoader.load(`${assetBase}earth-specular.png`)
+  normalTexture.anisotropy = maxAniso
+  specularTexture.anisotropy = maxAniso
+
+  globeMaterial.normalMap = normalTexture
+  globeMaterial.normalScale.set(1.5, 1.5)
+  globeMaterial.specularMap = specularTexture
+  // 海面高光压成冷灰蓝：纯白会立刻变"湿塑料"。
+  globeMaterial.specular.set(0x3a4d60)
+  globeMaterial.shininess = 70
   // 微暖的基色乘上去，把贴图里过饱和的蓝绿压回 UI 的暖灰调子。
   globeMaterial.color.set('#efe4cd')
-  // 近景靠 bump 撑立体：稍加深，山脊在 30% 主角线附近才立得起来。
-  globeMaterial.bumpScale = 0.34
   globeMaterial.roughness = 0.9
   globeMaterial.metalness = 0.02
   globeMaterial.emissive.set('#121821')
@@ -374,7 +417,10 @@ onMounted(() => {
     introStarted = true
     startIntro()
   }
-  globe.value.onGlobeReady(beginIntroOnce)
+  globe.value.onGlobeReady(() => {
+    sharpenGlobeTexture()
+    beginIntroOnce()
+  })
   window.setTimeout(beginIntroOnce, 5000)
 
   // 仅供开发期截图/标定使用；生产构建会被 tree-shake 掉。
