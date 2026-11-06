@@ -103,6 +103,14 @@ function isFacingCamera(lat, lng) {
 // 用 Set 存一份，避免每帧对 12 个节点做 includes
 let litIdSet = new Set()
 watch(
+  () => props.burn,
+  (v) => {
+    if (window.__marchBurn) window.__marchBurn.uBurn.value = v
+  },
+  { immediate: true },
+)
+
+watch(
   () => props.litIds,
   (ids) => {
     const next = new Set(ids || [])
