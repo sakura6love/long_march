@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * 五幕：序章 → 俯瞰 → 展签 → 设置 → 终章。
  *
@@ -202,7 +202,7 @@ const activeChapter = ref(null)
 let chapterTimer = null
 
 watch(chainEnd, (k) => {
-  const hit = CHAPTERS.find((c) => c.range[1] === k && k < longMarchNodes.length)
+  const hit = CHAPTERS.find((c) => c.range[1] + 1 === k && k < longMarchNodes.length)
   if (!hit || screen.value !== 'overview') return
   activeChapter.value = hit
   window.clearTimeout(chapterTimer)
@@ -381,3 +381,4 @@ body {
   color: #e9e2d4;
 }
 </style>
+
