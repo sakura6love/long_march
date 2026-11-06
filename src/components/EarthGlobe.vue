@@ -22,10 +22,12 @@ import { STORY_EVENTS } from '../lib/story.js'
 const props = defineProps({
   litIds: { type: Array, default: () => [] },
   /** 播放进度：已点亮的段数（0~11）。播放时用它，自由浏览时用 litIds。 */
-  routeProgress: { type: Number, default: -1 },
   /** 事件背景图（垫在画布下方、星空层之上） */
   backdrop: { type: String, default: '' },
-  storyActive: { type: Boolean, default: false },
+  /** 只有落在俯瞰态时才显示「双击复位」 */
+  showHint: { type: Boolean, default: false },
+  /** 抬头（标题）只在俯瞰态显示，序章有自己的版式 */
+  chrome: { type: Boolean, default: true },
   /** 播放事件时把星球压暗成剪影 */
   dim: { type: Boolean, default: false },
 })
@@ -41,6 +43,9 @@ let cameraRig = null
 
 // 路线火线：余烬虚线 + 已点燃的亮橙光带，几何挂在 globe.scene() 下。
 let routeLine = null
+
+// 序章是否已经把镜头俯冲下来了
+let introStarted = false
 
 // —— 渲染循环共享的普通变量，绝不进入响应式系统 ——
 let resizeObserver = null
@@ -267,9 +272,34 @@ function handleDoubleClick(event) {
 // 面板上的"上一站 / 下一站"从外部调用它。
 defineExpose({
   focusNode,
+  /** 序章 → 俯瞰：镜头俯冲 + 光点依次点亮 */
+  enterOverview() {
+    if (introStarted) {
+      cameraRig?.flyTo({
+        lat: DEFAULT_VIEW.lat,
+        lng: DEFAULT_VIEW.lng,
+        altitude: FRAME.altitude,
+        aim: FRAME.aim,
+        duration: 1800,
+      })
+      return
+    }
+    introStarted = true
+    startIntro()
+  },
+  /** 回序章：镜头退回远景 */
+  leaveOverview() {
+    clearIntro()
+    hintVisible.value = false
+    cameraRig?.flyTo({ lat: 16, lng: 96, altitude: 2.0, aim: 0, duration: 1600 })
+  },
   ignite: (from, to, handlers) => routeLine?.ignite(from, to, handlers),
   skipFire: () => routeLine?.skip(),
   resumeFire: () => routeLine?.resume(),
+  clearFire: () => routeLine?.clear(),
+  get stationS() {
+    return routeLine?.stationS ?? []
+  },
 })
 
 /* 拖动旋转：OrbitControls 已关闭输入，这里按屏幕位移直接改经纬度。
@@ -474,7 +504,7 @@ onMounted(() => {
     .htmlElementsData(longMarchNodes)
     .htmlLat((point) => point.lat)
     .htmlLng((point) => point.lng)
-    .htmlAltitude(0.01)
+    .htmlAltitude(0.0015)
     .htmlTransitionDuration(0)
     .htmlElement(createChineseLabel)
 
@@ -558,17 +588,10 @@ onMounted(() => {
 
   // 开场要等贴图真的画出来再开始，否则"俯冲"发生在黑屏上。
   // 同时留一个兜底：贴图迟迟不来（或加载失败）也不能让光点永远不出现。
-  let introStarted = false
-  const beginIntroOnce = () => {
-    if (introStarted) return
-    introStarted = true
-    startIntro()
-  }
+  // 序章阶段先停在远景（整球缓转），由 App 调 enterOverview() 再俯冲。
   globe.value.onGlobeReady(() => {
     sharpenGlobeTexture()
-    beginIntroOnce()
   })
-  window.setTimeout(beginIntroOnce, 5000)
 
   // 仅供开发期截图/标定使用；生产构建会被 tree-shake 掉。
   if (import.meta.env.DEV) {
@@ -624,7 +647,7 @@ onBeforeUnmount(() => {
       class="earth-globe"
       aria-label="长征路线数字地球，显示瑞金、遵义等历史节点"
     ></div>
-    <header class="masthead">
+    <header v-if="chrome" class="masthead">
       <p class="masthead-kicker" aria-hidden="true">
         <span class="readout-dot"></span>
         LOW EARTH ORBIT / CN-ROUTE
@@ -634,7 +657,7 @@ onBeforeUnmount(() => {
     </header>
 
     <Transition name="hint">
-      <p v-if="hintVisible && !storyActive" class="overlook-hint" aria-hidden="true">双击复位</p>
+      <p v-if="hintVisible && showHint" class="overlook-hint" aria-hidden="true">双击复位</p>
     </Transition>
   </div>
 </template>

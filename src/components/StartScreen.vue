@@ -1,0 +1,249 @@
+<script setup>
+/**
+ * 序章：地球在右侧缓转，左侧是入口。
+ * 不做"点击任意处进入"——必须点主入口，才有仪式感。
+ */
+defineProps({
+  hasSave: { type: Boolean, default: false },
+  resumeLabel: { type: String, default: '' },
+})
+const emit = defineEmits(['start', 'resume', 'settings'])
+</script>
+
+<template>
+  <section class="prologue" aria-label="序章">
+    <div class="prologue-scrim" aria-hidden="true"></div>
+
+    <div class="prologue-body">
+      <p class="kicker">LOW EARTH ORBIT / CN-ROUTE</p>
+      <h1 class="title">长征万里 · 薪火千秋</h1>
+      <p class="subtitle">1934—1936 · 十二个坐标，一条改变中国的路</p>
+
+      <span class="rule" aria-hidden="true"></span>
+
+      <nav class="entries">
+        <button class="entry entry-main" type="button" @click="emit('start')">
+          <span class="entry-line" aria-hidden="true"></span>
+          重走长征路
+        </button>
+        <button
+          class="entry"
+          type="button"
+          :disabled="!hasSave"
+          @click="emit('resume')"
+        >
+          <span class="entry-line" aria-hidden="true"></span>
+          继续前行
+          <em v-if="hasSave && resumeLabel">{{ resumeLabel }}</em>
+        </button>
+        <button class="entry" type="button" @click="emit('settings')">
+          <span class="entry-line" aria-hidden="true"></span>
+          设置
+        </button>
+      </nav>
+
+      <p class="credit">据中共中央党史研究室《中国共产党历史》整理</p>
+    </div>
+
+    <div class="prologue-side" aria-hidden="true">
+      <p class="era">一九三四<span>·</span>一九三六</p>
+      <div class="seal">薪火</div>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.prologue {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.prologue-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(4, 7, 12, 0.94) 0%, rgba(4, 7, 12, 0.72) 34%, rgba(4, 7, 12, 0) 62%),
+    linear-gradient(180deg, rgba(4, 7, 12, 0.55), rgba(4, 7, 12, 0) 30%, rgba(4, 7, 12, 0.5));
+}
+
+.prologue-body {
+  position: absolute;
+  left: 8vw;
+  top: 50%;
+  width: min(620px, 46vw);
+  transform: translateY(-50%);
+  pointer-events: auto;
+}
+
+.kicker {
+  margin: 0 0 28px;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  color: rgba(196, 163, 90, 0.6);
+}
+
+.title {
+  margin: 0;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: clamp(38px, 3.6vw, 54px);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: #f3f1e6;
+}
+
+.subtitle {
+  margin: 22px 0 0;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  color: rgba(243, 241, 230, 0.5);
+}
+
+.rule {
+  display: block;
+  width: 56px;
+  height: 1px;
+  margin: 46px 0 40px;
+  background: rgba(196, 163, 90, 0.35);
+}
+
+.entries {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 22px;
+}
+
+.entry {
+  position: relative;
+  padding: 0 0 0 0;
+  border: 0;
+  background: none;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 16px;
+  letter-spacing: 0.18em;
+  color: rgba(243, 241, 230, 0.45);
+  cursor: pointer;
+  transition: color 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.entry-line {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0;
+  height: 1px;
+  background: rgba(196, 163, 90, 0.7);
+  transform: translateY(-50%);
+  transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.entry:hover:not(:disabled),
+.entry:focus-visible:not(:disabled) {
+  color: #f3f1e6;
+  outline: none;
+  padding-left: 34px;
+}
+
+.entry:hover:not(:disabled) .entry-line,
+.entry:focus-visible:not(:disabled) .entry-line {
+  width: 24px;
+}
+
+.entry-main {
+  font-size: 22px;
+  color: #f3f1e6;
+  letter-spacing: 0.22em;
+}
+
+.entry-main .entry-line {
+  width: 24px;
+}
+
+.entry-main:hover {
+  padding-left: 40px;
+}
+
+.entry:disabled {
+  color: rgba(243, 241, 230, 0.18);
+  cursor: default;
+}
+
+.entry em {
+  margin-left: 10px;
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: rgba(196, 163, 90, 0.55);
+}
+
+.credit {
+  margin: 64px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(243, 241, 230, 0.22);
+}
+
+.prologue-side {
+  position: absolute;
+  right: 6vw;
+  bottom: 8vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+
+.era {
+  margin: 0;
+  writing-mode: vertical-rl;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 12px;
+  letter-spacing: 0.42em;
+  color: rgba(243, 241, 230, 0.28);
+}
+
+.era span {
+  padding: 6px 0;
+  color: rgba(196, 163, 90, 0.5);
+}
+
+.seal {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(139, 28, 28, 0.9);
+  background: rgba(139, 28, 28, 0.88);
+  color: #f6e7d6;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 13px;
+  line-height: 1.05;
+  letter-spacing: 0.04em;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  box-shadow: 0 0 0 1px rgba(139, 28, 28, 0.2);
+}
+
+@media (max-width: 768px) {
+  .prologue-body {
+    left: 7vw;
+    width: 84vw;
+    top: 46%;
+  }
+  .title {
+    font-size: 30px;
+  }
+  .subtitle {
+    font-size: 11px;
+  }
+  .entry-main {
+    font-size: 19px;
+  }
+  .prologue-side {
+    right: 7vw;
+    bottom: 6vh;
+  }
+}
+</style>

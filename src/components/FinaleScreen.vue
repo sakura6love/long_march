@@ -1,0 +1,182 @@
+<script setup>
+/**
+ * 终章：走完十二站之后。
+ * 不弹窗、不庆祝，只是一段收束文字和一枚印章 —— 像展厅出口的那面墙。
+ */
+defineProps({
+  litCount: { type: Number, default: 12 },
+})
+const emit = defineEmits(['restart', 'browse'])
+</script>
+
+<template>
+  <section class="finale" aria-label="终章">
+    <div class="finale-veil" aria-hidden="true"></div>
+
+    <div class="finale-body">
+      <p class="era">一九三六 · 十月</p>
+      <span class="rule" aria-hidden="true"></span>
+
+      <p class="line l1">一九三四年十月，于都河畔出发。</p>
+      <p class="line l2">一九三六年十月，会宁城下会师。</p>
+      <p class="line l3">两年，两万五千里，十二个坐标。</p>
+
+      <div class="seal" aria-hidden="true">长征</div>
+
+      <div class="actions">
+        <button class="act act-main" type="button" @click="emit('restart')">
+          <span aria-hidden="true"></span>重走长征路
+        </button>
+        <button class="act" type="button" @click="emit('browse')">留在俯瞰</button>
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.finale {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+}
+
+.finale-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 46%, rgba(4, 7, 12, 0.72), rgba(4, 7, 12, 0.95) 70%);
+  animation: veil-in 1.4s ease both;
+}
+
+@keyframes veil-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.finale-body {
+  position: relative;
+  width: min(620px, 84vw);
+  text-align: center;
+}
+
+.era {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.34em;
+  color: rgba(196, 163, 90, 0.6);
+  animation: rise 1s cubic-bezier(0.25, 1, 0.5, 1) 0.3s both;
+}
+
+.rule {
+  display: block;
+  width: 40px;
+  height: 1px;
+  margin: 20px auto 44px;
+  background: rgba(196, 163, 90, 0.35);
+  animation: rise 1s cubic-bezier(0.25, 1, 0.5, 1) 0.45s both;
+}
+
+.line {
+  margin: 0 0 16px;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: clamp(17px, 1.5vw, 22px);
+  letter-spacing: 0.14em;
+  color: rgba(243, 241, 230, 0.9);
+}
+
+.l1 {
+  animation: rise 1.1s cubic-bezier(0.25, 1, 0.5, 1) 0.9s both;
+}
+.l2 {
+  animation: rise 1.1s cubic-bezier(0.25, 1, 0.5, 1) 1.5s both;
+}
+.l3 {
+  margin-top: 28px;
+  color: rgba(196, 163, 90, 0.85);
+  animation: rise 1.1s cubic-bezier(0.25, 1, 0.5, 1) 2.1s both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.seal {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 52px auto 0;
+  border: 1px solid rgba(139, 28, 28, 0.9);
+  background: rgba(139, 28, 28, 0.9);
+  color: #f6e7d6;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 15px;
+  line-height: 1.05;
+  letter-spacing: 0.04em;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  animation: stamp 0.7s cubic-bezier(0.25, 1, 0.5, 1) 3s both;
+}
+
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.35) rotate(-4deg);
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 44px;
+  margin-top: 64px;
+  animation: rise 1s cubic-bezier(0.25, 1, 0.5, 1) 3.4s both;
+}
+
+.act {
+  position: relative;
+  border: 0;
+  padding: 0;
+  background: none;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  color: rgba(243, 241, 230, 0.45);
+  cursor: pointer;
+  transition: color 0.4s ease;
+}
+
+.act:hover {
+  color: #f3f1e6;
+}
+
+.act-main {
+  padding-left: 20px;
+  color: #c4a35a;
+}
+
+.act-main span {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 16px;
+  background: #c4a35a;
+  transform: translateY(-50%);
+}
+
+@media (max-width: 768px) {
+  .actions {
+    gap: 30px;
+  }
+  .line {
+    font-size: 15px;
+    line-height: 1.9;
+  }
+}
+</style>

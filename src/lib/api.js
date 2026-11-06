@@ -30,3 +30,12 @@ export function lightUp(id) {
   }
   return ids
 }
+
+/** 重走长征路：清空已点亮的站点。 */
+export function clearProgress() {
+  try {
+    window.localStorage.removeItem(LIT_KEY)
+  } catch {
+    // 隐私模式下删不掉也无所谓
+  }
+}

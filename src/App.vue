@@ -1,131 +1,214 @@
 <script setup>
 /**
- * App —— 只做四件事：
- *   1. 装地球、装面板；
- *   2. 记"哪些站被点亮了"，并把"火线该不该烧"算出来；
- *   3. 事件暂停时把事件卡推上来；
- *   4. 把"点空白"的两种含义分清楚（继续烧 / 关面板）。
+ * 五幕：序章 → 俯瞰 → 展签 → 设置 → 终章。
  *
- * 火的规则（唯一一条）：
- *   以瑞金为起点，连续点亮的站才有火线；中间缺一个站，火就停在那儿。
+ * 火只有一条：从瑞金起算，连续点亮的站才连成线；
+ * 中间缺一站，火就停在那儿，补上缺口后一次烧过去。
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import EarthGlobe from './components/EarthGlobe.vue'
 import DetailPanel from './components/DetailPanel.vue'
 import AskPanel from './components/AskPanel.vue'
 import EventScene from './components/EventScene.vue'
+import StartScreen from './components/StartScreen.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
+import FinaleScreen from './components/FinaleScreen.vue'
 import longMarchNodes from './data.js'
-import { readLitIds, lightUp } from './lib/api.js'
+import { STORY_EVENTS } from './lib/story.js'
+import { readLitIds, lightUp, clearProgress } from './lib/api.js'
+import { isMuted, setMuted, startAudio, sfxIgnite, sfxPage, sfxTap } from './lib/audio.js'
 
 const globeRef = ref(null)
+const screen = ref('start') // start | overview | finale
+const settingsOpen = ref(false)
+const settingsFrom = ref('start')
+const reduced = ref(false)
+
 const activeIndex = ref(-1)
 const activeNode = computed(() =>
   activeIndex.value >= 0 ? longMarchNodes[activeIndex.value] : null,
 )
 
-// —— 已点亮的站（本机持久化那一份仍走 api.js） ——
 const litIds = ref([])
 const activeLit = computed(() => (activeNode.value ? litIds.value.includes(activeNode.value.id) : false))
 
-const litSet = computed(() => new Set(litIds.value.map((id) => indexOfId(id))))
-function indexOfId(id) {
-  return longMarchNodes.findIndex((n) => n.id === id)
-}
+const indexOfId = (id) => longMarchNodes.findIndex((n) => n.id === id)
+const litSet = computed(() => new Set(litIds.value.map(indexOfId)))
 
-/**
- * 火线走到第几段：从瑞金开始数，连续点亮的站的个数。
- * chainEnd = 3 表示 瑞金/于都/湘江 亮着，火线烧到第 2 段（于都→湘江）。
- */
+/** 连续前缀：从瑞金开始，连续点亮的站的个数。 */
 const chainEnd = computed(() => {
   let k = 0
   while (k < longMarchNodes.length && litSet.value.has(k)) k += 1
   return k
 })
 
-const burning = ref(null) // 正在燃烧的段号，null = 没在烧
-const pausedEvent = ref(null) // 停住的事件（null = 没停）
-const showingEvent = ref(null) // 事件卡正在展示哪一条
+const burning = ref(false)
+const pausedEvent = ref(null)
+const showingEvent = ref(null)
 
-function handleLightUp(id) {
-  litIds.value = lightUp(id)
+const NEXT_LABEL = computed(() => longMarchNodes[chainEnd.value]?.name ?? '')
+const canResume = computed(() => litIds.value.length > 0 && chainEnd.value > 0)
+
+/* ---------------- 幕间 ---------------- */
+
+function goOverview() {
+  screen.value = 'overview'
+  globeRef.value?.enterOverview()
+  sfxPage()
 }
 
-/** 地球把点中的节点抛上来：开面板 + 点亮 + 可能点火。 */
+function handleStart() {
+  litIds.value = []
+  clearProgress()
+  activeIndex.value = -1
+  showingEvent.value = null
+  pausedEvent.value = null
+  globeRef.value?.clearFire()
+  goOverview()
+}
+
+function handleResume() {
+  activeIndex.value = -1
+  goOverview()
+}
+
+function openSettings() {
+  settingsFrom.value = screen.value
+  settingsOpen.value = true
+  sfxTap()
+}
+
+function closeSettings() {
+  settingsOpen.value = false
+  sfxPage()
+  if (settingsFrom.value === 'start') screen.value = 'start'
+  else screen.value = 'overview'
+}
+
+function restart() {
+  clearProgress()
+  litIds.value = []
+  activeIndex.value = -1
+  showingEvent.value = null
+  pausedEvent.value = null
+  settingsOpen.value = false
+  screen.value = 'start'
+  globeRef.value?.clearFire()
+  globeRef.value?.leaveOverview()
+  sfxPage()
+}
+
+function toggleMute() {
+  setMuted(!isMuted())
+}
+
+function toggleMotion() {
+  reduced.value = !reduced.value
+  document.documentElement.classList.toggle('reduce-motion', reduced.value)
+}
+
+/* ---------------- 火 ---------------- */
+
+function stationTimeOfAt(at) {
+  const s = globeRef.value?.stationS || []
+  if (!s.length) return 0
+  const whole = Math.floor(at)
+  const frac = at - whole
+  const a = s[Math.min(s.length - 1, whole)]
+  const b = s[Math.min(s.length - 1, whole + 1)]
+  return a + (b - a) * frac
+}
+
 function handleSelect(node) {
-  // 事件暂停时点标签 = 跳过这个事件
-  if (pausedEvent.value) skipEvent()
+  if (pausedEvent.value) closeEvent()
 
-  const index = longMarchNodes.findIndex((item) => item.id === node.id)
-  if (index >= 0) {
-    activeIndex.value = index
-    igniteIfChainGrew(index)
-  }
-}
+  const index = indexOfId(node.id)
+  if (index < 0) return
+  activeIndex.value = index
 
-/** 点亮第 index 站；如果它让"连续前缀"变长，就把新增的段从头到尾烧过去。 */
-function igniteIfChainGrew(index) {
-  if (litIds.value.includes(longMarchNodes[index].id)) return
+  if (litIds.value.includes(node.id)) return
 
   const before = chainEnd.value
-  litIds.value = [...litIds.value, longMarchNodes[index].id]
+  litIds.value = lightUp(node.id)
   const after = chainEnd.value
-  if (after <= before) return
+  if (after > before) burnFrom(before, after)
+}
 
-  // 段号：before 站亮着 → 已烧 0..before-2 段；现在烧 before-1 .. after-2
-  const from = Math.max(0, before - 1)
-  const to = after - 2
-  if (to < from) return
+function burnFrom(before, after) {
+  const events = STORY_EVENTS.filter((e) => {
+    const s = stationTimeOfAt(e.at)
+    const s0 = stationTimeOfAt(before - 1)
+    const s1 = stationTimeOfAt(after - 1)
+    return s > s0 && s <= s1
+  }).map((e) => ({ event: e, s: stationTimeOfAt(e.at) }))
 
-  burning.value = { from, to }
-  globeRef.value?.ignite(from, to, {
+  burning.value = true
+  sfxIgnite()
+  globeRef.value?.ignite(Math.max(0, before - 1), after - 1, {
+    events,
     onEvent(event) {
       pausedEvent.value = event
       showingEvent.value = event
       activeIndex.value = -1
     },
-    onSegment() {},
     onDone() {
-      burning.value = null
+      burning.value = false
     },
   })
 }
 
-function closePanel() {
-  activeIndex.value = -1
-}
-
-function navigate(step) {
-  if (activeIndex.value < 0) return
-  const next = (activeIndex.value + step + longMarchNodes.length) % longMarchNodes.length
-  globeRef.value?.focusNode(longMarchNodes[next])
-}
-
-/** 事件暂停中：继续烧 */
-function skipEvent() {
+function closeEvent() {
   if (!pausedEvent.value) return
   pausedEvent.value = null
   showingEvent.value = null
   globeRef.value?.resumeFire()
 }
 
-/** 燃烧中：快进到本段终点（事件照常弹） */
 function skipBurn() {
   globeRef.value?.skipFire()
+  burning.value = false
 }
 
-/** 点空白：只有两种含义 */
+/* ---------------- 点击与键盘 ---------------- */
+
 function handleTap() {
   if (pausedEvent.value) {
-    skipEvent()
+    closeEvent()
     return
   }
-  if (activeIndex.value >= 0) closePanel()
+  if (activeIndex.value >= 0) activeIndex.value = -1
 }
 
+function handleKeydown(event) {
+  if (event.key !== 'Escape') return
+  if (settingsOpen.value) {
+    closeSettings()
+    return
+  }
+  if (pausedEvent.value) {
+    closeEvent()
+    return
+  }
+  if (activeIndex.value >= 0) {
+    activeIndex.value = -1
+    return
+  }
+  if (screen.value === 'overview') openSettings()
+}
+
+watch(chainEnd, (k) => {
+  if (k === longMarchNodes.length && !burning.value) {
+    window.setTimeout(() => {
+      if (chainEnd.value === longMarchNodes.length) screen.value = 'finale'
+    }, 1400)
+  }
+})
+
 const hint = computed(() => {
+  if (screen.value !== 'overview' || settingsOpen.value) return ''
   if (pausedEvent.value) return '点击空白 · 继续'
   if (activeIndex.value >= 0) return '点击空白 · 关闭'
-  if (chainEnd.value >= longMarchNodes.length) return '长征走完了 · 双击复位'
+  if (chainEnd.value >= longMarchNodes.length) return '长征走完了'
   const next = longMarchNodes[chainEnd.value]
   return next ? `点击光点 · ${next.name}` : ''
 })
@@ -133,30 +216,21 @@ const hint = computed(() => {
 const backdropImage = computed(() => (showingEvent.value ? showingEvent.value.image : ''))
 const globeDimmed = computed(() => !!showingEvent.value)
 
-function handleKeydown(event) {
-  if (event.key !== 'Escape') return
-  if (pausedEvent.value) {
-    skipEvent()
-    return
-  }
-  closePanel()
-}
-
 onMounted(() => {
-  const saved = readLitIds()
-  litIds.value = saved
+  litIds.value = readLitIds()
   window.addEventListener('keydown', handleKeydown)
+  try {
+    reduced.value = localStorage.getItem('march:reduced') === '1'
+  } catch {
+    reduced.value = false
+  }
+  if (reduced.value) document.documentElement.classList.add('reduce-motion')
 
   if (import.meta.env.DEV) {
-    window.__march = {
-      lit: litIds,
-      chainEnd,
-      burning,
-      pausedEvent,
-      igniteIfChainGrew,
-    }
+    window.__march = { screen, litIds, chainEnd, burning, pausedEvent }
   }
 })
+
 onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 </script>
 
@@ -167,29 +241,57 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :lit-ids="litIds"
       :backdrop="backdropImage"
       :dim="globeDimmed"
-      :story-active="!!activeNode || !!pausedEvent"
+      :show-hint="screen === 'overview' && !settingsOpen && activeIndex < 0"
+      :chrome="screen === 'overview'"
       @select="handleSelect"
       @tap="handleTap"
-      @reset="closePanel"
+      @reset="activeIndex = -1"
     />
 
     <DetailPanel
+      v-if="activeNode"
       :node="activeNode"
       :order="activeIndex + 1"
       :total="longMarchNodes.length"
       :lit="activeLit"
       :lit-count="litIds.length"
-      @close="closePanel"
-      @navigate="navigate"
-      @light-up="handleLightUp"
+      @close="activeIndex = -1"
+      @navigate="(step) => globeRef?.focusNode(longMarchNodes[(activeIndex + step + longMarchNodes.length) % longMarchNodes.length])"
+      @light-up="(id) => (litIds = lightUp(id))"
     />
 
     <EventScene :event="showingEvent" />
 
+    <StartScreen
+      v-if="screen === 'start'"
+      :has-save="canResume"
+      :resume-label="canResume ? `第 ${chainEnd} 站` : ''"
+      @start="handleStart"
+      @resume="handleResume"
+      @settings="openSettings"
+    />
+
+    <SettingsPanel
+      v-if="settingsOpen"
+      :muted="isMuted()"
+      :reduced="reduced"
+      :can-restart="true"
+      @close="closeSettings"
+      @restart="restart"
+      @toggle-mute="toggleMute"
+      @toggle-motion="toggleMotion"
+    />
+
+    <FinaleScreen
+      v-if="screen === 'finale'"
+      @restart="restart"
+      @browse="screen = 'overview'"
+    />
+
     <p v-if="hint" class="story-hint" aria-hidden="true">{{ hint }}</p>
 
     <button
-      v-if="burning && !pausedEvent"
+      v-if="burning && !pausedEvent && screen === 'overview'"
       class="skip-burn"
       type="button"
       @click.stop="skipBurn"
@@ -197,12 +299,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       跳过
     </button>
 
-    <AskPanel />
+    <AskPanel v-if="screen === 'overview' && !settingsOpen" />
   </div>
 </template>
 
 <style>
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   width: 100%;
