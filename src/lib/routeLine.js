@@ -259,7 +259,7 @@ export function createRouteLine(globe, nodes) {
   headCore.visible = true
   headFlame.visible = true
   headSmoke.visible = true
-  flame.mesh.visible = false // 形状未调好，先不启用
+  flame.mesh.visible = false
   flame.mesh.renderOrder = 9
   flame.mesh.scale.set(1, 1, 1)
   flame.mesh.position.set(0, 2.2, 0)

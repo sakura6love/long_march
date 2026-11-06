@@ -1,127 +1,120 @@
 /**
- * 火焰头：一个始终朝向相机的平面，片元里用 fbm 噪声卷出焰舌。
+ * 火焰头：32 帧程序化序列，一张 8×4 图集，运行时按 24fps 切帧。
  *
- * 为什么不用贴图序列：帧序列会露出"循环播放"的规律感；
- * 程序化火焰每帧都不一样，且可以沿前进方向拉长。
+ * 为什么不用着色器长：fbm 长不出"焰舌"，参数一大就成月牙。
+ * 这里是"画"出来的形状——底部宽、往上收、顶端分三缕，每帧相位不同。
  */
-import { AdditiveBlending, Mesh, PlaneGeometry, ShaderMaterial, Vector2 } from 'three'
+import { AdditiveBlending, CanvasTexture, Sprite, SpriteMaterial } from 'three'
 
-const VERT = /* glsl */ `
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`
+const FRAMES = 32
+const COLS = 8
+const ROWS = 4
+const CELL = 128
 
-const FRAG = /* glsl */ `
-  uniform float uTime;
-  uniform float uStretch;   // 沿前进方向拉长
-  uniform float uIntensity;
-  varying vec2 vUv;
+function buildAtlas() {
+  const canvas = document.createElement('canvas')
+  canvas.width = COLS * CELL
+  canvas.height = ROWS * CELL
+  const ctx = canvas.getContext('2d')
 
-  float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-  }
+  for (let f = 0; f < FRAMES; f += 1) {
+    const ox = (f % COLS) * CELL
+    const oy = Math.floor(f / COLS) * CELL
+    ctx.save()
+    ctx.translate(ox, oy)
+    ctx.clearRect(0, 0, CELL, CELL)
+    ctx.globalCompositeOperation = 'lighter'
 
-  float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(
-      mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
-      mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
-      u.y
-    );
-  }
+    const t = f / FRAMES
+    const sway = Math.sin(t * Math.PI * 2) * 6
 
-  float fbm(vec2 p) {
-    float v = 0.0;
-    float a = 0.5;
-    for (int i = 0; i < 4; i++) {
-      v += a * noise(p);
-      p *= 2.02;
-      a *= 0.5;
+    // 主焰舌：底部宽 44，顶端收到 6，左右各摆一次
+    const tipY = 14 + Math.sin(t * Math.PI * 2 + 1.2) * 6
+    const body = new Path2D()
+    body.moveTo(64 - 22, 112)
+    body.bezierCurveTo(64 - 26, 78 + sway, 64 - 10 + sway, 52, 64 + sway * 0.6, tipY)
+    body.bezierCurveTo(64 + 12 + sway, 54, 64 + 26, 80 - sway, 64 + 22, 112)
+    body.closePath()
+
+    const g = ctx.createLinearGradient(0, 116, 0, tipY)
+    g.addColorStop(0, 'rgba(255, 246, 224, 0.95)')
+    g.addColorStop(0.28, 'rgba(255, 214, 140, 0.9)')
+    g.addColorStop(0.62, 'rgba(255, 138, 52, 0.72)')
+    g.addColorStop(1, 'rgba(196, 54, 20, 0)')
+    ctx.fillStyle = g
+    ctx.fill(body)
+
+    // 两缕侧焰
+    for (const dir of [-1, 1]) {
+      const p = new Path2D()
+      const h = 60 + Math.random() * 18
+      p.moveTo(64 + dir * 12, 108)
+      p.bezierCurveTo(
+        64 + dir * 26,
+        108 - h * 0.45,
+        64 + dir * (16 + Math.random() * 8),
+        108 - h,
+        64 + dir * (8 + Math.random() * 6),
+        108 - h * 0.92,
+      )
+      p.bezierCurveTo(64 + dir * 18, 108 - h * 0.5, 64 + dir * 16, 100, 64 + dir * 12, 108)
+      p.closePath()
+      ctx.fillStyle = `rgba(255, 150, 60, ${0.28 + Math.random() * 0.18})`
+      ctx.fill(p)
     }
-    return v;
+
+    // 白心
+    const core = ctx.createRadialGradient(64 + sway * 0.4, 96, 1, 64 + sway * 0.4, 96, 20)
+    core.addColorStop(0, 'rgba(255, 255, 244, 0.95)')
+    core.addColorStop(0.5, 'rgba(255, 232, 180, 0.5)')
+    core.addColorStop(1, 'rgba(255, 180, 90, 0)')
+    ctx.fillStyle = core
+    ctx.beginPath()
+    ctx.arc(64 + sway * 0.4, 96, 20, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.restore()
   }
 
-  void main() {
-    // 把 uv 压成"焰舌"的坐标：底部宽、顶部收窄
-    vec2 uv = vUv;
-    uv.x = (uv.x - 0.5) / uStretch + 0.5;
-    float y = uv.y;
-
-    // 上卷：噪声随时间向上流动
-    float n = fbm(vec2(uv.x * 3.4, y * 4.0 - uTime * 2.2));
-    float n2 = fbm(vec2(uv.x * 7.0 + 3.1, y * 8.0 - uTime * 3.4));
-
-    // 焰舌形状：底部 0.06 处最宽，向上收
-    float width = 0.52 * (1.0 - y * 0.82);
-    float dx = abs(uv.x - 0.5);
-    float body = smoothstep(width, width * 0.55, dx);
-    body *= smoothstep(0.0, 0.12, y) * smoothstep(1.0, 0.55, y);
-
-    // 边缘被噪声侵蚀，撕出火舌
-    body *= smoothstep(0.18, 0.62, n + 0.35 * body);
-
-    // 颜色：白心 → 橙 → 暗红
-    vec3 core = vec3(1.0, 0.96, 0.86);
-    vec3 mid = vec3(1.0, 0.55, 0.16);
-    vec3 edge = vec3(0.72, 0.16, 0.06);
-    float t = smoothstep(0.0, 0.75, body);
-    vec3 col = mix(edge, mid, t);
-    col = mix(col, core, smoothstep(0.62, 0.98, body) * 0.5);
-
-    // 亮度抖动
-    float flicker = 0.86 + 0.14 * sin(uTime * 17.0 + n2 * 6.0);
-    float alpha = body * uIntensity * flicker;
-
-    gl_FragColor = vec4(col * (0.8 + 0.35 * body), alpha * 0.9);
-  }
-`
+  const tex = new CanvasTexture(canvas)
+  tex.repeat.set(1 / COLS, 1 / ROWS)
+  tex.offset.set(0, 1 - 1 / ROWS)
+  tex.needsUpdate = true
+  return tex
+}
 
 export function createFlame() {
-  const material = new ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uStretch: { value: 1.6 },
-      uIntensity: { value: 0.45 },
-    },
-    vertexShader: VERT,
-    fragmentShader: FRAG,
+  const tex = buildAtlas()
+  const material = new SpriteMaterial({
+    map: tex,
     transparent: true,
     depthWrite: false,
     depthTest: false,
     blending: AdditiveBlending,
   })
+  const sprite = new Sprite(material)
+  sprite.frustumCulled = false
+  sprite.visible = false
 
-  const mesh = new Mesh(new PlaneGeometry(1, 1), material)
-  mesh.frustumCulled = false
-  mesh.visible = false
+  let last = -1
 
   return {
-    mesh,
-    /** size: 世界单位下的高度；caller 负责按相机距离换算成屏幕 40~60px */
+    mesh: sprite,
+    /** time 秒；size 世界单位高度 */
     update(time, size, intensity = 1) {
-      material.uniforms.uTime.value = time
-      material.uniforms.uIntensity.value = intensity
-      mesh.scale.set(size * 1.6, size, 1)
-      if (_quat) mesh.quaternion.copy(_quat)
+      const frame = Math.floor((time * 24) % FRAMES)
+      if (frame !== last) {
+        last = frame
+        tex.offset.x = (frame % COLS) / COLS
+        tex.offset.y = 1 - (Math.floor(frame / COLS) + 1) / ROWS
+      }
+      material.opacity = 0.9 * intensity
+      // 高度 = size，宽度按焰舌比例略窄
+      sprite.scale.set(size * 0.78, size, 1)
     },
-    setDirection() {},
     dispose() {
-      mesh.geometry.dispose()
+      tex.dispose()
       material.dispose()
     },
   }
-}
-
-// 占位：调用方每帧把相机四元数写进来（保持 billboard）
-let _quat = null
-export function bindCameraQuaternion(q) {
-  _quat = q
-}
-function cameraQuat() {
-  return _quat
 }
