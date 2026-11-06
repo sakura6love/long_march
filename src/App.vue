@@ -274,6 +274,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :show-hint="screen === 'overview' && !settingsOpen && activeIndex < 0"
       :chrome="screen === 'overview'"
       :locked="mode === 'playing'"
+      :burn="chainEnd >= 12 ? 1 : Math.min(0.92, chainEnd / 11 * 0.92)"
       @select="handleSelect"
       @tap="handleTap"
       @reset="activeIndex = -1"
