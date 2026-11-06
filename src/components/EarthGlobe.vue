@@ -156,16 +156,42 @@ function focusNode(pointData) {
   })
 
   emit('select', pointData)
-
-  rotationTimer = window.setTimeout(() => {
-    if (globe.value) {
-      globe.value.controls().autoRotate = true
-    }
-  }, 4200)
 }
 
 function handleNodeSelect(pointData) {
   focusNode(pointData)
+}
+
+/** 默认俯瞰位：中国中部（33°N / 108°E）。开场落点与双击复位都用它。 */
+const DEFAULT_VIEW = { lat: 33, lng: 108 }
+
+const hintVisible = ref(false)
+
+function resetView() {
+  if (!globe.value) return
+
+  clearIntro()
+  revealAll()
+  setActive(null)
+
+  globe.value.controls().autoRotate = false
+  cameraRig?.flyTo({
+    lat: DEFAULT_VIEW.lat,
+    lng: DEFAULT_VIEW.lng,
+    altitude: FRAME.altitude,
+    duration: FRAME.flightMs,
+  })
+
+  emit('reset')
+}
+
+/**
+ * 双击复位。
+ * 双击落在光点标签上时不算 —— 那是"选中"而不是"回到俯瞰"。
+ */
+function handleDoubleClick(event) {
+  if (event.target?.closest?.('.march-label-anchor')) return
+  resetView()
 }
 
 // 面板上的"上一站 / 下一站"从外部调用它。
@@ -240,6 +266,8 @@ function revealAll() {
   for (const record of labelRecords) {
     record.el.classList.remove('is-pending')
   }
+  // 光点全部出现后，底部那行「双击复位」才淡入 —— 开场时先别干扰画面。
+  hintVisible.value = true
 }
 
 /**
@@ -249,7 +277,7 @@ function revealAll() {
  */
 function startIntro() {
   if (prefersReducedMotion()) {
-    cameraRig.apply({ lat: 35.6921, lng: 105.0533, altitude: FRAME.altitude })
+    cameraRig.apply({ lat: DEFAULT_VIEW.lat, lng: DEFAULT_VIEW.lng, altitude: FRAME.altitude })
     revealAll()
     return
   }
@@ -262,8 +290,8 @@ function startIntro() {
   introTimers.push(
     window.setTimeout(() => {
       cameraRig.flyTo({
-        lat: 35.6921,
-        lng: 105.0533,
+        lat: DEFAULT_VIEW.lat,
+        lng: DEFAULT_VIEW.lng,
         altitude: FRAME.altitude,
         duration: 2000,
       })
@@ -280,6 +308,13 @@ function startIntro() {
               }, index * 80),
             )
           })
+
+          // 最后一个光点亮完之后，再让「双击复位」淡入。
+          introTimers.push(
+            window.setTimeout(() => {
+              hintVisible.value = true
+            }, labelRecords.length * 80 + 400),
+          )
         }, 2100),
       )
     }, 600),
@@ -388,9 +423,9 @@ onMounted(() => {
   controls.autoRotate = true
   controls.autoRotateSpeed = 0.08
   controls.enableZoom = true
-  // 视高锁在 altitude 0.45 ~ 0.72（distance 145 ~ 172）：
-  // 再近就贴地糊成一片，再远就看不清路线。
-  controls.minDistance = 145
+  // 俯瞰位视高锁在 altitude 0.25 ~ 0.72（distance 125 ~ 172）：
+  // 最近处仍要保证整屏落在地球盘面内，看不到球缘。
+  controls.minDistance = 125
   controls.maxDistance = 172
   controls.enablePan = false
   controls.enableDamping = true
@@ -456,7 +491,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="horizon-frame" aria-label="长征路线低地轨道空间站视角">
+  <div
+    class="horizon-frame"
+    aria-label="长征路线俯瞰地球，显示中国境内的十二个历史节点"
+    @dblclick="handleDoubleClick"
+  >
     <div
       ref="globeContainer"
       class="earth-globe"
@@ -470,6 +509,10 @@ onBeforeUnmount(() => {
       <h1 class="masthead-title">长征万里 · 薪火千秋</h1>
       <p class="masthead-sub">1934—1936 · 十二个坐标，一条改变中国的路</p>
     </header>
+
+    <Transition name="hint">
+      <p v-if="hintVisible" class="overlook-hint" aria-hidden="true">双击复位</p>
+    </Transition>
   </div>
 </template>
 
@@ -482,28 +525,8 @@ onBeforeUnmount(() => {
   overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(ellipse at 50% 77%, rgba(71, 102, 126, 0.3), transparent 49%),
-    linear-gradient(180deg, #070b13 0%, #0c1520 58%, #16222c 100%);
-}
-
-.horizon-frame::before {
-  position: absolute;
-  z-index: 3;
-  right: 0;
-  bottom: 17%;
-  left: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(196, 163, 90, 0.18) 18%,
-    rgba(224, 189, 114, 0.78) 50%,
-    rgba(196, 163, 90, 0.18) 82%,
-    transparent 100%
-  );
-  box-shadow: 0 0 28px rgba(196, 163, 90, 0.42);
-  content: '';
-  pointer-events: none;
+    radial-gradient(ellipse at 50% 30%, rgba(71, 102, 126, 0.26), transparent 52%),
+    linear-gradient(180deg, #070b13 0%, #0b1420 62%, #0d1722 100%);
 }
 
 .horizon-frame::after {
@@ -511,8 +534,8 @@ onBeforeUnmount(() => {
   z-index: 4;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(7, 11, 19, 0.48), transparent 24%, transparent 70%, rgba(7, 11, 19, 0.5)),
-    radial-gradient(ellipse at 50% 74%, transparent 38%, rgba(3, 6, 11, 0.52) 100%);
+    linear-gradient(180deg, rgba(7, 11, 19, 0.52), transparent 22%, transparent 52%, rgba(7, 11, 19, 0.82) 100%),
+    radial-gradient(ellipse at 50% 30%, transparent 30%, rgba(3, 6, 11, 0.6) 100%);
   content: '';
   pointer-events: none;
 }
@@ -568,6 +591,29 @@ onBeforeUnmount(() => {
   letter-spacing: 0.3em;
   line-height: 1.4;
   text-shadow: 0 1px 18px rgba(4, 7, 12, 0.75);
+}
+
+.overlook-hint {
+  position: fixed;
+  z-index: 6;
+  bottom: 22px;
+  left: 50%;
+  margin: 0;
+  transform: translateX(-50%);
+  color: rgba(243, 241, 230, 0.26);
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.hint-enter-active {
+  transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.hint-enter-from {
+  opacity: 0;
 }
 
 .masthead-sub {
@@ -836,7 +882,30 @@ onBeforeUnmount(() => {
     letter-spacing: 0.24em;
   }
 
-  .masthead-sub {
+  .overlook-hint {
+  position: fixed;
+  z-index: 6;
+  bottom: 22px;
+  left: 50%;
+  margin: 0;
+  transform: translateX(-50%);
+  color: rgba(243, 241, 230, 0.26);
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.hint-enter-active {
+  transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.hint-enter-from {
+  opacity: 0;
+}
+
+.masthead-sub {
     margin-top: 6px;
     font-size: 9.5px;
   }

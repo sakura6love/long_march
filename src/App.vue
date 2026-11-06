@@ -57,7 +57,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 <template>
   <div class="main-container">
     <!-- 这里就是把造好的地球仪放进网页 -->
-    <EarthGlobe ref="globeRef" :lit-ids="litIds" @select="handleSelect" />
+    <EarthGlobe
+      ref="globeRef"
+      :lit-ids="litIds"
+      @select="handleSelect"
+      @reset="closePanel"
+    />
 
     <DetailPanel
       :node="activeNode"
