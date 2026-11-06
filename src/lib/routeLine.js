@@ -27,6 +27,8 @@ import { Line2 } from 'three/addons/lines/Line2.js'
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import { ROUTE_SEGMENTS } from './routePath.js'
+import { createFlame } from './flame.js'
+import { createSparks } from './sparks.js'
 
 /** 涓?EarthGlobe 鐨?htmlAltitude 淇濇寔涓€鑷?鈥斺€?绾胯创鍦帮紝鍏夌偣涔熻创鍦般€?*/
 export const ROUTE_LIFT = 0.0015
@@ -252,6 +254,18 @@ export function createRouteLine(globe, nodes) {
   headSmoke.scale.setScalar(1.8)
   headSmoke.position.y = 0.012
   headGroup.add(headSmoke, headFlame, headCore)
+  // 着色器火焰：屏幕空间定尺寸，任何视高都是 40~60px
+  const flame = createFlame()
+  headCore.visible = false
+  headFlame.visible = false
+  headSmoke.visible = false
+  flame.mesh.visible = true
+  headGroup.add(flame.mesh)
+
+  // 火星粒子池（InstancedMesh，一次 draw call）
+  const sparkPool = createSparks(160)
+  sparkPool.mesh.renderOrder = 6
+  group.add(sparkPool.mesh)
   headGroup.renderOrder = 7
   headGroup.visible = false
   group.add(headGroup)
@@ -385,7 +399,28 @@ export function createRouteLine(globe, nodes) {
     sparkGeo.attributes.color.needsUpdate = true
   }
 
+  const _v = new Vector3()
+  const _c = new Vector3()
+  /** 把"屏幕 48px"换算成世界尺寸：size = dist * 2*tan(fov/2) * (48 / 高度) */
+  function headWorldSize() {
+    const cam = globe.camera()
+    if (!cam || !globe.height) return 1.2
+    _v.copy(headGroup.position)
+    const dist = cam.position.distanceTo(_v)
+    const fov = (cam.fov * Math.PI) / 180
+    const h = globe.height() || 1080
+    return dist * 2 * Math.tan(fov / 2) * (48 / h)
+  }
+
   function animateHead(now, speed) {
+    const cam = globe.camera()
+    if (cam) {
+      _c.copy(cam.position).sub(headGroup.position).normalize()
+      // 让火焰平面朝向相机
+      headGroup.quaternion.copy(cam.quaternion)
+      // 稍微朝燃烧方向倾斜
+      if (speed) headGroup.rotateZ(-0.12)
+    }
     const f1 = Math.sin(now * 23.0) * 0.5 + Math.sin(now * 37.7 + 1.3) * 0.5
     const f2 = Math.sin(now * 17.3 + 2.1)
     headCore.scale.setScalar(0.6 * (1 + f1 * 0.09))
@@ -395,6 +430,7 @@ export function createRouteLine(globe, nodes) {
     headSmoke.material.opacity = 0.4 * (1 - ((now * 0.6) % 1))
     headSmoke.position.y = 0.04 + 0.09 * ((now * 0.6) % 1)
     headGroup.rotation.z = f2 * 0.06
+    flame.update(now, headWorldSize(), 1)
   }
 
   function tick(ts) {
@@ -425,9 +461,12 @@ export function createRouteLine(globe, nodes) {
       }
       applyProgress(burn.s)
       spawnSparks(headGroup.position, dt)
+      _v.copy(headGroup.position).normalize()
+      sparkPool.spawn(headGroup.position, _v, 3, globe.camera().quaternion)
       animateHead(clock, burn.speed)
     }
     stepSparks(dt)
+    sparkPool.update(dt, globe.camera() ? globe.camera().quaternion : null)
 
     raf = requestAnimationFrame(tick)
   }
@@ -490,7 +529,8 @@ export function createRouteLine(globe, nodes) {
       const speed = span / Math.min(3.6, Math.max(1.8, 1.6 + span * 26))
 
       burn = { s: s0, s0, s1, speed, events, handlers, paused: false }
-      sparkCloud.visible = true
+      sparkCloud.visible = false
+      sparkPool.setVisible(true)
       headGroup.visible = true
       headGroup.position.copy(pointAt(s0))
       applyProgress(s0)
