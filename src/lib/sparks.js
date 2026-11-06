@@ -79,7 +79,7 @@ export function createSparks(count = 160) {
         cursor = (cursor + 1) % count
         p.life = 0.7 + Math.random() * 0.7
         p.max = p.life
-        p.size = 0.5 + Math.random() * 0.9
+        p.size = 1.6 + Math.random() * 1.8
         p.pos.copy(pos).addScaledVector(dir, 0.05 * Math.random())
         p.vel.set(
           (Math.random() - 0.5) * 0.5,

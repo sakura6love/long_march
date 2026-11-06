@@ -71,13 +71,13 @@ const FRAG = /* glsl */ `
     vec3 edge = vec3(0.72, 0.16, 0.06);
     float t = smoothstep(0.0, 0.75, body);
     vec3 col = mix(edge, mid, t);
-    col = mix(col, core, smoothstep(0.55, 0.95, body) * 0.85);
+    col = mix(col, core, smoothstep(0.62, 0.98, body) * 0.5);
 
     // 亮度抖动
     float flicker = 0.86 + 0.14 * sin(uTime * 17.0 + n2 * 6.0);
     float alpha = body * uIntensity * flicker;
 
-    gl_FragColor = vec4(col * (0.9 + 0.5 * body), alpha);
+    gl_FragColor = vec4(col * (0.8 + 0.35 * body), alpha * 0.9);
   }
 `
 
@@ -86,12 +86,13 @@ export function createFlame() {
     uniforms: {
       uTime: { value: 0 },
       uStretch: { value: 1.6 },
-      uIntensity: { value: 1.0 },
+      uIntensity: { value: 0.45 },
     },
     vertexShader: VERT,
     fragmentShader: FRAG,
     transparent: true,
     depthWrite: false,
+    depthTest: false,
     blending: AdditiveBlending,
   })
 

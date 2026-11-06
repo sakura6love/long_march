@@ -256,10 +256,13 @@ export function createRouteLine(globe, nodes) {
   headGroup.add(headSmoke, headFlame, headCore)
   // 着色器火焰：屏幕空间定尺寸，任何视高都是 40~60px
   const flame = createFlame()
-  headCore.visible = false
-  headFlame.visible = false
-  headSmoke.visible = false
-  flame.mesh.visible = true
+  headCore.visible = true
+  headFlame.visible = true
+  headSmoke.visible = true
+  flame.mesh.visible = false // 形状未调好，先不启用
+  flame.mesh.renderOrder = 9
+  flame.mesh.scale.set(1, 1, 1)
+  flame.mesh.position.set(0, 2.2, 0)
   headGroup.add(flame.mesh)
 
   // 火星粒子池（InstancedMesh，一次 draw call）
@@ -419,7 +422,7 @@ export function createRouteLine(globe, nodes) {
       // 让火焰平面朝向相机
       headGroup.quaternion.copy(cam.quaternion)
       // 稍微朝燃烧方向倾斜
-      if (speed) headGroup.rotateZ(-0.12)
+      if (speed) headGroup.rotateZ(-0.06)
     }
     const f1 = Math.sin(now * 23.0) * 0.5 + Math.sin(now * 37.7 + 1.3) * 0.5
     const f2 = Math.sin(now * 17.3 + 2.1)
