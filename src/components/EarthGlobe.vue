@@ -606,8 +606,10 @@ uniform float uBurn;`,
   float bMask = (1.0 - smoothstep(uBurn - 0.05, uBurn + 0.03, tIgn)) * inCn;
   vec3 crust = texture2D(uCrust, vUv * 6.0).rgb;
   float crack = pow(smoothstep(0.635, 0.945, crust.r), 1.6);
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(crust * 0.18, vec3(0.03, 0.02, 0.02), 0.35), bMask * 0.62);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(crust * 0.18, vec3(0.03, 0.02, 0.02), 0.35), bMask * 0.4);
   gl_FragColor.rgb += vec3(1.0, 0.38, 0.12) * crack * bMask * 1.1;
+  float vein = pow(smoothstep(0.45, 0.92, texture2D(uCrust, vUv * 1.6).r), 2.0);
+  gl_FragColor.rgb += vec3(1.0, 0.32, 0.08) * vein * bMask * 0.32;
 }
 #include <dithering_fragment>`,
     )
