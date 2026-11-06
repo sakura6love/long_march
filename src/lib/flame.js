@@ -5,7 +5,7 @@
 import { Sprite, SpriteMaterial, TextureLoader } from 'three'
 
 export function createFlame() {
-  const tex = new TextureLoader().load(`${import.meta.env.BASE_URL}flame.png`)
+  const tex = new TextureLoader().load(`${import.meta.env.BASE_URL}flame.png?v=4`)
   const material = new SpriteMaterial({
     map: tex,
     transparent: true,
