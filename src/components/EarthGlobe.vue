@@ -30,6 +30,8 @@ const props = defineProps({
   chrome: { type: Boolean, default: true },
   /** 播放中锁住双击复位，避免和燃烧抢动作 */
   locked: { type: Boolean, default: false },
+  /** 0..1：地面烧到哪 */
+  burn: { type: Number, default: 0 },
   /** 播放事件时把星球压暗成剪影 */
   dim: { type: Boolean, default: false },
 })
