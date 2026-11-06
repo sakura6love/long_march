@@ -1166,4 +1166,14 @@ onBeforeUnmount(() => {
     width: 18px;
   }
 }
+
+/* 选中/点燃的站点：收掉标签电自带的柔光，火焰与火线才是唯一光源 */
+.march-label-anchor.is-active,
+.march-label-anchor.is-lit,
+.march-label-anchor.is-igniting,
+.march-label-anchor.is-active > *,
+.march-label-anchor.is-lit > *,
+.march-label-anchor.is-igniting > * {
+  box-shadow: none !important;
+}
 </style>

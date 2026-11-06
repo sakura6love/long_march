@@ -51,7 +51,7 @@ export function createFlame() {
       const f1 = Math.sin(time * 13.7)
       const f2 = Math.sin(time * 23.1 + 1.7)
       const k = 1 + f1 * 0.05 + f2 * 0.04
-      sprite.scale.set(size * 0.82 * k, size * 1.28 * k, 1)
+      sprite.scale.set(size * 1.0 * k, size * 1.3 * k, 1)
       back.scale.set(size * 1.5 * k, size * 1.6 * k, 1)
       material.opacity = 0.9 + f1 * 0.06
     },
