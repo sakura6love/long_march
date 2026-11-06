@@ -4,7 +4,7 @@
  * 为什么不用着色器长：fbm 长不出"焰舌"，参数一大就成月牙。
  * 这里是"画"出来的形状——底部宽、往上收、顶端分三缕，每帧相位不同。
  */
-import { AdditiveBlending, CanvasTexture, Sprite, SpriteMaterial } from 'three'
+import { CanvasTexture, NormalBlending, Sprite, SpriteMaterial } from 'three'
 
 const FRAMES = 32
 const COLS = 8
@@ -31,15 +31,15 @@ function buildAtlas() {
     // 主焰舌：底部宽 44，顶端收到 6，左右各摆一次
     const tipY = 14 + Math.sin(t * Math.PI * 2 + 1.2) * 6
     const body = new Path2D()
-    body.moveTo(64 - 20, 112)
-    body.quadraticCurveTo(64 - 16 + sway * 0.5, 70, 64 + sway, tipY)
-    body.quadraticCurveTo(64 + 16 + sway * 0.5, 70, 64 + 20, 112)
+    body.moveTo(64 - 27, 112)
+    body.quadraticCurveTo(64 - 20 + sway * 0.5, 64, 64 + sway, tipY)
+    body.quadraticCurveTo(64 + 20 + sway * 0.5, 64, 64 + 27, 112)
     body.closePath()
 
     const g = ctx.createLinearGradient(0, 116, 0, tipY)
     g.addColorStop(0, 'rgba(255, 246, 224, 0.95)')
-    g.addColorStop(0.28, 'rgba(255, 214, 140, 0.9)')
-    g.addColorStop(0.62, 'rgba(255, 138, 52, 0.72)')
+    g.addColorStop(0.28, 'rgba(255, 196, 104, 0.95)')
+    g.addColorStop(0.62, 'rgba(255, 120, 36, 0.8)')
     g.addColorStop(1, 'rgba(196, 54, 20, 0)')
     ctx.fillStyle = g
     ctx.fill(body)
@@ -64,13 +64,13 @@ function buildAtlas() {
     }
 
     // 白心
-    const core = ctx.createRadialGradient(64 + sway * 0.4, 102, 1, 64 + sway * 0.4, 102, 11)
+    const core = ctx.createRadialGradient(64 + sway * 0.4, 104, 1, 64 + sway * 0.4, 104, 7)
     core.addColorStop(0, 'rgba(255, 255, 244, 0.95)')
     core.addColorStop(0.5, 'rgba(255, 232, 180, 0.5)')
     core.addColorStop(1, 'rgba(255, 180, 90, 0)')
     ctx.fillStyle = core
     ctx.beginPath()
-    ctx.arc(64 + sway * 0.4, 102, 11, 0, Math.PI * 2)
+    ctx.arc(64 + sway * 0.4, 104, 7, 0, Math.PI * 2)
     ctx.fill()
 
     ctx.restore()
@@ -90,7 +90,7 @@ export function createFlame() {
     transparent: true,
     depthWrite: false,
     depthTest: false,
-    blending: AdditiveBlending,
+    blending: NormalBlending,
   })
   const sprite = new Sprite(material)
   sprite.frustumCulled = false
@@ -110,7 +110,7 @@ export function createFlame() {
       }
       material.opacity = 0.9 * intensity
       // 高度 = size，宽度按焰舌比例略窄
-      sprite.scale.set(size * 0.78, size, 1)
+      sprite.scale.set(size * 1.15, size * 1.7, 1)
     },
     dispose() {
       tex.dispose()

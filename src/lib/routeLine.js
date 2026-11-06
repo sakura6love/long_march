@@ -408,11 +408,11 @@ export function createRouteLine(globe, nodes) {
   /** 把"屏幕 48px"换算成世界尺寸：size = dist * 2*tan(fov/2) * (48 / 高度) */
   function headWorldSize() {
     const cam = globe.camera()
-    if (!cam || !globe.height) return 1.2
+    if (!cam) return 1.2
     _v.copy(headGroup.position)
     const dist = cam.position.distanceTo(_v)
     const fov = (cam.fov * Math.PI) / 180
-    const h = globe.height() || 1080
+    const h = (typeof window !== 'undefined' && window.innerHeight) || 1080
     return dist * 2 * Math.tan(fov / 2) * (48 / h)
   }
 
