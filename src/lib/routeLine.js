@@ -266,7 +266,7 @@ export function createRouteLine(globe, nodes) {
   group.add(flame.mesh)
 
   // 火星粒子池（InstancedMesh，一次 draw call）
-  const sparkPool = createSparks(160)
+  const sparkPool = createSparks(48)
   sparkPool.mesh.renderOrder = 6
   group.add(sparkPool.mesh)
   headGroup.renderOrder = 7

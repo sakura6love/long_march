@@ -5,12 +5,12 @@
  * 也无法单独控制某一颗的透明度。
  */
 import {
-  AdditiveBlending,
   CanvasTexture,
   Color,
   InstancedMesh,
   Matrix4,
   MeshBasicMaterial,
+  NormalBlending,
   PlaneGeometry,
   Quaternion,
   Vector3,
@@ -31,13 +31,13 @@ function dotTexture() {
   return new CanvasTexture(c)
 }
 
-export function createSparks(count = 160) {
+export function createSparks(count = 48) {
   const geo = new PlaneGeometry(1, 1)
   const mat = new MeshBasicMaterial({
     map: dotTexture(),
     transparent: true,
     depthWrite: false,
-    blending: AdditiveBlending,
+    blending: NormalBlending,
   })
   const mesh = new InstancedMesh(geo, mat, count)
   mesh.frustumCulled = false
@@ -59,7 +59,7 @@ export function createSparks(count = 160) {
   const q = new Quaternion()
   const scl = new Vector3()
   const tmp = new Vector3()
-  const hot = new Color('#fff2c8')
+  const hot = new Color('#ffb066')
   const mid = new Color('#ff7a2a')
   const cold = new Color('#5a1208')
   const col = new Color()
@@ -79,8 +79,11 @@ export function createSparks(count = 160) {
         cursor = (cursor + 1) % count
         p.life = 0.7 + Math.random() * 0.7
         p.max = p.life
-        p.size = 1.6 + Math.random() * 1.8
-        p.pos.copy(pos).addScaledVector(dir, 0.05 * Math.random())
+        p.size = 0.9 + Math.random() * 0.7
+        p.pos.copy(pos).addScaledVector(dir, 0.25 + Math.random() * 1.1)
+        p.pos.x += (Math.random() - 0.5) * 1.2
+        p.pos.y += (Math.random() - 0.5) * 1.2
+        p.pos.z += (Math.random() - 0.5) * 1.2
         p.vel.set(
           (Math.random() - 0.5) * 0.5,
           (Math.random() - 0.5) * 0.5,
