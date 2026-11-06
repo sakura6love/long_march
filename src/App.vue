@@ -273,6 +273,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :dim="globeDimmed"
       :show-hint="screen === 'overview' && !settingsOpen && activeIndex < 0"
       :chrome="screen === 'overview'"
+      :locked="mode === 'playing'"
       @select="handleSelect"
       @tap="handleTap"
       @reset="activeIndex = -1"

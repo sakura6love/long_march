@@ -28,6 +28,8 @@ const props = defineProps({
   showHint: { type: Boolean, default: false },
   /** 抬头（标题）只在俯瞰态显示，序章有自己的版式 */
   chrome: { type: Boolean, default: true },
+  /** 播放中锁住双击复位，避免和燃烧抢动作 */
+  locked: { type: Boolean, default: false },
   /** 播放事件时把星球压暗成剪影 */
   dim: { type: Boolean, default: false },
 })
@@ -244,6 +246,7 @@ let rimLight = null
 let dimLevel = 0
 
 function resetView() {
+  if (props.locked) return
   if (!globe.value) return
 
   clearIntro()
