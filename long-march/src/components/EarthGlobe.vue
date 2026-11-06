@@ -13,7 +13,7 @@
  */
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import Globe from 'globe.gl'
-import { AmbientLight, DirectionalLight, LinearFilter, LinearMipmapLinearFilter, TextureLoader } from 'three'
+import { AmbientLight, DirectionalLight, HemisphereLight, LinearFilter, LinearMipmapLinearFilter, TextureLoader } from 'three'
 import longMarchNodes from '../data.js'
 import { createCameraRig, FRAME } from '../lib/cameraRig.js'
 
@@ -341,11 +341,13 @@ onMounted(() => {
 
   // 光照只有一个目的：把山脊刻出来，而不是把地球照亮。
   // 环境光偏暖、压得很低，保证背光那一侧仍是深蓝而不是死黑。
-  scene.add(new AmbientLight(0x4a4a3f, 0.16))
+  // 天空/地面双色环境光：天空偏冷、地面偏暖，比纯环境光更有"大气"。
+  scene.add(new HemisphereLight(0x9fc4e8, 0x2b2418, 0.55))
+  scene.add(new AmbientLight(0x3a3a32, 0.12))
 
   // 主光：仰角约 9°，从西南方斜切过来 —— 山体阴影被拉长，
   // 近景才有"摸得到"的起伏；再高就变成正午平光，地形立刻变平。
-  const terrainLight = new DirectionalLight(0xffd9a2, 2.35)
+  const terrainLight = new DirectionalLight(0xffe6c0, 3.05)
   terrainLight.position.set(-180, 30, 125)
   scene.add(terrainLight)
 
@@ -366,13 +368,13 @@ onMounted(() => {
   specularTexture.anisotropy = maxAniso
 
   globeMaterial.normalMap = normalTexture
-  globeMaterial.normalScale.set(1.5, 1.5)
+  globeMaterial.normalScale.set(2.2, 2.2)
   globeMaterial.specularMap = specularTexture
   // 海面高光压成冷灰蓝：纯白会立刻变"湿塑料"。
   globeMaterial.specular.set(0x3a4d60)
   globeMaterial.shininess = 70
   // 微暖的基色乘上去，把贴图里过饱和的蓝绿压回 UI 的暖灰调子。
-  globeMaterial.color.set('#efe4cd')
+  globeMaterial.color.set('#f7f1e4')
   globeMaterial.roughness = 0.9
   globeMaterial.metalness = 0.02
   globeMaterial.emissive.set('#121821')
