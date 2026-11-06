@@ -256,10 +256,10 @@ export function createRouteLine(globe, nodes) {
   headGroup.add(headSmoke, headFlame, headCore)
   // 着色器火焰：屏幕空间定尺寸，任何视高都是 40~60px
   const flame = createFlame()
-  headCore.visible = true
-  headFlame.visible = true
-  headSmoke.visible = true
-  flame.mesh.visible = false
+  headCore.visible = false
+  headFlame.visible = false
+  headSmoke.visible = false
+  flame.mesh.visible = true
   flame.mesh.renderOrder = 9
   flame.mesh.scale.set(1, 1, 1)
   flame.mesh.position.set(0, 0, 0)
