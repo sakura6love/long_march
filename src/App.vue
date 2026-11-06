@@ -22,6 +22,14 @@ import { isMuted, setMuted, startAudio, sfxIgnite, sfxPage, sfxTap } from './lib
 
 const globeRef = ref(null)
 const screen = ref('start') // start | overview | finale
+
+// 三幕：start（序章）/ playing（播放中）/ free（自由浏览）/ finale（终章）
+const mode = computed(() => {
+  if (screen.value === 'start') return 'start'
+  if (screen.value === 'finale') return 'finale'
+  if (burning.value || pausedEvent.value || showingEvent.value || activeChapter.value) return 'playing'
+  return 'free'
+})
 const settingsOpen = ref(false)
 const settingsFrom = ref('start')
 const reduced = ref(false)
