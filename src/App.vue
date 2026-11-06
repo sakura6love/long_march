@@ -14,6 +14,8 @@ import StartScreen from './components/StartScreen.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import FinaleScreen from './components/FinaleScreen.vue'
 import longMarchNodes from './data.js'
+import ChapterCard from './components/ChapterCard.vue'
+import { CHAPTERS } from './lib/chapters.js'
 import { STORY_EVENTS } from './lib/story.js'
 import { readLitIds, lightUp, clearProgress } from './lib/api.js'
 import { isMuted, setMuted, startAudio, sfxIgnite, sfxPage, sfxTap } from './lib/audio.js'
@@ -196,6 +198,19 @@ function handleKeydown(event) {
   if (screen.value === 'overview') openSettings()
 }
 
+const activeChapter = ref(null)
+let chapterTimer = null
+
+watch(chainEnd, (k) => {
+  const hit = CHAPTERS.find((c) => c.range[1] === k && k < longMarchNodes.length)
+  if (!hit || screen.value !== 'overview') return
+  activeChapter.value = hit
+  window.clearTimeout(chapterTimer)
+  chapterTimer = window.setTimeout(() => {
+    activeChapter.value = null
+  }, 2500)
+})
+
 watch(chainEnd, (k) => {
   if (k === longMarchNodes.length && !burning.value) {
     window.setTimeout(() => {
@@ -301,6 +316,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
     <AskPanel v-if="screen === 'overview' && !settingsOpen" />
   </div>
+  <ChapterCard :chapter="activeChapter" :progress="chainEnd" />
 </template>
 
 <style>
