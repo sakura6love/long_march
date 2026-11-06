@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="chapter-layer">
     <!-- 全屏压暗 + 章卡 -->
     <Transition name="card">
@@ -41,7 +41,7 @@ function cn(n) {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 40;
+  z-index: 9000;
   width: 100vw;
   height: 100vh;
   pointer-events: none;
@@ -147,3 +147,4 @@ function cn(n) {
   }
 }
 </style>
+
