@@ -608,8 +608,9 @@ uniform float uBurn;`,
   float crack = pow(smoothstep(0.635, 0.945, crust.r), 1.6);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(crust * 0.18, vec3(0.03, 0.02, 0.02), 0.35), bMask * 0.4);
   gl_FragColor.rgb += vec3(1.0, 0.38, 0.12) * crack * bMask * 1.6;
-  float vein = pow(smoothstep(0.45, 0.92, texture2D(uCrust, vUv * 1.6).r), 2.0);
-  gl_FragColor.rgb += vec3(1.0, 0.32, 0.08) * vein * bMask * 1.15;
+  // 余烬用"离路线的远近"驱动，天然是低频，不会在球面尺度上被平掉
+  float heat = clamp((uBurn - tIgn) / max(uBurn, 0.001), 0.0, 1.0);
+  gl_FragColor.rgb += vec3(1.0, 0.34, 0.10) * pow(heat, 4.5) * bMask * 0.55;
 }
 #include <dithering_fragment>`,
     )
