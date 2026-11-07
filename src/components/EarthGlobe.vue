@@ -628,11 +628,11 @@ uniform float uBurn;`,
   vec3 gold = vec3(1.0, 0.78, 0.42);
 
   // 重生：不是烧黑，而是点亮 —— 保留地表纹理，整体提亮并偏暖
-  vec3 litCol = gl_FragColor.rgb * (1.0 + 0.28 * lit + 0.20 * full) * mix(vec3(1.0), gold, 0.32 * full) + gold * 0.05 * lit;
+  vec3 litCol = gl_FragColor.rgb * (1.0 + 0.18 * lit + 0.20 * full) * mix(vec3(1.0), gold, 0.30 * full + 0.14 * lit) + gold * 0.03 * lit;
   gl_FragColor.rgb = mix(gl_FragColor.rgb, litCol, clamp(lit * 0.40 + full * 0.46, 0.0, 0.85));
   gl_FragColor.rgb += gold * ring * 0.35;
-  gl_FragColor.rgb += vec3(1.0, 0.86, 0.62) * grain * lit * 0.26;
-  gl_FragColor.rgb += gold * (1.0 - smoothstep(0.0, 0.12, tIgn)) * lit * 0.16;
+  gl_FragColor.rgb += vec3(1.0, 0.86, 0.62) * grain * lit * 0.18;
+  gl_FragColor.rgb += gold * (1.0 - smoothstep(0.0, 0.12, tIgn)) * lit * 0.06;
 }
 #include <dithering_fragment>`,
     )
