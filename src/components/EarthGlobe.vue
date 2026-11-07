@@ -191,6 +191,13 @@ function updateHeadPin(burnS) {
 
 function updateEventStates() {
   if (!globe.value || eventRecords.length === 0) return
+  if (!props.labelsOn) {
+    for (const record of eventRecords) {
+      record.el.classList.add('is-unreached')
+      record.el.classList.remove('is-reached', 'is-hot')
+    }
+    return
+  }
   const st = routeLine?.stationS || []
   if (!st.length) return
   // 统一用 routeLine 自己的进度（已按站点弧长归一化），
@@ -525,6 +532,7 @@ function createEventMark(pointData) {
   el.innerHTML = '<span class="march-event-diamond" aria-hidden="true"></span>'
   el.addEventListener('click', (event) => {
     event.stopPropagation()
+    if (!props.labelsOn) return
     emit('select-event', pointData.id)
   })
   eventRecords.push({ el, id: pointData.id, at: pointData.at, lat: pointData.lat, lng: pointData.lng })
@@ -1090,10 +1098,10 @@ onBeforeUnmount(() => {
 
 :deep(.march-event-diamond) {
   position: absolute;
-  left: -4px;
-  top: -13px;
-  width: 8px;
-  height: 8px;
+  left: 6px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
   transform: rotate(45deg);
   background: rgba(139, 28, 28, 0.35);
   border: 1px solid rgba(232, 201, 138, 0.7);
@@ -1115,19 +1123,21 @@ onBeforeUnmount(() => {
 :deep(.march-event-anchor.is-hot .march-event-diamond) {
   background: #f0d79a;
   border-color: rgba(255, 246, 214, 0.95);
-  box-shadow: 0 0 16px rgba(243, 212, 140, 0.9);
-  transform: rotate(45deg) scale(1.45);
+  box-shadow: 0 0 10px rgba(243, 212, 140, 0.85);
+  transform: rotate(45deg) scale(1.18);
 }
 
 :deep(.march-event-anchor:hover .march-event-diamond) {
   background: #a8261f;
-  transform: rotate(45deg) scale(1.5);
-  box-shadow: 0 0 12px rgba(232, 201, 138, 0.55);
+  transform: rotate(45deg) scale(1.12);
+  box-shadow: 0 0 9px rgba(232, 201, 138, 0.6);
 }
 
-.horizon-frame.labels-off :deep(.march-label-anchor) {
-  opacity: 0;
-  pointer-events: none;
+.horizon-frame.labels-off :deep(.march-label-anchor),
+.horizon-frame.labels-off :deep(.march-event-anchor) {
+  opacity: 0 !important;
+  visibility: hidden;
+  pointer-events: none !important;
 }
 
 :deep(.march-label-anchor) {
