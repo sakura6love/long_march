@@ -18,7 +18,7 @@ import ChapterCard from './components/ChapterCard.vue'
 import EventRail from './components/EventRail.vue'
 import { CHAPTERS } from './lib/chapters.js'
 import { STORY_EVENTS } from './lib/story.js'
-import { readLitIds, lightUp, clearProgress } from './lib/api.js'
+import { readLitIds, lightUp, saveLitIds, clearProgress } from './lib/api.js'
 import { isMuted, setMuted, startAudio, sfxIgnite, sfxPage, sfxTap } from './lib/audio.js'
 
 const globeRef = ref(null)
@@ -149,13 +149,25 @@ function handleSelect(node) {
   const index = indexOfId(node.id)
   if (index < 0) return
   activeIndex.value = index
+}
 
-  if (litIds.value.includes(node.id)) return
+/** 面板上的按钮：点亮 / 取消点亮（取消会连同其后所有站一起熄灭）。 */
+function toggleLit(payload) {
+  const id = typeof payload === 'string' ? payload : payload?.id
+  const index = indexOfId(id)
+  if (index < 0) return
 
-  const before = chainEnd.value
-  litIds.value = lightUp(node.id)
-  const after = chainEnd.value
-  if (after > before) burnFrom(before, after)
+  if (!litIds.value.includes(id)) {
+    const before = chainEnd.value
+    litIds.value = lightUp(id)
+    const after = chainEnd.value
+    if (after > before) burnFrom(before, after)
+    return
+  }
+
+  // 取消：只保留该站之前的连续前缀
+  const keep = longMarchNodes.slice(0, index).map((n) => n.id)
+  litIds.value = saveLitIds(keep)
 }
 
 function burnFrom(before, after) {
@@ -307,7 +319,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :lit-count="litIds.length"
       @close="activeIndex = -1"
       @navigate="(step) => globeRef?.focusNode(longMarchNodes[(activeIndex + step + longMarchNodes.length) % longMarchNodes.length])"
-      @light-up="(id) => (litIds = lightUp(id))"
+      @light-up="toggleLit"
     />
 
     <EventScene :event="showingEvent" />

@@ -23,9 +23,53 @@ export function createFlame() {
   const group = new Group()
   group.visible = false
 
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+
+  // 地面光斑
+  const glow = ctx.createRadialGradient(size / 2, size * 0.84, 2, size / 2, size * 0.84, size * 0.2)
+  glow.addColorStop(0, 'rgba(255, 196, 110, 0.30)')
+  glow.addColorStop(1, 'rgba(255, 150, 60, 0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(0, size * 0.6, size, size * 0.4)
+
+  // 旗杆
+  ctx.strokeStyle = '#e8c98a'
+  ctx.lineWidth = 5
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(size * 0.34, size * 0.88)
+  ctx.lineTo(size * 0.34, size * 0.16)
+  ctx.stroke()
+
+  // 旗面（朱红三角，带一点飘动）
+  ctx.fillStyle = '#a5231d'
+  ctx.beginPath()
+  ctx.moveTo(size * 0.35, size * 0.18)
+  ctx.quadraticCurveTo(size * 0.62, size * 0.2, size * 0.86, size * 0.3)
+  ctx.quadraticCurveTo(size * 0.62, size * 0.42, size * 0.35, size * 0.42)
+  ctx.closePath()
+  ctx.fill()
+
+  // 旗面高光
+  ctx.strokeStyle = 'rgba(255, 214, 150, 0.5)'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(size * 0.36, size * 0.2)
+  ctx.quadraticCurveTo(size * 0.62, size * 0.22, size * 0.84, size * 0.31)
+  ctx.stroke()
+
+  const tex = new CanvasTexture(canvas)
+  tex.anisotropy = 4
+  tex.generateMipmaps = false
+  tex.minFilter = 1006 // LinearFilter
+
   const back = new Sprite(
     new SpriteMaterial({
-      map: radialTexture('rgba(0,0,0,0.78)', 'rgba(0,0,0,0.34)', 'rgba(0,0,0,0)'),
+      map: radialTexture('rgba(0,0,0,0.55)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0)'),
       transparent: true,
       depthWrite: false,
       depthTest: false,
@@ -33,52 +77,26 @@ export function createFlame() {
   )
   back.renderOrder = 8
 
-  const tex = new TextureLoader().load(`${import.meta.env.BASE_URL}flame.png?v=7`)
-
-  const outer = new Sprite(
-    new SpriteMaterial({ map: tex, color: 0xff6a1a, transparent: true, depthWrite: false, depthTest: false }),
+  const flag = new Sprite(
+    new SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }),
   )
-  outer.renderOrder = 9
+  flag.renderOrder = 10
 
-  const mid = new Sprite(
-    new SpriteMaterial({ map: tex, color: 0xffb257, transparent: true, depthWrite: false, depthTest: false, blending: 2 }),
-  )
-  mid.renderOrder = 10
-
-  const core = new Sprite(
-    new SpriteMaterial({
-      map: radialTexture('rgba(255,246,214,0.95)', 'rgba(255,176,64,0.55)', 'rgba(255,110,20,0)'),
-      transparent: true,
-      depthWrite: false,
-      depthTest: false,
-      blending: 2,
-    }),
-  )
-  core.renderOrder = 11
-
-  group.add(back, outer, mid, core)
+  group.add(flag)
 
   return {
     mesh: group,
-    update(time, size) {
-      const f1 = Math.sin(time * 13.7)
-      const f2 = Math.sin(time * 23.1 + 1.7)
-      const f3 = Math.sin(time * 31.3 + 0.4)
-      const k = 1 + f1 * 0.06 + f2 * 0.05
-      outer.scale.set(size * 0.95 * k, size * 1.55 * k, 1)
-      mid.scale.set(size * 0.66 * k, size * 1.1 * k, 1)
-      core.scale.set(size * 0.42 * (1 + f3 * 0.12), size * 0.56 * (1 + f3 * 0.12), 1)
-      core.position.y = size * 0.16
-      back.scale.set(size * 1.35, size * 1.6, 1)
-      outer.material.opacity = 0.95
-      mid.material.opacity = 0.75 + f1 * 0.08
-      core.material.opacity = 0.8 + f3 * 0.12
+    update(time, scale) {
+      const sway = Math.sin(time * 2.1) * 0.10 + Math.sin(time * 3.7) * 0.04
+      flag.scale.set(scale * 1.25, scale * 1.25, 1)
+      flag.material.rotation = sway * 0.35
+      back.scale.set(scale * 1.25, scale * 1.25, 1)
+      back.material.opacity = 0.28
     },
     dispose() {
       tex.dispose()
-      outer.material.dispose()
-      mid.material.dispose()
-      core.material.dispose()
+      flag.material.dispose()
+      back.material.dispose()
     },
   }
 }

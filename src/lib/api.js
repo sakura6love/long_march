@@ -31,6 +31,16 @@ export function lightUp(id) {
   return ids
 }
 
+/** 覆盖写入已点亮列表（取消点亮时用）。 */
+export function saveLitIds(ids) {
+  try {
+    window.localStorage.setItem(LIT_KEY, JSON.stringify(ids))
+  } catch {
+    // 同上
+  }
+  return ids
+}
+
 /** 重走长征路：清空已点亮的站点。 */
 export function clearProgress() {
   try {

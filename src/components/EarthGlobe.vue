@@ -517,6 +517,7 @@ onMounted(() => {
   const assetBase = import.meta.env.BASE_URL
 
   globe.value = Globe()(globeContainer.value)
+  window.__globe = globe.value
     .backgroundColor('rgba(0, 0, 0, 0)')
     .globeImageUrl(`${assetBase}earth-8k.jpg`)
     .showAtmosphere(true)
@@ -617,7 +618,7 @@ uniform float uBurn;`,
   float jitter = (texture2D(uCrust, vUv * 2.3).r - 0.5) * 0.07;
   float burnActive = smoothstep(0.0, 0.06, uBurn);
   // 已点亮：越靠近路线越早、越亮
-  float lit = (1.0 - smoothstep(uBurn - 0.06 + jitter, uBurn + 0.05 + jitter, tIgn)) * inCn * burnActive;
+  float lit = (1.0 - smoothstep(uBurn - 0.16 + jitter, uBurn + 0.03 + jitter, tIgn)) * inCn * burnActive;
   // 终章：全国一起亮
   float full = smoothstep(0.975, 1.0, uBurn) * inCn;
   lit = max(lit, full * 0.85);
@@ -630,7 +631,9 @@ uniform float uBurn;`,
 
   // 重生：不是烧黑，而是点亮 —— 保留地表纹理，整体提亮并偏暖
   vec3 litCol = gl_FragColor.rgb * (1.0 + 0.18 * lit + 0.20 * full) * mix(vec3(1.0), gold, 0.30 * full + 0.14 * lit) + gold * 0.03 * lit;
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, litCol, clamp(lit * 0.40 + full * 0.46, 0.0, 0.85));
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, litCol, clamp(lit * 0.40 + full * 0.38, 0.0, 0.82));
+  // 点亮后与境外拉开：国境之外整体压暗
+  gl_FragColor.rgb *= mix(1.0, 0.86, full * (1.0 - inCn));
   gl_FragColor.rgb += gold * ring * 0.35;
   gl_FragColor.rgb += vec3(1.0, 0.86, 0.62) * grain * lit * 0.18;
   gl_FragColor.rgb += gold * (1.0 - smoothstep(0.0, 0.12, tIgn)) * lit * 0.06;
@@ -1133,6 +1136,19 @@ onBeforeUnmount(() => {
 /* 点亮过的站点：光点常亮一层暖金，和"还没点亮"的点拉开差别。 */
 :deep(.march-label-anchor.is-next .march-label-node) {
   animation: march-next-pulse 1.7s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+/* 行军标记：下一站上方立一面小旗 */
+:deep(.march-label-anchor.is-next .march-label-node::after) {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  content: '⚑';
+  font-size: 13px;
+  line-height: 1;
+  color: #e8c98a;
+  text-shadow: 0 0 6px rgba(196, 163, 90, 0.65);
+  transform: translateX(-50%);
 }
 
 @keyframes march-next-pulse {

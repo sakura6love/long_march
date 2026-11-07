@@ -222,7 +222,7 @@ export function createRouteLine(globe, nodes) {
   const sparkCloud = new Points(sparkGeo, sparkMat)
   sparkCloud.renderOrder = 6
   sparkCloud.frustumCulled = false
-  group.add(sparkCloud)
+  sparkCloud.visible = false
 
   // 鈥斺€?鐏ご锛氱櫧蹇?+ 姗欑劙 + 鐑燂紝涓夊眰涓€璧锋姈 鈥斺€?
   const headGroup = new Group()
@@ -270,9 +270,10 @@ export function createRouteLine(globe, nodes) {
   // 火星粒子池（InstancedMesh，一次 draw call）
   const sparkPool = createSparks(48)
   sparkPool.mesh.renderOrder = 6
-  group.add(sparkPool.mesh)
+  sparkPool.mesh.visible = false
   headGroup.renderOrder = 7
   headGroup.visible = false
+  group.remove(headGroup)
   // 旧柔光 headGroup 不再入场，全部由 flame.mesh 承担
 
   // 姣忎釜閲囨牱鐐硅鐑у埌鐨勬椂鍒伙紙-1 = 杩樻病鐑у埌锛夆€斺€斿喎鍗存寜鐪熷疄鏃堕棿绠?
@@ -329,7 +330,7 @@ export function createRouteLine(globe, nodes) {
     const count = burnedS <= 0 ? 0 : idx + 1
     geo.instanceCount = count
     core.visible = count > 1
-    glow.visible = count > 1
+    glow.visible = false
     charBand.visible = count > 1
     for (let i = 0; i < samples.length; i += 1) {
       if (sArr[i] <= burnedS && burnTime[i] < 0) burnTime[i] = clock
@@ -353,12 +354,13 @@ export function createRouteLine(globe, nodes) {
     if (count > 1) {
       headGroup.position.copy(samples[Math.min(samples.length - 1, count - 1)])
       flame.mesh.position.copy(headGroup.position).multiplyScalar(1.03)
-      headGroup.visible = true
+      flame.mesh.visible = false
+      headGroup.visible = false
     } else {
       headGroup.visible = false
     }
 
-    embers.visible = visible && burnedS < 0.999
+    embers.visible = false
   }
 
   function pointAt(s) {
@@ -430,7 +432,7 @@ export function createRouteLine(globe, nodes) {
     const dist = cam.position.distanceTo(_v)
     const fov = (cam.fov * Math.PI) / 180
     const h = (typeof window !== 'undefined' && window.innerHeight) || 1080
-    return dist * 2 * Math.tan(fov / 2) * (108 / h)
+    return dist * 2 * Math.tan(fov / 2) * (46 / h)
   }
 
   function animateHead(now, speed) {
@@ -537,7 +539,7 @@ export function createRouteLine(globe, nodes) {
     setLit(indices) {
       const maxIdx = indices.length ? Math.max(...indices) : -1
       applyProgress(maxIdx >= 0 ? stationS[Math.min(stationS.length - 1, maxIdx)] : 0)
-      embers.visible = visible && burnedS < 0.999
+      embers.visible = false
     },
     ignite(from, to, handlers = {}) {
       const s0 = stationS[Math.max(0, Math.min(stationS.length - 1, from))]
@@ -554,7 +556,7 @@ export function createRouteLine(globe, nodes) {
       burn = { s: s0, s0, s1, speed, events, handlers, paused: false }
       sparkCloud.visible = false
       sparkPool.setVisible(true)
-      headGroup.visible = true
+      headGroup.visible = false
       headGroup.position.copy(pointAt(s0))
       applyProgress(s0)
       arm()

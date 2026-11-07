@@ -68,11 +68,11 @@ function close() {
         class="detail-light"
         :class="{ 'is-lit': lit }"
         type="button"
-        :disabled="lit"
+        
         @click="emit('light-up', node.id)"
       >
         <span class="detail-light-dot" aria-hidden="true"></span>
-        {{ lit ? `已点亮 · 共 ${litCount} / ${total} 站` : '点亮此站' }}
+        {{ lit ? '已点亮 · 点击取消' : '点亮此站' }}
       </button>
 
       <footer class="detail-foot">
