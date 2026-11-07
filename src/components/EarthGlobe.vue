@@ -743,7 +743,7 @@ onBeforeUnmount(() => {
 
 /* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
 @media (max-width: 768px) {
-  .horizon-frame.labels-muted .march-label-card {
+  .horizon-frame.labels-muted :deep(.march-label-card) {
     opacity: 0 !important;
     pointer-events: none;
   }
