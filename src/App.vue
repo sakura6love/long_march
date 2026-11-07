@@ -23,6 +23,7 @@ import { isMuted, setMuted, startAudio, sfxIgnite, sfxPage, sfxTap } from './lib
 
 const globeRef = ref(null)
 const screen = ref('start') // start | overview | finale
+const finaleReady = ref(false)
 
 // 三幕：start（序章）/ playing（播放中）/ free（自由浏览）/ finale（终章）
 const mode = computed(() => {
@@ -263,10 +264,22 @@ watch(chainEnd, (k) => {
 watch(chainEnd, (k) => {
   if (k === longMarchNodes.length && !burning.value) {
     window.setTimeout(() => {
-      if (chainEnd.value === longMarchNodes.length) screen.value = 'finale'
+      if (chainEnd.value === longMarchNodes.length) {
+        screen.value = 'finale'
+        finaleReady.value = false
+        globeRef.value?.pullBack?.()
+        window.setTimeout(() => {
+          finaleReady.value = true
+        }, 2400)
+      }
     }, 1400)
   }
 })
+
+// 调试入口：便于用脚本强制推进到终章
+if (typeof window !== 'undefined') {
+  window.__march = { screen, litIds, chainEnd }
+}
 
 const hint = computed(() => {
   if (screen.value !== 'overview' || settingsOpen.value) return ''
@@ -311,7 +324,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :labels-muted="!!showingEvent"
       :next-id="nextNodeId"
       :locked="mode === 'playing'"
-      :burn="chainEnd >= 12 ? 1 : Math.min(0.92, chainEnd / 11 * 0.92)"
+      :burn="Math.min(1, chainEnd / longMarchNodes.length)"
       :show-events="screen === 'overview' && !showingEvent && !settingsOpen"
       :labels-on="screen === 'overview'"
       @select="handleSelect"
@@ -365,7 +378,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
     />
 
     <FinaleScreen
-      v-if="screen === 'finale'"
+      v-if="screen === 'finale' && finaleReady"
       @restart="restart"
       @browse="screen = 'overview'"
     />

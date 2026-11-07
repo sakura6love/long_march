@@ -540,6 +540,11 @@ export function createRouteLine(globe, nodes) {
     get headS() {
       return burnedS
     },
+    latLngAtS(s) {
+      let i = 0
+      while (i + 1 < sArr.length && sArr[i + 1] <= s) i += 1
+      return samplesLL[i]
+    },
     get headLatLng() {
       let i = 0
       while (i + 1 < sArr.length && sArr[i + 1] <= burnedS) i += 1

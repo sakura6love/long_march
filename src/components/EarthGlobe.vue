@@ -389,6 +389,17 @@ defineExpose({
     introStarted = true
     startIntro()
   },
+  /** 终章：镜头拉远，让整个中国进入画面 */
+  pullBack() {
+    hintVisible.value = false
+    cameraRig?.flyTo({
+      lat: DEFAULT_VIEW.lat,
+      lng: DEFAULT_VIEW.lng,
+      altitude: 0.62,
+      aim: 10,
+      duration: 2200,
+    })
+  },
   /** 回序章：镜头退回远景 */
   leaveOverview() {
     routeLine?.setVisible(false)
@@ -519,13 +530,44 @@ function revealAll() {
  * 事件标：落在路线上的菱形，位置由站点经纬度按 at 的小数部分插值。
  * 与站点标共用同一套投影（htmlElementsData），所以一定贴在线上。
  */
+/**
+ * 把事件点重新贴到火线上：at → 弧长（站点弧长插值）→ 曲线采样点。
+ * 整数 at 再往前退 0.35 站，避免与站点圆点重叠。
+ */
+function syncEventPositions() {
+  const st = routeLine?.stationS
+  if (!st || st.length < 2) return
+  let changed = false
+  for (const e of eventMarks) {
+    const at = e.at ?? 0
+    const whole = Math.min(st.length - 1, Math.max(0, Math.floor(at)))
+    const next = Math.min(st.length - 1, whole + 1)
+    const frac = Math.max(0, Math.min(1, at - Math.floor(at)))
+    let arc = st[whole] + (st[next] - st[whole]) * frac
+    if (frac === 0 && whole > 0) arc -= (st[whole] - st[whole - 1]) * 0.35
+    const ll = routeLine.latLngAtS(Math.max(0, arc))
+    if (!ll) continue
+    if (Math.abs(ll.lat - e.lat) > 1e-6 || Math.abs(ll.lng - e.lng) > 1e-6) {
+      e.lat = ll.lat
+      e.lng = ll.lng
+      changed = true
+    }
+  }
+  if (changed) {
+    eventRecords.length = 0
+    globe.value?.htmlElementsData(labelItems)
+  }
+}
+
 function createEventMark(pointData) {
   const el = document.createElement('button')
   el.type = 'button'
   el.className = 'march-event-anchor is-unreached'
   el.dataset.eventId = pointData.id
   el.setAttribute('aria-label', `查看事件：${pointData.name}`)
-  el.innerHTML = '<span class="march-event-diamond" aria-hidden="true"></span>'
+  el.innerHTML =
+    '<span class="march-event-diamond" aria-hidden="true"></span>' +
+    `<i class="march-event-tip">${pointData.name}</i>`
   el.addEventListener('click', (event) => {
     event.stopPropagation()
     if (!props.labelsOn) return
@@ -682,6 +724,9 @@ onMounted(() => {
 
   // 路线火线：先铺一条余烬虚线，点亮的段由 watch(litIds) 重建。
   routeLine = createRouteLine(globe.value, longMarchNodes, STORY_EVENTS)
+  syncEventPositions()
+  window.__route = routeLine
+  window.__globe = globe.value
   // 序章默认干净：火线、余烬、火焰先全部收起，进俯瞰时再打开
   routeLine.setVisible(false)
   routeLine.setLit(
@@ -1083,8 +1128,9 @@ onBeforeUnmount(() => {
 
 :deep(.march-event-anchor) {
   position: relative;
-  width: 0;
-  height: 0;
+  width: 20px;
+  height: 20px;
+  z-index: 30;
   padding: 0;
   border: 0;
   background: none;
@@ -1094,8 +1140,8 @@ onBeforeUnmount(() => {
 
 :deep(.march-event-diamond) {
   position: absolute;
-  left: 6px;
-  top: -3px;
+  left: 13px;
+  top: 7px;
   width: 6px;
   height: 6px;
   transform: rotate(45deg);
@@ -1105,6 +1151,28 @@ onBeforeUnmount(() => {
   transition: transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 220ms, box-shadow 220ms;
 }
 
+
+:deep(.march-event-tip) {
+  position: absolute;
+  left: 16px;
+  top: -18px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: rgba(243, 241, 230, 0.92);
+  background: rgba(8, 12, 18, 0.86);
+  border: 1px solid rgba(196, 163, 90, 0.35);
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+:deep(.march-event-anchor:hover .march-event-tip) {
+  opacity: 1;
+  transform: translateY(0);
+}
 
 :deep(.march-event-anchor.is-unreached) {
   opacity: 0;
