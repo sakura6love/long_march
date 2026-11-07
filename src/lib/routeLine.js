@@ -482,6 +482,8 @@ export function createRouteLine(globe, nodes) {
     sparkCloud.visible = false
     headGroup.visible = false
     embers.visible = false
+    // 火焰贴图必须显式收起：它不挂在 headGroup 上，漏掉就会停在最后一个火头处
+    flame.mesh.visible = false
     startIdle()
     handlers?.onDone?.()
   }
@@ -570,11 +572,15 @@ export function createRouteLine(globe, nodes) {
       charBand.visible = false
       headGroup.visible = false
       sparkCloud.visible = false
+      flame.mesh.visible = false
+      group.visible = false
       embers.visible = visible
     },
     setVisible(next) {
       visible = next
       group.visible = next
+      // 火焰只在燃烧时可见；单纯显示火线组不该把它带出来
+      flame.mesh.visible = next && !!burn
     },
     resize() {
       if (!globe.width || !globe.height) return

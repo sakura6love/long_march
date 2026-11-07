@@ -290,6 +290,7 @@ defineExpose({
   focusNode,
   /** 序章 → 俯瞰：镜头俯冲 + 光点依次点亮 */
   enterOverview() {
+    routeLine?.setVisible(true)
     if (introStarted) {
       cameraRig?.flyTo({
         lat: DEFAULT_VIEW.lat,
@@ -305,6 +306,7 @@ defineExpose({
   },
   /** 回序章：镜头退回远景 */
   leaveOverview() {
+    routeLine?.setVisible(false)
     clearIntro()
     hintVisible.value = false
     cameraRig?.flyTo({ lat: 16, lng: 96, altitude: 2.0, aim: 0, duration: 1600 })
@@ -312,7 +314,10 @@ defineExpose({
   ignite: (from, to, handlers) => routeLine?.ignite(from, to, handlers),
   skipFire: () => routeLine?.skip(),
   resumeFire: () => routeLine?.resume(),
-  clearFire: () => routeLine?.clear(),
+  clearFire: () => {
+    routeLine?.clear()
+    routeLine?.setVisible(false)
+  },
   get stationS() {
     return routeLine?.stationS ?? []
   },
@@ -547,6 +552,8 @@ onMounted(() => {
 
   // 路线火线：先铺一条余烬虚线，点亮的段由 watch(litIds) 重建。
   routeLine = createRouteLine(globe.value, longMarchNodes, STORY_EVENTS)
+  // 序章默认干净：火线、余烬、火焰先全部收起，进俯瞰时再打开
+  routeLine.setVisible(false)
   routeLine.setLit(
     props.litIds.map((id) => longMarchNodes.findIndex((n) => n.id === id)).filter((i) => i >= 0),
   )
@@ -608,6 +615,8 @@ uniform float uBurn;`,
   float inCn = smoothstep(0.12, 0.82, texture2D(uChina, vUv).r);
   float jitter = (texture2D(uCrust, vUv * 2.3).r - 0.5) * 0.07;
   float bMask = (1.0 - smoothstep(uBurn - 0.06 + jitter, uBurn + 0.05 + jitter, tIgn)) * inCn;
+  float burnActive = smoothstep(0.0, 0.06, uBurn);
+  bMask *= burnActive;
   vec3 crust = texture2D(uCrust, vUv * 6.0).rgb;
   float crack = pow(smoothstep(0.635, 0.945, crust.r), 1.6);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(crust * 0.18, vec3(0.03, 0.02, 0.02), 0.35), bMask * 0.4);
