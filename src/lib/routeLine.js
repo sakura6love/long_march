@@ -36,7 +36,7 @@ export const ROUTE_LIFT = 0.0015
 const SAMPLES_PER_CTRL = 12
 const HEAD_SPAN = 0.03 // 鐏ご鍒?鍒氱儳杩?鐨勮繃娓￠暱搴︼紙鍗犲叏绾垮姬闀匡級
 const COOL_SECONDS = 0.85 // 鐑ц繃涔嬪悗澶氫箙澶卞幓浜害
-const CHAR = new Color('#3d1009') // 鐑у敖鍚庣殑鐒﹂粦
+const CHAR = new Color('#4d1509') // 鐑у敖鍚庣殑鐒﹂粦
 const EMBER = new Color('#6f1712') // 娌＄儳鍒扮殑寮曠嚎
 
 /** 鏌斿拰鐨勫渾鐐硅创鍥撅細Points 榛樿鐢绘柟鍧楋紝蹇呴』缁欒创鍥炬墠鍍忕伀鏄熴€?*/
@@ -141,7 +141,7 @@ export function createRouteLine(globe, nodes) {
   geo.setPositions(flat)
 
   const coreMat = new LineMaterial({
-    linewidth: 1.4,
+    linewidth: 1.8,
     vertexColors: true,
     transparent: true,
     depthWrite: false,
@@ -158,10 +158,10 @@ export function createRouteLine(globe, nodes) {
 
   // 鐒﹀湡甯︼細姣旂嚎瀹?3 鍊嶇殑涓€灞傛殫鑹诧紝璁?鐑ц繃鐨勫湴琛?鏈夌棔杩?
   const charMat = new LineMaterial({
-    linewidth: 10,
+    linewidth: 9,
     color: 0x140604,
     transparent: true,
-    opacity: 0.34,
+    opacity: 0.16,
     depthWrite: false,
   })
   const charBand = new Line2(geo, charMat)

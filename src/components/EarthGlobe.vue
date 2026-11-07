@@ -617,6 +617,9 @@ uniform float uBurn;`,
   float burnActive = smoothstep(0.0, 0.06, uBurn);
   // 已点亮：越靠近路线越早、越亮
   float lit = (1.0 - smoothstep(uBurn - 0.06 + jitter, uBurn + 0.05 + jitter, tIgn)) * inCn * burnActive;
+  // 终章：全国一起亮
+  float full = smoothstep(0.975, 1.0, uBurn) * inCn;
+  lit = max(lit, full * 0.85);
   // 波前：一圈亮金边，燃烧是"推过去"的，不是"整块变"
   float distToFront = abs(tIgn - uBurn + jitter);
   float ring = (1.0 - smoothstep(0.0, 0.05, distToFront)) * smoothstep(0.35, 0.9, texture2D(uChina, vUv).r) * burnActive;
@@ -625,7 +628,8 @@ uniform float uBurn;`,
   vec3 gold = vec3(1.0, 0.78, 0.42);
 
   // 重生：不是烧黑，而是点亮 —— 保留地表纹理，整体提亮并偏暖
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 1.30 + gold * 0.04, lit * 0.40);
+  vec3 litCol = gl_FragColor.rgb * (1.0 + 0.28 * lit + 0.20 * full) * mix(vec3(1.0), gold, 0.32 * full) + gold * 0.05 * lit;
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, litCol, clamp(lit * 0.40 + full * 0.46, 0.0, 0.85));
   gl_FragColor.rgb += gold * ring * 0.35;
   gl_FragColor.rgb += vec3(1.0, 0.86, 0.62) * grain * lit * 0.26;
   gl_FragColor.rgb += gold * (1.0 - smoothstep(0.0, 0.12, tIgn)) * lit * 0.16;
