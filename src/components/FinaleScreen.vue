@@ -45,7 +45,7 @@ const emit = defineEmits(['restart', 'browse'])
 .finale-veil {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 46%, rgba(4, 7, 12, 0.72), rgba(4, 7, 12, 0.95) 70%);
+  background: radial-gradient(ellipse at 50% 44%, rgba(4, 7, 12, 0.42), rgba(4, 7, 12, 0.9) 74%);
   animation: veil-in 1.4s ease both;
 }
 
