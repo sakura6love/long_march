@@ -19,6 +19,24 @@ import { createCameraRig, FRAME } from '../lib/cameraRig.js'
 import { createRouteLine } from '../lib/routeLine.js'
 import { STORY_EVENTS } from '../lib/story.js'
 
+/* 事件标落在线上：用与火焰同一套时间轴（App.stationTimeOfAt）换算站点序号。 */
+const eventMarks = STORY_EVENTS.map((e) => {
+  const whole = Math.min(longMarchNodes.length - 1, Math.max(0, Math.floor(e.at)))
+  const next = Math.min(longMarchNodes.length - 1, whole + 1)
+  const f = Math.max(0, Math.min(1, e.at - Math.floor(e.at)))
+  const a = longMarchNodes[whole]
+  const b = longMarchNodes[next]
+  return {
+    kind: 'event',
+    id: e.id,
+    name: e.title,
+    at: e.at,
+    lat: a.lat + (b.lat - a.lat) * f,
+    lng: a.lng + (b.lng - a.lng) * f,
+  }
+})
+const labelItems = [...longMarchNodes.map((n) => ({ ...n, kind: 'node' })), ...eventMarks]
+
 const props = defineProps({
   litIds: { type: Array, default: () => [] },
   /** 播放进度：已点亮的段数（0~11）。播放时用它，自由浏览时用 litIds。 */
@@ -37,11 +55,14 @@ const props = defineProps({
   burn: { type: Number, default: 0 },
   /** 播放事件时把星球压暗成剪影 */
   dim: { type: Boolean, default: false },
+  /** 事件标是否可见（只在俯瞰态、且没开事件卡时） */
+  showEvents: { type: Boolean, default: true },
+  labelsOn: { type: Boolean, default: true },
   /** 下一站 id：它的光点会呼吸闪烁 */
   nextId: { type: String, default: '' },
 })
 
-const emit = defineEmits(['select', 'tap', 'reset'])
+const emit = defineEmits(['select', 'select-event', 'tap', 'reset'])
 
 // 只让 DOM 容器参与 Vue 响应式；WebGL 实例使用 shallowRef，避免深度代理。
 const globeContainer = ref(null)
@@ -68,6 +89,8 @@ let hoverSuspended = null
 
 // 标签 DOM ↔ 经纬度的对照表，供逐帧判定遮挡与左右翻转。
 const labelRecords = []
+const eventRecords = []
+let headPinEl = null
 
 // 卡片翻面的安全边距：卡片宽度 + 视口留白，超出就翻到左侧。
 const FLIP_SAFE_MARGIN = 168
@@ -147,7 +170,56 @@ function igniteLabel(id) {
   window.setTimeout(() => el.classList.remove('is-igniting'), 900)
 }
 
+function updateHeadPin(burnS) {
+  const st = routeLine?.stationS || []
+  const el = headPinEl
+  if (!el || !globe.value || st.length < 2) return
+  let i = 0
+  while (i + 1 < st.length && st[i + 1] <= burnS) i += 1
+  const a = longMarchNodes[i]
+  const b = longMarchNodes[Math.min(longMarchNodes.length - 1, i + 1)]
+  const span = st[Math.min(st.length - 1, i + 1)] - st[i]
+  const f = span > 0 ? Math.max(0, Math.min(1, (burnS - st[i]) / span)) : 0
+  const lat = a.lat + (b.lat - a.lat) * f
+  const lng = a.lng + (b.lng - a.lng) * f
+  const p = globe.value.getScreenCoords(lat, lng, 0.0015)
+  const facing = isFacingCamera(lat, lng)
+  const on = burnS > 0.0005 && facing && !!props.showEvents
+  el.style.opacity = on ? '1' : '0'
+  if (p) el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0) translate(-50%, -50%)`
+}
+
+function updateEventStates() {
+  if (!globe.value || eventRecords.length === 0) return
+  const st = routeLine?.stationS || []
+  if (!st.length) return
+  // 统一用 routeLine 自己的进度（已按站点弧长归一化），
+  // 不要混用 props.burn —— 那是 chainEnd/11 的另一套刻度。
+  let burnS = routeLine?.headS ?? 0
+  if (burnS <= 0.0001) {
+    let maxIdx = -1
+    for (let i = 0; i < longMarchNodes.length; i += 1) {
+      if (litIdSet.has(longMarchNodes[i].id)) maxIdx = i
+    }
+    if (maxIdx >= 0) burnS = st[maxIdx]
+  }
+  for (const record of eventRecords) {
+    const whole = Math.min(st.length - 1, Math.max(0, Math.floor(record.at)))
+    const frac = Math.max(0, Math.min(1, record.at - whole))
+    const a = st[whole]
+    const b = st[Math.min(st.length - 1, whole + 1)]
+    const s = a + (b - a) * frac
+    const reached = burnS >= s - 0.002
+    const hot = reached && burnS - s < 0.05
+    record.el.classList.toggle('is-unreached', !reached)
+    record.el.classList.toggle('is-reached', reached)
+    record.el.classList.toggle('is-hot', hot)
+  }
+  updateHeadPin(burnS)
+}
+
 function updateLabelStates() {
+  updateEventStates()
   if (!globe.value || labelRecords.length === 0) return
 
   const width = globe.value.width()
@@ -296,6 +368,11 @@ defineExpose({
   /** 序章 → 俯瞰：镜头俯冲 + 光点依次点亮 */
   enterOverview() {
     routeLine?.setVisible(true)
+    routeLine?.setLit(
+      props.litIds
+        .map((id) => longMarchNodes.findIndex((n) => n.id === id))
+        .filter((i) => i >= 0),
+    )
     if (introStarted) {
       cameraRig?.flyTo({
         lat: DEFAULT_VIEW.lat,
@@ -370,6 +447,8 @@ function handleWheel(event) {
  * 圆点、引线和卡片全部从该原点展开，因此不会被卡片宽度拉偏。
  */
 function createChineseLabel(pointData) {
+  if (pointData.kind === 'event') return createEventMark(pointData)
+
   const anchor = document.createElement('button')
   anchor.type = 'button'
   anchor.className = 'march-label-anchor is-pending'
@@ -431,6 +510,25 @@ function revealAll() {
   }
   // 光点全部出现后，底部那行「双击复位」才淡入 —— 开场时先别干扰画面。
   hintVisible.value = true
+}
+
+/**
+ * 事件标：落在路线上的菱形，位置由站点经纬度按 at 的小数部分插值。
+ * 与站点标共用同一套投影（htmlElementsData），所以一定贴在线上。
+ */
+function createEventMark(pointData) {
+  const el = document.createElement('button')
+  el.type = 'button'
+  el.className = 'march-event-anchor is-unreached'
+  el.dataset.eventId = pointData.id
+  el.setAttribute('aria-label', `查看事件：${pointData.name}`)
+  el.innerHTML = '<span class="march-event-diamond" aria-hidden="true"></span>'
+  el.addEventListener('click', (event) => {
+    event.stopPropagation()
+    emit('select-event', pointData.id)
+  })
+  eventRecords.push({ el, id: pointData.id, at: pointData.at, lat: pointData.lat, lng: pointData.lng })
+  return el
 }
 
 /**
@@ -524,12 +622,38 @@ onMounted(() => {
     .atmosphereColor('#a8d4ff')
     .atmosphereAltitude(0.22)
     // 保持原有所有节点的经纬度与标签高度不变。
-    .htmlElementsData(longMarchNodes)
+    .htmlElementsData(labelItems)
     .htmlLat((point) => point.lat)
     .htmlLng((point) => point.lng)
     .htmlAltitude(0.0015)
     .htmlTransitionDuration(0)
     .htmlElement(createChineseLabel)
+
+  // 坐标自检：DOM 锚点中心 vs 同一经纬度的投影点，误差应 < 1.5px
+  window.__geoCheck = () => {
+    const g = globe.value
+    const all = [
+      ...labelRecords.map((r) => ({ ...r, kind: 'node' })),
+      ...eventRecords.map((r) => ({ ...r, kind: 'event' })),
+    ]
+    return all
+      .filter((r) => r.el && r.el.isConnected)
+      .map((r) => {
+        const p = g.getScreenCoords(r.lat, r.lng, 0.0015)
+        const rect = r.el.getBoundingClientRect()
+        return {
+          kind: r.kind,
+          id: r.id,
+          dx: +(rect.left - p.x).toFixed(2),
+          dy: +(rect.top - p.y).toFixed(2),
+        }
+      })
+  }
+
+  headPinEl = document.createElement('div')
+  headPinEl.className = 'march-head-pin'
+  headPinEl.innerHTML = '<span class="march-head-dot"></span>'
+  globeContainer.value?.appendChild(headPinEl)
 
   const scene = globe.value.scene()
 
@@ -713,7 +837,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="horizon-frame"
-    :class="{ 'is-finale': finale, 'labels-muted': labelsMuted }"
+    :class="{ 'is-finale': finale, 'labels-muted': labelsMuted, 'labels-off': !labelsOn }"
     aria-label="长征路线俯瞰地球，显示中国境内的十二个历史节点"
     @dblclick="handleDoubleClick"
     @pointerdown="handlePointerDown"
@@ -927,6 +1051,85 @@ onBeforeUnmount(() => {
 
 /* ———————————————————— 标签 ———————————————————— */
 
+
+:deep(.march-head-pin) {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: 12;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 260ms ease;
+  will-change: transform;
+}
+
+:deep(.march-head-dot) {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8c2a17;
+  border: 1.5px solid #e8c98a;
+  box-shadow: 0 0 10px rgba(200, 70, 40, 0.75), 0 0 22px rgba(140, 42, 23, 0.45);
+}
+
+:deep(.march-event-anchor) {
+  position: relative;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+:deep(.march-event-diamond) {
+  position: absolute;
+  left: -4px;
+  top: -13px;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  background: rgba(139, 28, 28, 0.35);
+  border: 1px solid rgba(232, 201, 138, 0.7);
+  transition: opacity 260ms ease, transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 220ms, box-shadow 220ms;
+  transition: transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 220ms, box-shadow 220ms;
+}
+
+
+:deep(.march-event-anchor.is-unreached) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+:deep(.march-event-anchor.is-reached .march-event-diamond) {
+  background: #8b1c1c;
+  border-color: rgba(232, 201, 138, 0.85);
+}
+
+:deep(.march-event-anchor.is-hot .march-event-diamond) {
+  background: #f0d79a;
+  border-color: rgba(255, 246, 214, 0.95);
+  box-shadow: 0 0 16px rgba(243, 212, 140, 0.9);
+  transform: rotate(45deg) scale(1.45);
+}
+
+:deep(.march-event-anchor:hover .march-event-diamond) {
+  background: #a8261f;
+  transform: rotate(45deg) scale(1.5);
+  box-shadow: 0 0 12px rgba(232, 201, 138, 0.55);
+}
+
+.horizon-frame.labels-off :deep(.march-label-anchor) {
+  opacity: 0;
+  pointer-events: none;
+}
+
 :deep(.march-label-anchor) {
   position: relative;
   display: block;
@@ -1138,18 +1341,7 @@ onBeforeUnmount(() => {
   animation: march-next-pulse 1.7s cubic-bezier(0.25, 1, 0.5, 1) infinite;
 }
 
-/* 行军标记：下一站上方立一面小旗 */
-:deep(.march-label-anchor.is-next .march-label-node::after) {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  content: '⚑';
-  font-size: 13px;
-  line-height: 1;
-  color: #e8c98a;
-  text-shadow: 0 0 6px rgba(196, 163, 90, 0.65);
-  transform: translateX(-50%);
-}
+/* 行军标记：由 3D 旗帜承担，标签这里不再插旗 */
 
 @keyframes march-next-pulse {
   0%,

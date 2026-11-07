@@ -5,7 +5,7 @@
  * 只负责"读"：不碰相机、不碰地球，所有坐标与文案都来自 props。
  * 这样面板的排版怎么改，都不会影响地图上光点的位置。
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   // 当前选中的节点；null 表示收起
@@ -36,6 +36,39 @@ const orderLabel = computed(() =>
 function close() {
   emit('close')
 }
+
+/* 取消点亮会连带熄灭其后的站，先给一次确认机会 */
+const confirming = ref(false)
+let confirmTimer = 0
+
+const laterLit = computed(() => Math.max(0, props.litCount - props.order))
+
+const lightLabel = computed(() => {
+  if (!props.lit) return '点亮此站'
+  if (confirming.value) return `再点一次 · 熄灭其后 ${laterLit.value} 站`
+  return '已点亮 · 点击取消'
+})
+
+function onLight() {
+  if (props.lit && laterLit.value > 0 && !confirming.value) {
+    confirming.value = true
+    window.clearTimeout(confirmTimer)
+    confirmTimer = window.setTimeout(() => {
+      confirming.value = false
+    }, 4000)
+    return
+  }
+
+  confirming.value = false
+  emit('light-up', props.node.id)
+}
+
+watch(
+  () => props.node && props.node.id,
+  () => {
+    confirming.value = false
+  },
+)
 </script>
 
 <template>
@@ -66,13 +99,12 @@ function close() {
 
       <button
         class="detail-light"
-        :class="{ 'is-lit': lit }"
+        :class="{ 'is-lit': lit, 'is-confirming': confirming }"
         type="button"
-        
-        @click="emit('light-up', node.id)"
+        @click="onLight"
       >
         <span class="detail-light-dot" aria-hidden="true"></span>
-        {{ lit ? '已点亮 · 点击取消' : '点亮此站' }}
+        {{ lightLabel }}
       </button>
 
       <footer class="detail-foot">
@@ -422,5 +454,12 @@ function close() {
     transition-duration: 0.01ms;
     transition-delay: 0s;
   }
+}
+.detail-light.is-confirming {
+  border-color: rgba(243, 212, 140, 0.85);
+  color: #f3d48c;
+  box-shadow:
+    0 0 0 1px rgba(243, 212, 140, 0.25),
+    0 6px 18px rgba(196, 163, 90, 0.18);
 }
 </style>

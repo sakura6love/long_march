@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 闀垮緛璺嚎鐏嚎 鈥斺€?涓€鏉＄嚎锛屼粠鐟為噾鐑у埌浼氬畞銆?
  *
  * 杩欎竴鐗堝彧鍋氫笁浠朵簨锛屼絾閮芥槸"鍍忕伀"鐨勫繀瑕佹潯浠讹細
@@ -27,8 +27,6 @@ import { Line2 } from 'three/addons/lines/Line2.js'
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import { ROUTE_SEGMENTS } from './routePath.js'
-import { createFlame } from './flame.js'
-import { createSparks } from './sparks.js'
 
 /** 涓?EarthGlobe 鐨?htmlAltitude 淇濇寔涓€鑷?鈥斺€?绾胯创鍦帮紝鍏夌偣涔熻创鍦般€?*/
 export const ROUTE_LIFT = 0.0015
@@ -141,8 +139,8 @@ export function createRouteLine(globe, nodes) {
   geo.setPositions(flat)
 
   const coreMat = new LineMaterial({
-    linewidth: 1.8,
-    vertexColors: true,
+    linewidth: 2.6,
+    color: 0x8c2a17,
     transparent: true,
     depthWrite: false,
   })
@@ -177,6 +175,7 @@ export function createRouteLine(globe, nodes) {
   glow.frustumCulled = false
   group.add(charBand, glow, core)
 
+
   // 鈥斺€?鏈儳娈碉細绋€鐤忓喎寮曠嚎锛堟殫绾㈢偣锛屼笉鏄櫄绾匡級鈥斺€?
   const dotTexture = makeDotTexture()
   const emberPoints = []
@@ -194,7 +193,6 @@ export function createRouteLine(globe, nodes) {
   })
   const embers = new Points(emberGeo, emberMat)
   embers.renderOrder = 2
-  group.add(embers)
 
   // 鈥斺€?鐏槦锛氭湁閲嶅姏銆佹湁瀵垮懡銆佷細鍐峰嵈 鈥斺€?
   const SPARK_COUNT = 140
@@ -256,25 +254,13 @@ export function createRouteLine(globe, nodes) {
   headSmoke.scale.setScalar(1.8)
   headSmoke.position.y = 0.012
   headGroup.add(headSmoke, headFlame, headCore)
-  // 着色器火焰：屏幕空间定尺寸，任何视高都是 40~60px
-  const flame = createFlame()
-  headCore.visible = false
-  headFlame.visible = false
-  headSmoke.visible = false
-  flame.mesh.visible = true
-  flame.mesh.renderOrder = 9
-  flame.mesh.scale.set(1, 1, 1)
-  flame.mesh.position.set(0, 0, 0)
-  group.add(flame.mesh)
-
   // 火星粒子池（InstancedMesh，一次 draw call）
-  const sparkPool = createSparks(48)
+  const sparkPool = { mesh: new Group(), spawn() {}, update() {}, setVisible() {} }
   sparkPool.mesh.renderOrder = 6
   sparkPool.mesh.visible = false
   headGroup.renderOrder = 7
   headGroup.visible = false
   group.remove(headGroup)
-  // 旧柔光 headGroup 不再入场，全部由 flame.mesh 承担
 
   // 姣忎釜閲囨牱鐐硅鐑у埌鐨勬椂鍒伙紙-1 = 杩樻病鐑у埌锛夆€斺€斿喎鍗存寜鐪熷疄鏃堕棿绠?
   const burnTime = new Float32Array(samples.length).fill(-1)
@@ -292,9 +278,9 @@ export function createRouteLine(globe, nodes) {
   glowMat.resolution.copy(resolution)
 
   const tmpColor = new Color()
-  const hotWhite = new Color('#fff8e8')
-  const fireOrange = new Color('#ff8a2a')
-  const deepRed = new Color('#b8321a')
+  const hotWhite = new Color('#ffe6b8')
+  const fireOrange = new Color('#c53a1d')
+  const deepRed = new Color('#7d2113')
 
   function colorArray(now) {
     const col = new Float32Array(samples.length * 3)
@@ -303,14 +289,14 @@ export function createRouteLine(globe, nodes) {
       if (t0 < 0) continue
 
       const age = now - t0
-      if (age < 0.28) {
+      if (age < 0.12) {
         // 鍒氳鐐圭潃锛氱櫧蹇?鈫?姗?
-        const k = age / 0.28
+        const k = age / 0.12
         if (k < 0.45) tmpColor.copy(hotWhite).lerp(fireOrange, k / 0.45)
         else tmpColor.copy(fireOrange).lerp(deepRed, (k - 0.45) / 0.55)
       } else {
         // 涔嬪悗锛氭繁绾?鈫?鐒﹂粦锛岀暀涓€鐐圭偔鐏殑鍛煎惛
-        const cool = Math.min(1, (age - 0.28) / COOL_SECONDS)
+        const cool = Math.min(1, (age - 0.12) / COOL_SECONDS)
         tmpColor.copy(deepRed).lerp(CHAR, cool)
         const flicker = 0.5 + 0.5 * Math.sin(now * 2.4 + i * 0.7)
         tmpColor.offsetHSL(0, 0, 0.02 * flicker * (1 - cool))
@@ -352,12 +338,8 @@ export function createRouteLine(globe, nodes) {
     }
 
     if (count > 1) {
-      headGroup.position.copy(samples[Math.min(samples.length - 1, count - 1)])
-      flame.mesh.position.copy(headGroup.position).multiplyScalar(1.03)
-      flame.mesh.visible = false
-      headGroup.visible = false
+      const head = samples[Math.min(samples.length - 1, count - 1)]
     } else {
-      headGroup.visible = false
     }
 
     embers.visible = false
@@ -428,33 +410,12 @@ export function createRouteLine(globe, nodes) {
   function headWorldSize() {
     const cam = globe.camera()
     if (!cam) return 1.2
-    _v.copy(headGroup.position)
     const dist = cam.position.distanceTo(_v)
     const fov = (cam.fov * Math.PI) / 180
     const h = (typeof window !== 'undefined' && window.innerHeight) || 1080
     return dist * 2 * Math.tan(fov / 2) * (46 / h)
   }
 
-  function animateHead(now, speed) {
-    const cam = globe.camera()
-    if (cam) {
-      _c.copy(cam.position).sub(headGroup.position).normalize()
-      // 让火焰平面朝向相机
-      headGroup.quaternion.copy(cam.quaternion)
-      // 稍微朝燃烧方向倾斜
-      if (speed) headGroup.rotateZ(-0.06)
-    }
-    const f1 = Math.sin(now * 23.0) * 0.5 + Math.sin(now * 37.7 + 1.3) * 0.5
-    const f2 = Math.sin(now * 17.3 + 2.1)
-    headCore.scale.setScalar(0.6 * (1 + f1 * 0.09))
-    headFlame.scale.setScalar(1.3 * (1 + f2 * 0.12))
-    headFlame.material.opacity = 0.85 + f1 * 0.1
-    headSmoke.scale.setScalar(1.8 + 0.2 * ((now * 0.6) % 1))
-    headSmoke.material.opacity = 0.4 * (1 - ((now * 0.6) % 1))
-    headSmoke.position.y = 0.04 + 0.09 * ((now * 0.6) % 1)
-    headGroup.rotation.z = f2 * 0.06
-    flame.update(now, headWorldSize(), 1)
-  }
 
   function tick(ts) {
     raf = 0
@@ -483,14 +444,7 @@ export function createRouteLine(globe, nodes) {
         return
       }
       applyProgress(burn.s)
-      spawnSparks(headGroup.position, dt)
-      _v.copy(headGroup.position).normalize()
-      sparkPool.spawn(headGroup.position, _v, 3, globe.camera().quaternion)
-      animateHead(clock, burn.speed)
     }
-    stepSparks(dt)
-    sparkPool.update(dt, globe.camera() ? globe.camera().quaternion : null)
-
     raf = requestAnimationFrame(tick)
   }
 
@@ -502,7 +456,6 @@ export function createRouteLine(globe, nodes) {
     headGroup.visible = false
     embers.visible = false
     // 火焰贴图必须显式收起：它不挂在 headGroup 上，漏掉就会停在最后一个火头处
-    flame.mesh.visible = false
     startIdle()
     handlers?.onDone?.()
   }
@@ -536,6 +489,9 @@ export function createRouteLine(globe, nodes) {
 
   return {
     group,
+    get headS() {
+      return burnedS
+    },
     setLit(indices) {
       const maxIdx = indices.length ? Math.max(...indices) : -1
       applyProgress(maxIdx >= 0 ? stationS[Math.min(stationS.length - 1, maxIdx)] : 0)
@@ -591,15 +547,13 @@ export function createRouteLine(globe, nodes) {
       charBand.visible = false
       headGroup.visible = false
       sparkCloud.visible = false
-      flame.mesh.visible = false
-      group.visible = false
+        group.visible = false
       embers.visible = visible
     },
     setVisible(next) {
       visible = next
       group.visible = next
       // 火焰只在燃烧时可见；单纯显示火线组不该把它带出来
-      flame.mesh.visible = next && !!burn
     },
     resize() {
       if (!globe.width || !globe.height) return

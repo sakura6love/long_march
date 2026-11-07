@@ -42,6 +42,8 @@ const activeNode = computed(() =>
 
 const litIds = ref(readLitIds())
 const activeLit = computed(() => (activeNode.value ? litIds.value.includes(activeNode.value.id) : false))
+// 「第 X 站」始终与当前节点同源，避免从事件栏进来时错位
+const nodeOrder = computed(() => (activeNode.value ? indexOfId(activeNode.value.id) + 1 : 0))
 
 const indexOfId = (id) => longMarchNodes.findIndex((n) => n.id === id)
 const litSet = computed(() => new Set(litIds.value.map(indexOfId)))
@@ -52,6 +54,11 @@ const chainEnd = computed(() => {
   while (k < longMarchNodes.length && litSet.value.has(k)) k += 1
   return k
 })
+
+// 路书/事件标用"点亮到的最远一站"，不是连续前缀（允许跳站）
+const railProgress = computed(() =>
+  litIds.value.reduce((m, id) => Math.max(m, indexOfId(id) + 1), 0),
+)
 
 const burning = ref(false)
 const pausedEvent = ref(null)
@@ -305,7 +312,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :next-id="nextNodeId"
       :locked="mode === 'playing'"
       :burn="chainEnd >= 12 ? 1 : Math.min(0.92, chainEnd / 11 * 0.92)"
+      :show-events="screen === 'overview' && !showingEvent && !settingsOpen"
+      :labels-on="screen === 'overview'"
       @select="handleSelect"
+      @select-event="openEventById"
       @tap="handleTap"
       @reset="activeIndex = -1"
     />
@@ -313,7 +323,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
     <DetailPanel
       v-if="activeNode"
       :node="activeNode"
-      :order="activeIndex + 1"
+      :order="nodeOrder"
       :total="longMarchNodes.length"
       :lit="activeLit"
       :lit-count="litIds.length"
@@ -325,9 +335,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
     <EventScene :event="showingEvent" />
 
     <EventRail
-      v-if="screen === 'overview' && !settingsOpen"
+      v-if="screen === 'overview' && !settingsOpen && !showingEvent"
       :events="STORY_EVENTS"
       :seen="seenEvents"
+      :progress="railProgress"
+      :total="longMarchNodes.length - 1"
       :active-id="showingEvent ? showingEvent.id : ''"
       @select="openEventById"
     />
@@ -371,7 +383,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
     <AskPanel v-if="screen === 'overview' && !settingsOpen" />
   </div>
-  <ChapterCard v-if="!showingEvent" :chapter="activeChapter" :progress="chainEnd" />
+  <ChapterCard v-if="!showingEvent" :chapter="activeChapter" :progress="railProgress" />
 </template>
 
 <style>

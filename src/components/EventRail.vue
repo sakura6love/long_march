@@ -1,49 +1,114 @@
 <script setup>
-defineProps({
+import { computed, ref } from 'vue'
+
+const props = defineProps({
   events: { type: Array, default: () => [] },
   seen: { type: Array, default: () => [] },
   activeId: { type: String, default: '' },
+  progress: { type: Number, default: 0 },
+  total: { type: Number, default: 11 },
 })
 defineEmits(['select'])
+
+const NUM = ['壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖', '拾']
+const num = (i) => NUM[i] || String(i + 1)
+
+const reached = (e) => (e.at ?? 0) <= props.progress + 0.001
+const lastReached = computed(() => {
+  let k = -1
+  props.events.forEach((e, i) => {
+    if (reached(e)) k = i
+  })
+  return k
+})
+
+// 按站点序号排布，位置与地图上的行程一致
+const slots = computed(() =>
+  props.events.map((e) => ({
+    ...e,
+    pct: Math.max(0, Math.min(1, (e.at ?? 0) / (props.total || 11))) * 100,
+  })),
+)
+
+const hover = ref('')
+const short = (date = '') => {
+  const m = date.match(/(\d{4})\s*·\s*(\d{2})/)
+  return m ? `${m[1]}.${m[2]}` : date
+}
 </script>
 
 <template>
-  <aside class="event-rail" aria-label="事件回顾">
+  <div class="route-strip" aria-label="路书">
+    <span class="rs-title"><b>路书</b><i>一九三四 — 一九三六</i></span>
+    <span class="rs-end rs-end-l">瑞金</span>
+    <span class="rs-end rs-end-r">会宁</span>
+    <div class="rs-line" aria-hidden="true">
+      <span class="rs-fill" :style="{ width: `${Math.min(100, (progress / (total || 11)) * 100)}%` }" />
+    </div>
+
     <button
-      v-for="(e, i) in events"
+      v-for="(e, i) in slots"
       :key="e.id"
-      class="rail-item"
-      :class="{ 'is-seen': seen.includes(e.id), 'is-active': activeId === e.id }"
+      class="rs-node"
+      :class="{
+        'is-seen': reached(e),
+        'is-current': i === lastReached && !activeId,
+        'is-active': activeId === e.id,
+        'is-locked': !reached(e),
+      }"
+      :style="{ left: `${e.pct}%` }"
       type="button"
       @click.stop="$emit('select', e.id)"
+      @mouseenter="hover = e.id"
+      @mouseleave="hover = ''"
     >
-      <span class="rail-mark" aria-hidden="true" />
-      <span class="rail-text">
-        <em>{{ String(i + 1).padStart(2, '0') }}</em>{{ e.title }}
+      <span class="rs-index">{{ num(i) }}</span>
+      <span class="rs-dot" aria-hidden="true" />
+
+      <span v-if="hover === e.id || activeId === e.id" class="rs-tip">
+        <em>{{ e.title }}</em>
+        <i>{{ e.place || '' }} · {{ short(e.date) }}</i>
       </span>
     </button>
-  </aside>
+  </div>
 </template>
 
 <style scoped>
-.event-rail {
+.route-strip {
   position: fixed;
-  right: 22px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  left: 50%;
+  bottom: 70px;
+  width: min(640px, 54vw);
+  height: 34px;
+  transform: translateX(-50%);
   z-index: 26;
   pointer-events: none;
 }
 
-.rail-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+.rs-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 21px;
+  height: 1px;
+  background: rgba(196, 163, 90, 0.22);
+}
+
+.rs-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(139, 28, 28, 0.2), #8b1c1c);
+  transition: width 0.9s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.rs-node {
+  position: absolute;
+  top: 0;
+  width: 22px;
+  height: 34px;
+  margin-left: -11px;
   padding: 0;
   border: 0;
   background: none;
@@ -51,51 +116,118 @@ defineEmits(['select'])
   pointer-events: auto;
 }
 
-.rail-mark {
-  width: 7px;
-  height: 7px;
-  transform: rotate(45deg);
-  border: 1px solid rgba(196, 163, 90, 0.6);
-  background: transparent;
-  transition: background 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-    border-color 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.rail-item.is-seen .rail-mark {
-  background: #8b1c1c;
-  border-color: rgba(196, 163, 90, 0.75);
-}
-
-.rail-item.is-active .rail-mark {
-  background: #f3f1e6;
-  border-color: #f3f1e6;
-  box-shadow: 0 0 10px rgba(243, 241, 230, 0.5);
-}
-
-.rail-text {
+.rs-index {
   position: absolute;
-  right: 18px;
-  white-space: nowrap;
-  font-family: inherit;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  color: rgba(243, 241, 230, 0.7);
-  opacity: 0;
-  transform: translateX(6px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  pointer-events: none;
-}
-
-.rail-text em {
-  font-style: normal;
-  margin-right: 8px;
-  color: rgba(196, 163, 90, 0.8);
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 9px;
+  letter-spacing: 0.05em;
+  color: rgba(196, 163, 90, 0.45);
+  transition: color 0.35s;
+  white-space: nowrap;
 }
 
-.rail-item:hover .rail-text,
-.rail-item.is-active .rail-text {
-  opacity: 1;
-  transform: translateX(0);
+.rs-dot {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  width: 2px;
+  height: 9px;
+  margin-left: -1px;
+  background: rgba(196, 163, 90, 0.42);
+  transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.rs-tip {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 10px;
+  width: max-content;
+  max-width: 190px;
+  background: rgba(8, 12, 18, 0.92);
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+.rs-tip em {
+  font-style: normal;
+  font-size: 11px;
+  color: #f3f1e6;
+}
+
+.rs-tip i {
+  font-style: normal;
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  color: rgba(196, 163, 90, 0.75);
+}
+
+.rs-title {
+  position: absolute;
+  left: -96px;
+  top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-end;
+  text-align: right;
+}
+.rs-title b {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.34em;
+  color: rgba(243, 241, 230, 0.82);
+}
+.rs-title i {
+  font-style: normal;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: rgba(196, 163, 90, 0.5);
+}
+.rs-end {
+  position: absolute;
+  top: 22px;
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: rgba(196, 163, 90, 0.5);
+}
+.rs-end-l { left: -34px; }
+.rs-end-r { right: -34px; }
+
+/* 已走过 */
+.is-seen .rs-index {
+  color: rgba(232, 201, 138, 0.9);
+}
+.is-seen .rs-dot {
+  background: #8b1c1c;
+  box-shadow: 0 0 6px rgba(139, 28, 28, 0.65);
+}
+
+/* 当前 */
+.is-current .rs-dot,
+.is-active .rs-dot {
+  background: #f3d48c;
+  height: 16px;
+  top: 9px;
+  box-shadow: 0 0 10px rgba(232, 201, 138, 0.8);
+}
+
+/* 未走到 */
+.is-locked {
+  opacity: 0.42;
+}
+.is-locked:hover {
+  opacity: 0.75;
+}
+
+.rs-node:hover .rs-index {
+  color: #f3f1e6;
 }
 </style>
