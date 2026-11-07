@@ -1252,4 +1252,8 @@ onBeforeUnmount(() => {
 .march-label-anchor.is-igniting > * {
   box-shadow: none !important;
 }
+
+/* 俯瞰态整体可拖：给一个明确的手型 */
+.horizon-frame { cursor: grab; }
+.horizon-frame:active { cursor: grabbing; }
 </style>

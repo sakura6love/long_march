@@ -58,6 +58,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   inset: 0;
   z-index: 9;
   pointer-events: none;
+  user-select: none;
 }
 
 .prologue-scrim {
@@ -74,7 +75,8 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   top: 50%;
   width: min(620px, 46vw);
   transform: translateY(-50%);
-  pointer-events: auto;
+  /* 文字区不可拦截指针：否则左半屏的地球拖不动 */
+  pointer-events: none;
 }
 
 .kicker {
@@ -109,6 +111,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 }
 
 .entries {
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
