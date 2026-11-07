@@ -15,6 +15,7 @@ import SettingsPanel from './components/SettingsPanel.vue'
 import FinaleScreen from './components/FinaleScreen.vue'
 import longMarchNodes from './data.js'
 import ChapterCard from './components/ChapterCard.vue'
+import EventRail from './components/EventRail.vue'
 import { CHAPTERS } from './lib/chapters.js'
 import { STORY_EVENTS } from './lib/story.js'
 import { readLitIds, lightUp, clearProgress } from './lib/api.js'
@@ -55,6 +56,15 @@ const chainEnd = computed(() => {
 const burning = ref(false)
 const pausedEvent = ref(null)
 const showingEvent = ref(null)
+const seenEvents = ref([])
+
+function openEventById(id) {
+  const e = STORY_EVENTS.find((x) => x.id === id)
+  if (!e) return
+  activeIndex.value = -1
+  pausedEvent.value = null
+  showingEvent.value = e
+}
 
 const NEXT_LABEL = computed(() => longMarchNodes[chainEnd.value]?.name ?? '')
 const canResume = computed(() => litIds.value.length > 0 && chainEnd.value > 0)
@@ -160,6 +170,7 @@ function burnFrom(before, after) {
     onEvent(event) {
       pausedEvent.value = event
       showingEvent.value = event
+      if (!seenEvents.value.includes(event.id)) seenEvents.value.push(event.id)
       activeIndex.value = -1
     },
     onDone() {
@@ -296,6 +307,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
     />
 
     <EventScene :event="showingEvent" />
+
+    <EventRail
+      v-if="screen === 'overview' && !settingsOpen"
+      :events="STORY_EVENTS"
+      :seen="seenEvents"
+      :active-id="showingEvent ? showingEvent.id : ''"
+      @select="openEventById"
+    />
 
     <StartScreen
       v-if="screen === 'start'"
