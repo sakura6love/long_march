@@ -602,8 +602,9 @@ uniform float uBurn;`,
       '#include <dithering_fragment>',
       `{
   float tIgn = texture2D(uIgnition, vUv).r;
-  float inCn = texture2D(uChina, vUv).r;
-  float bMask = (1.0 - smoothstep(uBurn - 0.05, uBurn + 0.03, tIgn)) * inCn;
+  float inCn = smoothstep(0.12, 0.82, texture2D(uChina, vUv).r);
+  float jitter = (texture2D(uCrust, vUv * 2.3).r - 0.5) * 0.07;
+  float bMask = (1.0 - smoothstep(uBurn - 0.06 + jitter, uBurn + 0.05 + jitter, tIgn)) * inCn;
   vec3 crust = texture2D(uCrust, vUv * 6.0).rgb;
   float crack = pow(smoothstep(0.635, 0.945, crust.r), 1.6);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(crust * 0.18, vec3(0.03, 0.02, 0.02), 0.35), bMask * 0.4);
