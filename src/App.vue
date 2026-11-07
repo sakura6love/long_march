@@ -68,6 +68,7 @@ function goOverview() {
 }
 
 function handleStart() {
+  startAudio()
   litIds.value = []
   clearProgress()
   activeIndex.value = -1
