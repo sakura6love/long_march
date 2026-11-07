@@ -39,7 +39,7 @@ const activeNode = computed(() =>
   activeIndex.value >= 0 ? longMarchNodes[activeIndex.value] : null,
 )
 
-const litIds = ref([])
+const litIds = ref(readLitIds())
 const activeLit = computed(() => (activeNode.value ? litIds.value.includes(activeNode.value.id) : false))
 
 const indexOfId = (id) => longMarchNodes.findIndex((n) => n.id === id)
