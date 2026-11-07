@@ -37,6 +37,8 @@ const props = defineProps({
   burn: { type: Number, default: 0 },
   /** 播放事件时把星球压暗成剪影 */
   dim: { type: Boolean, default: false },
+  /** 下一站 id：它的光点会呼吸闪烁 */
+  nextId: { type: String, default: '' },
 })
 
 const emit = defineEmits(['select', 'tap', 'reset'])
@@ -107,9 +109,11 @@ function isFacingCamera(lat, lng) {
  */
 // 用 Set 存一份，避免每帧对 12 个节点做 includes
 let litIdSet = new Set()
+let burnValue = 0
 watch(
   () => props.burn,
   (v) => {
+    burnValue = v
     if (window.__marchBurn) window.__marchBurn.uBurn.value = v
   },
   { immediate: true },
@@ -154,6 +158,7 @@ function updateLabelStates() {
     record.el.classList.toggle('is-far', !facing)
     // 点亮过的站点，光点常亮一层金晕
     record.el.classList.toggle('is-lit', litIdSet.has(record.id))
+    record.el.classList.toggle('is-next', !!props.nextId && record.id === props.nextId)
 
     if (!facing) continue
 
@@ -373,11 +378,7 @@ function createChineseLabel(pointData) {
   anchor.innerHTML = `
     <span class="march-label-beam" aria-hidden="true"></span>
     <span class="march-label-node" aria-hidden="true"></span>
-    <span class="march-label-card">
-      <span class="march-label-code">${pointData.id.toUpperCase()}</span>
-      <strong>${pointData.name}</strong>
-      <small>${pointData.date}</small>
-    </span>
+    <span class="march-label-card"><strong>${pointData.name}</strong></span>
   `
 
   anchor.addEventListener('click', (event) => {
@@ -593,7 +594,7 @@ const burnUniforms = {
   uIgnition: { value: ignTex },
   uChina: { value: cnTex },
   uCrust: { value: crustTex },
-  uBurn: { value: 0.55 },
+  uBurn: { value: 0 },
 }
 globeMaterial.defines = Object.assign({}, globeMaterial.defines, { USE_UV: '' })
 globeMaterial.needsUpdate = true
@@ -1107,15 +1108,13 @@ onBeforeUnmount(() => {
 
 /* 悬停 / 键盘聚焦 / 选中：三种状态共用同一套展开样式。 */
 :deep(.march-label-anchor:hover .march-label-beam),
-:deep(.march-label-anchor:focus-visible .march-label-beam),
-:deep(.march-label-anchor.is-active .march-label-beam) {
+:deep(.march-label-anchor:focus-visible .march-label-beam) {
   opacity: 1;
   transform: translate(var(--beam-shift, 3px), -50%) scaleX(1);
 }
 
 :deep(.march-label-anchor:hover .march-label-card),
-:deep(.march-label-anchor:focus-visible .march-label-card),
-:deep(.march-label-anchor.is-active .march-label-card) {
+:deep(.march-label-anchor:focus-visible .march-label-card) {
   --slide-x: 0px;
 
   border-color: #f3d48c;
@@ -1128,10 +1127,28 @@ onBeforeUnmount(() => {
     inset 0 1px rgba(255, 255, 255, 0.15);
   opacity: 1;
   pointer-events: auto;
-  transition-delay: 0s;
+  transition-delay: 0.18s, 0.18s, 0s, 0s, 0s;
 }
 
 /* 点亮过的站点：光点常亮一层暖金，和"还没点亮"的点拉开差别。 */
+:deep(.march-label-anchor.is-next .march-label-node) {
+  animation: march-next-pulse 1.7s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+@keyframes march-next-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(246, 220, 156, 0.45),
+      0 0 12px 2px rgba(224, 189, 114, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px rgba(243, 212, 140, 0.22),
+      0 0 22px 6px rgba(243, 212, 140, 0.75);
+  }
+}
+
 :deep(.march-label-anchor.is-lit .march-label-node) {
   background: #f6dc9c;
   box-shadow:

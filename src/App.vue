@@ -68,6 +68,9 @@ function openEventById(id) {
 
 const NEXT_LABEL = computed(() => longMarchNodes[chainEnd.value]?.name ?? '')
 const canResume = computed(() => litIds.value.length > 0 && chainEnd.value > 0)
+const nextNodeId = computed(() =>
+  chainEnd.value >= longMarchNodes.length ? '' : longMarchNodes[chainEnd.value].id,
+)
 
 /* ---------------- 幕间 ---------------- */
 
@@ -287,6 +290,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :chrome="screen === 'overview'"
       :finale="screen === 'finale'"
       :labels-muted="!!showingEvent"
+      :next-id="nextNodeId"
       :locked="mode === 'playing'"
       :burn="chainEnd >= 12 ? 1 : Math.min(0.92, chainEnd / 11 * 0.92)"
       @select="handleSelect"
