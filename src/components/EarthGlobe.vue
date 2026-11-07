@@ -619,15 +619,16 @@ uniform float uBurn;`,
   float lit = (1.0 - smoothstep(uBurn - 0.06 + jitter, uBurn + 0.05 + jitter, tIgn)) * inCn * burnActive;
   // 波前：一圈亮金边，燃烧是"推过去"的，不是"整块变"
   float distToFront = abs(tIgn - uBurn + jitter);
-  float ring = (1.0 - smoothstep(0.0, 0.022, distToFront)) * smoothstep(0.35, 0.9, texture2D(uChina, vUv).r) * burnActive;
+  float ring = (1.0 - smoothstep(0.0, 0.05, distToFront)) * smoothstep(0.35, 0.9, texture2D(uChina, vUv).r) * burnActive;
   // 细密金点，像万家灯火
   float grain = smoothstep(0.55, 1.0, texture2D(uCrust, vUv * 26.0).r);
   vec3 gold = vec3(1.0, 0.78, 0.42);
 
   // 重生：不是烧黑，而是点亮 —— 保留地表纹理，整体提亮并偏暖
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 1.18 + gold * 0.12, lit * 0.42);
-  gl_FragColor.rgb += gold * ring * 0.7;
-  gl_FragColor.rgb += vec3(1.0, 0.86, 0.62) * grain * lit * 0.14;
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 1.30 + gold * 0.04, lit * 0.40);
+  gl_FragColor.rgb += gold * ring * 0.35;
+  gl_FragColor.rgb += vec3(1.0, 0.86, 0.62) * grain * lit * 0.26;
+  gl_FragColor.rgb += gold * (1.0 - smoothstep(0.0, 0.12, tIgn)) * lit * 0.16;
 }
 #include <dithering_fragment>`,
     )

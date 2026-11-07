@@ -141,17 +141,17 @@ export function createRouteLine(globe, nodes) {
   geo.setPositions(flat)
 
   const coreMat = new LineMaterial({
-    linewidth: 3.6,
+    linewidth: 1.4,
     vertexColors: true,
     transparent: true,
     depthWrite: false,
   })
   // 鍏夋檿鏀跺緱寰堢揣锛氬彧鍦ㄧ伀澶撮檮杩戜寒锛岀儳杩囩殑鍦版柟涓嶅彂鍏?
   const glowMat = new LineMaterial({
-    linewidth: 11,
+    linewidth: 26,
     vertexColors: true,
     transparent: true,
-    opacity: 0.16,
+    opacity: 0.5,
     depthWrite: false,
     blending: AdditiveBlending,
   })
@@ -167,8 +167,10 @@ export function createRouteLine(globe, nodes) {
   const charBand = new Line2(geo, charMat)
   charBand.renderOrder = 2
 
+  const glowGeo = new LineGeometry()
+  glowGeo.setPositions(flat)
   const core = new Line2(geo, coreMat)
-  const glow = new Line2(geo, glowMat)
+  const glow = new Line2(glowGeo, glowMat)
   core.renderOrder = 4
   glow.renderOrder = 3
   core.frustumCulled = false
@@ -186,7 +188,7 @@ export function createRouteLine(globe, nodes) {
     size: 0.8,
     sizeAttenuation: true,
     transparent: true,
-    opacity: 0.34,
+    opacity: 0.55,
     depthWrite: false,
     alphaTest: 0.01,
   })
@@ -332,7 +334,21 @@ export function createRouteLine(globe, nodes) {
     for (let i = 0; i < samples.length; i += 1) {
       if (sArr[i] <= burnedS && burnTime[i] < 0) burnTime[i] = clock
     }
-    geo.setColors(colorArray(clock))
+    const cc = colorArray(clock)
+    geo.setColors(cc)
+    if (count > 1) {
+      const headS = sArr[count - 1]
+      const gc = new Float32Array(samples.length * 3)
+      for (let i = 0; i < samples.length; i += 1) {
+        const d = (headS - sArr[i]) / 0.05
+        if (d < 0 || d > 1) continue
+        const k = (1 - d) * (1 - d)
+        gc[i * 3] = cc[i * 3] * k
+        gc[i * 3 + 1] = cc[i * 3 + 1] * k
+        gc[i * 3 + 2] = cc[i * 3 + 2] * k
+      }
+      glowGeo.setColors(gc)
+    }
 
     if (count > 1) {
       headGroup.position.copy(samples[Math.min(samples.length - 1, count - 1)])
@@ -353,12 +369,13 @@ export function createRouteLine(globe, nodes) {
 
   const up = new Vector3()
   function spawnSparks(headPos, dt) {
-    let budget = Math.max(1, Math.round(dt * 110))
+    const base = pointAt(Math.max(0, burnedS * Math.random() * 0.96))
+    let budget = Math.max(1, Math.round(dt * 26))
     for (const p of sparks) {
       if (p.life > 0) continue
       if (budget <= 0) break
-      up.copy(headPos).normalize()
-      p.pos.copy(headPos)
+      up.copy(base).normalize()
+      p.pos.copy(base)
       // 鍚戞枩涓婃柟鎶涳細娌垮湴琛ㄥ垏鍚?+ 涓€涓悜涓婄殑鍒嗛噺
       p.vel.set(
         (Math.random() - 0.5) * 0.34,
@@ -413,7 +430,7 @@ export function createRouteLine(globe, nodes) {
     const dist = cam.position.distanceTo(_v)
     const fov = (cam.fov * Math.PI) / 180
     const h = (typeof window !== 'undefined' && window.innerHeight) || 1080
-    return dist * 2 * Math.tan(fov / 2) * (48 / h)
+    return dist * 2 * Math.tan(fov / 2) * (108 / h)
   }
 
   function animateHead(now, speed) {
