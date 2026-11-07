@@ -20,6 +20,10 @@ defineProps({
         <h2 class="event-title">{{ event.title }}</h2>
         <p class="event-text">{{ event.text }}</p>
 
+        <ul v-if="event.points && event.points.length" class="event-points">
+          <li v-for="(pt, i) in event.points" :key="i">{{ pt }}</li>
+        </ul>
+
         <!-- 四渡赤水：四条虚线画在卡片里，而不是球面上（球面间距不到 3px） -->
         <svg v-if="event.diagram" class="event-diagram" viewBox="0 0 320 96" aria-hidden="true">
           <defs>
@@ -88,6 +92,32 @@ defineProps({
   line-height: 1.25;
   font-weight: 500;
   letter-spacing: 0.06em;
+}
+
+.event-points {
+  margin: 22px 0 0;
+  padding: 0 0 0 16px;
+  list-style: none;
+  border-left: 1px solid rgba(196, 163, 90, 0.28);
+}
+
+.event-points li {
+  position: relative;
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.9;
+  letter-spacing: 0.03em;
+  color: rgba(243, 241, 230, 0.78);
+}
+
+.event-points li::before {
+  content: '';
+  position: absolute;
+  left: -19px;
+  top: 12px;
+  width: 4px;
+  height: 1px;
+  background: rgba(196, 163, 90, 0.55);
 }
 
 .event-text {
@@ -202,7 +232,33 @@ defineProps({
     font-size: 26px;
   }
 
-  .event-text {
+  .event-points {
+  margin: 22px 0 0;
+  padding: 0 0 0 16px;
+  list-style: none;
+  border-left: 1px solid rgba(196, 163, 90, 0.28);
+}
+
+.event-points li {
+  position: relative;
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.9;
+  letter-spacing: 0.03em;
+  color: rgba(243, 241, 230, 0.78);
+}
+
+.event-points li::before {
+  content: '';
+  position: absolute;
+  left: -19px;
+  top: 12px;
+  width: 4px;
+  height: 1px;
+  background: rgba(196, 163, 90, 0.55);
+}
+
+.event-text {
     font-size: 14px;
     line-height: 1.95;
   }

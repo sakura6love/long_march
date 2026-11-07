@@ -11,6 +11,7 @@
 export const STORY_EVENTS = [
   {
     id: 'xiangjiang',
+    points: ["中央红军 8.6 万人，过江后仅剩 3 万", "突破第四道封锁线，损失过半", "此战后通道转兵，方向开始改变"],
     at: 2,
     date: '1934 · 11 · 27 — 12 · 01',
     title: '血战湘江',
@@ -20,6 +21,7 @@ export const STORY_EVENTS = [
   },
   {
     id: 'zunyi',
+    points: ["1935 年 1 月 15—17 日，政治局扩大会议", "确立毛泽东在党中央和红军的领导地位", "四渡赤水，即从这次会议之后开始"],
     at: 3,
     date: '1935 · 01 · 15 — 01 · 17',
     title: '遵义会议',
@@ -29,6 +31,7 @@ export const STORY_EVENTS = [
   },
   {
     id: 'chishui',
+    points: ["三个月内四次渡过赤水河", "3 万对 40 万，靠机动摆脱包围", "土城、太平渡、茅台、二郎滩"],
     at: 4,
     date: '1935 · 01 — 03',
     title: '四渡赤水',
@@ -39,6 +42,7 @@ export const STORY_EVENTS = [
   },
   {
     id: 'jinsha',
+    points: ["皎平渡，7 条木船", "9 天 9 夜，全军渡完", "从此跳出数十万追兵的包围圈"],
     at: 4.6,
     date: '1935 · 05 · 01 — 05 · 09',
     title: '巧渡金沙江',
@@ -48,6 +52,7 @@ export const STORY_EVENTS = [
   },
   {
     id: 'luding',
+    points: ["1935 年 5 月 29 日，一昼夜 240 里", "22 名突击队员攀铁索过江", "泸定桥一夺，北上通道打开"],
     at: 5,
     date: '1935 · 05 · 29',
     title: '飞夺泸定桥',
@@ -57,6 +62,7 @@ export const STORY_EVENTS = [
   },
   {
     id: 'jiajin',
+    points: ["海拔 4000 米以上", "中央红军翻越的第一座大雪山", "单衣草鞋，许多人倒在雪线上"],
     at: 6,
     date: '1935 · 06 · 12',
     title: '翻越夹金山',
@@ -66,6 +72,7 @@ export const STORY_EVENTS = [
   },
   {
     id: 'caodi',
+    points: ["松潘草地，沼泽遍布", "长征中牺牲最多的一段路", "走出草地时，队伍已不足出发时的一半"],
     at: 7,
     date: '1935 · 08',
     title: '过草地',
@@ -75,6 +82,7 @@ export const STORY_EVENTS = [
   },
   {
     id: 'huining',
+    points: ["1936 年 10 月，红一、二、四方面军会师", "纵横十一个省，行程约两万五千里", "会宁因此被称为长征会师圣地"],
     at: 11,
     date: '1936 · 10',
     title: '会宁会师',

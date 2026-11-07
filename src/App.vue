@@ -355,7 +355,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
     <AskPanel v-if="screen === 'overview' && !settingsOpen" />
   </div>
-  <ChapterCard :chapter="activeChapter" :progress="chainEnd" />
+  <ChapterCard v-if="!showingEvent" :chapter="activeChapter" :progress="chainEnd" />
 </template>
 
 <style>
