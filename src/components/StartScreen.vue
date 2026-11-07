@@ -111,7 +111,8 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 }
 
 .entries {
-  pointer-events: auto;
+  /* 容器整块不拦截：否则按钮之间的缝隙也拖不动地球 */
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -119,6 +120,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 }
 
 .entry {
+  pointer-events: auto;
   position: relative;
   padding: 0 0 0 0;
   border: 0;
