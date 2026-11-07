@@ -614,16 +614,20 @@ uniform float uBurn;`,
   float tIgn = texture2D(uIgnition, vUv).r;
   float inCn = smoothstep(0.12, 0.82, texture2D(uChina, vUv).r);
   float jitter = (texture2D(uCrust, vUv * 2.3).r - 0.5) * 0.07;
-  float bMask = (1.0 - smoothstep(uBurn - 0.06 + jitter, uBurn + 0.05 + jitter, tIgn)) * inCn;
   float burnActive = smoothstep(0.0, 0.06, uBurn);
-  bMask *= burnActive;
-  vec3 crust = texture2D(uCrust, vUv * 6.0).rgb;
-  float crack = pow(smoothstep(0.635, 0.945, crust.r), 1.6);
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(crust * 0.18, vec3(0.03, 0.02, 0.02), 0.35), bMask * 0.4);
-  gl_FragColor.rgb += vec3(1.0, 0.38, 0.12) * crack * bMask * 1.6;
-  // 余烬用"离路线的远近"驱动，天然是低频，不会在球面尺度上被平掉
-  float heat = clamp((uBurn - tIgn) / max(uBurn, 0.001), 0.0, 1.0);
-  gl_FragColor.rgb += vec3(1.0, 0.34, 0.10) * pow(heat, 4.5) * bMask * 0.55;
+  // 已点亮：越靠近路线越早、越亮
+  float lit = (1.0 - smoothstep(uBurn - 0.06 + jitter, uBurn + 0.05 + jitter, tIgn)) * inCn * burnActive;
+  // 波前：一圈亮金边，燃烧是"推过去"的，不是"整块变"
+  float distToFront = abs(tIgn - uBurn + jitter);
+  float ring = (1.0 - smoothstep(0.0, 0.045, distToFront)) * inCn * burnActive;
+  // 细密金点，像万家灯火
+  float grain = smoothstep(0.55, 1.0, texture2D(uCrust, vUv * 26.0).r);
+  vec3 gold = vec3(1.0, 0.78, 0.42);
+
+  // 重生：不是烧黑，而是点亮 —— 保留地表纹理，整体提亮并偏暖
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 0.9 + gold * 0.5, lit * 0.6);
+  gl_FragColor.rgb += gold * ring * 0.95;
+  gl_FragColor.rgb += vec3(1.0, 0.86, 0.62) * grain * lit * 0.3;
 }
 #include <dithering_fragment>`,
     )
