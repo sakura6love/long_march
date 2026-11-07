@@ -271,7 +271,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :lit-ids="litIds"
       :backdrop="backdropImage"
       :dim="globeDimmed"
-      :show-hint="screen === 'overview' && !settingsOpen && activeIndex < 0"
+      :show-hint="screen === 'overview' && !settingsOpen && mode !== 'playing' && activeIndex < 0"
       :chrome="screen === 'overview'"
       :locked="mode === 'playing'"
       :burn="chainEnd >= 12 ? 1 : Math.min(0.92, chainEnd / 11 * 0.92)"
