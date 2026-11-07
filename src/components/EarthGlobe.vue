@@ -28,6 +28,7 @@ const props = defineProps({
   showHint: { type: Boolean, default: false },
   /** 抬头（标题）只在俯瞰态显示，序章有自己的版式 */
   chrome: { type: Boolean, default: true },
+  finale: { type: Boolean, default: false },
   /** 播放中锁住双击复位，避免和燃烧抢动作 */
   locked: { type: Boolean, default: false },
   /** 0..1：地面烧到哪 */
@@ -688,6 +689,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="horizon-frame"
+    :class="{ 'is-finale': finale }"
     aria-label="长征路线俯瞰地球，显示中国境内的十二个历史节点"
     @dblclick="handleDoubleClick"
     @pointerdown="handlePointerDown"
@@ -723,6 +725,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .horizon-frame {
+  transition: transform 2.2s cubic-bezier(0.25, 1, 0.5, 1);
+  transform-origin: 50% 46%;
   position: relative;
   width: 100vw;
   height: 100vh;
@@ -736,6 +740,10 @@ onBeforeUnmount(() => {
 }
 
 /* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
+.horizon-frame.is-finale {
+  transform: scale(0.86);
+}
+
 .horizon-frame::before {
   position: absolute;
   z-index: 0;
