@@ -171,17 +171,13 @@ function igniteLabel(id) {
 }
 
 function updateHeadPin(burnS) {
-  const st = routeLine?.stationS || []
   const el = headPinEl
-  if (!el || !globe.value || st.length < 2) return
-  let i = 0
-  while (i + 1 < st.length && st[i + 1] <= burnS) i += 1
-  const a = longMarchNodes[i]
-  const b = longMarchNodes[Math.min(longMarchNodes.length - 1, i + 1)]
-  const span = st[Math.min(st.length - 1, i + 1)] - st[i]
-  const f = span > 0 ? Math.max(0, Math.min(1, (burnS - st[i]) / span)) : 0
-  const lat = a.lat + (b.lat - a.lat) * f
-  const lng = a.lng + (b.lng - a.lng) * f
+  if (!el || !globe.value || !routeLine) return
+  // 位置直接取火线采样的经纬度，与线严格同源（不要用站点直线插值）
+  const head = routeLine.headLatLng
+  if (!head) return
+  const lat = head.lat
+  const lng = head.lng
   const p = globe.value.getScreenCoords(lat, lng, 0.0015)
   const facing = isFacingCamera(lat, lng)
   const on = burnS > 0.0005 && facing && !!props.showEvents

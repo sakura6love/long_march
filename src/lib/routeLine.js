@@ -26,7 +26,7 @@ import {
 import { Line2 } from 'three/addons/lines/Line2.js'
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
-import { ROUTE_SEGMENTS } from './routePath.js'
+import { CHISHUI_LOOP, ROUTE_SEGMENTS } from './routePath.js'
 
 /** 涓?EarthGlobe 鐨?htmlAltitude 淇濇寔涓€鑷?鈥斺€?绾胯创鍦帮紝鍏夌偣涔熻创鍦般€?*/
 export const ROUTE_LIFT = 0.0015
@@ -118,15 +118,62 @@ export function createRouteLine(globe, nodes) {
   }
   for (let i = 0; i < sArr.length; i += 1) sArr[i] /= total || 1
 
-  const stationS = nodes.map((_, i) => {
-    const t = stationCtrl[i] / (ctrl.length - 1)
-    return sArr[Math.min(sArr.length - 1, Math.round(t * sampleCount))]
+  // 采样点的经纬度：钉/事件标都从这里取，保证与线严格同源
+  const samplesLL = samples.map((v) => globe.toGeoCoords(v))
+
+  // 站点弧长：取“离站点最近的采样点”，而不是控制点序号比例
+  // （Catmull-Rom 的参数不是弧长均匀的，途经点密处会偏）
+  const stationS = nodes.map((n) => {
+    let best = 0
+    let bestD = Infinity
+    for (let i = 0; i < samplesLL.length; i += 1) {
+      const dLat = samplesLL[i].lat - n.lat
+      const dLng = (samplesLL[i].lng - n.lng) * Math.cos((n.lat * Math.PI) / 180)
+      const d = dLat * dLat + dLng * dLng
+      if (d < bestD) {
+        bestD = d
+        best = i
+      }
+    }
+    return sArr[best]
   })
 
   // 鈥斺€?涓€鏉＄嚎 鈥斺€?
   const group = new Group()
   group.name = 'march-route'
   globe.scene().add(group)
+
+  // 四渡赤水：只作注记，虚线小回环，不参与进度
+  const loopCurve = new CatmullRomCurve3(
+    CHISHUI_LOOP.map((w) => toVec(w.lat, w.lng)),
+    false,
+    'catmullrom',
+    0.5,
+  )
+  const loopPts = loopCurve.getPoints(64).map((p) => p.clone().multiplyScalar(radius))
+  const loopFlat = new Float32Array(loopPts.length * 3)
+  loopPts.forEach((p, i) => {
+    loopFlat[i * 3] = p.x
+    loopFlat[i * 3 + 1] = p.y
+    loopFlat[i * 3 + 2] = p.z
+  })
+  const loopGeo = new LineGeometry()
+  loopGeo.setPositions(loopFlat)
+  const loopMat = new LineMaterial({
+    color: 0x8b1c1c,
+    linewidth: 1.6,
+    dashed: true,
+    dashSize: radius * 0.012,
+    gapSize: radius * 0.011,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  })
+  const loopLine = new Line2(loopGeo, loopMat)
+  loopLine.computeLineDistances()
+  loopLine.renderOrder = 1
+  loopLine.frustumCulled = false
+  group.add(loopLine)
 
   const flat = new Float32Array(samples.length * 3)
   samples.forEach((p, i) => {
@@ -213,7 +260,7 @@ export function createRouteLine(globe, nodes) {
     size: 6.0,
     sizeAttenuation: true,
     transparent: true,
-    opacity: 0.95,
+    opacity: 0.55,
     depthWrite: false,
     blending: AdditiveBlending,
   })
@@ -276,6 +323,7 @@ export function createRouteLine(globe, nodes) {
   if (globe.width && globe.height) resolution.set(globe.width(), globe.height())
   coreMat.resolution.copy(resolution)
   glowMat.resolution.copy(resolution)
+  loopMat.resolution.copy(resolution)
 
   const tmpColor = new Color()
   const hotWhite = new Color('#ffe6b8')
@@ -492,6 +540,11 @@ export function createRouteLine(globe, nodes) {
     get headS() {
       return burnedS
     },
+    get headLatLng() {
+      let i = 0
+      while (i + 1 < sArr.length && sArr[i + 1] <= burnedS) i += 1
+      return samplesLL[i]
+    },
     setLit(indices) {
       const maxIdx = indices.length ? Math.max(...indices) : -1
       applyProgress(maxIdx >= 0 ? stationS[Math.min(stationS.length - 1, maxIdx)] : 0)
@@ -560,7 +613,8 @@ export function createRouteLine(globe, nodes) {
       resolution.set(globe.width(), globe.height())
       coreMat.resolution.copy(resolution)
       glowMat.resolution.copy(resolution)
-    charMat.resolution.copy(resolution)
+      loopMat.resolution.copy(resolution)
+      charMat.resolution.copy(resolution)
     },
     dispose() {
       if (raf) cancelAnimationFrame(raf)
