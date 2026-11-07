@@ -128,6 +128,7 @@ function cn(n) {
     left: 50%;
     right: auto;
     width: 86vw;
+    margin-top: 22px;
     max-width: none;
     padding: 22px 20px 24px;
   }
