@@ -807,6 +807,16 @@ uniform float uBurn;`,
   gl_FragColor.rgb = mix(gl_FragColor.rgb, litCol, clamp(lit * 0.40 + full * 0.38, 0.0, 0.82));
   // 点亮后与境外拉开：国境之外整体压暗
   gl_FragColor.rgb *= mix(1.0, 0.86, full * (1.0 - inCn));
+
+  // 国境描边：掩码差分取边缘，随 uBurn 收尾亮起
+  if (uBurn > 0.9) {
+    vec2 px = vec2(1.0 / 1024.0, 1.0 / 512.0);
+    float e0 = texture2D(uChina, vUv).r;
+    // 羽化后的掩码：0.5 附近就是国境线
+    float edge = 1.0 - smoothstep(0.003, 0.012, abs(e0 - 0.5));
+    float rim = edge * smoothstep(0.9, 0.99, uBurn);
+    gl_FragColor.rgb += vec3(1.0, 0.84, 0.5) * rim * 0.3;
+  }
   gl_FragColor.rgb += gold * ring * 0.35;
   gl_FragColor.rgb += vec3(1.0, 0.86, 0.62) * grain * lit * 0.18;
   gl_FragColor.rgb += gold * (1.0 - smoothstep(0.0, 0.12, tIgn)) * lit * 0.06;
