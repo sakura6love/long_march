@@ -13,7 +13,19 @@
  */
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import Globe from 'globe.gl'
-import { AmbientLight, DirectionalLight, HemisphereLight, LinearFilter, LinearMipmapLinearFilter, TextureLoader } from 'three'
+import {
+  AmbientLight,
+  DirectionalLight,
+  Group,
+  HemisphereLight,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  TextureLoader,
+  Vector2,
+} from 'three'
+import { Line2 } from 'three/addons/lines/Line2.js'
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import longMarchNodes from '../data.js'
 import { createCameraRig, FRAME } from '../lib/cameraRig.js'
 import { createRouteLine } from '../lib/routeLine.js'
@@ -58,6 +70,8 @@ const props = defineProps({
   /** 事件标是否可见（只在俯瞰态、且没开事件卡时） */
   showEvents: { type: Boolean, default: true },
   labelsOn: { type: Boolean, default: true },
+  /** 终章显示真实国界金线 */
+  borderOn: { type: Boolean, default: false },
   /** 下一站 id：它的光点会呼吸闪烁 */
   nextId: { type: String, default: '' },
 })
@@ -534,6 +548,55 @@ function revealAll() {
  * 把事件点重新贴到火线上：at → 弧长（站点弧长插值）→ 曲线采样点。
  * 整数 at 再往前退 0.35 站，避免与站点圆点重叠。
  */
+let borderGroup = null
+
+async function loadCountryBorder(base) {
+  try {
+    const res = await fetch(`${base}geo/china-border.json`)
+    if (!res.ok) return
+    const data = await res.json()
+    const rings = (Array.isArray(data?.rings) ? data.rings : []).filter(
+      (r) => Array.isArray(r) && r.length > 3,
+    )
+    if (!rings.length || !globe.value) return
+
+    const group = new Group()
+    const res2 = new Vector2(window.innerWidth, window.innerHeight)
+    for (const ring of rings) {
+      const pts = []
+      for (const [lng, lat] of ring) {
+        const c = globe.value.getCoords(lat, lng, 0.006)
+        pts.push(c.x, c.y, c.z)
+      }
+      if (pts.length < 9) continue
+      const g = new LineGeometry()
+      g.setPositions(pts)
+      const m = new LineMaterial({
+        color: 0xffd88a,
+        linewidth: 2.2,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+      })
+      m.resolution.copy(res2)
+      const line = new Line2(g, m)
+      line.computeLineDistances()
+      group.add(line)
+    }
+    group.visible = props.borderOn
+    borderGroup = group
+    globe.value.scene().add(group)
+  } catch (e) {
+    // 缺数据时静默降级
+  }
+}
+
+function applyBorder() {
+  if (borderGroup) borderGroup.visible = props.borderOn
+}
+
+watch(() => props.borderOn, applyBorder)
+
 function syncEventPositions() {
   const st = routeLine?.stationS
   if (!st || st.length < 2) return
@@ -724,6 +787,7 @@ onMounted(() => {
 
   // 路线火线：先铺一条余烬虚线，点亮的段由 watch(litIds) 重建。
   routeLine = createRouteLine(globe.value, longMarchNodes, STORY_EVENTS)
+  loadCountryBorder(assetBase)
   syncEventPositions()
   window.__route = routeLine
   window.__globe = globe.value
@@ -793,7 +857,7 @@ uniform float uBurn;`,
   // 已点亮：越靠近路线越早、越亮
   float lit = (1.0 - smoothstep(uBurn - 0.16 + jitter, uBurn + 0.03 + jitter, tIgn)) * inCn * burnActive;
   // 终章：全国一起亮
-  float full = smoothstep(0.975, 1.0, uBurn) * inCn;
+  float full = smoothstep(0.86, 0.98, uBurn) * inCn;
   lit = max(lit, full * 0.85);
   // 波前：一圈亮金边，燃烧是"推过去"的，不是"整块变"
   float distToFront = abs(tIgn - uBurn + jitter);
@@ -803,20 +867,11 @@ uniform float uBurn;`,
   vec3 gold = vec3(1.0, 0.78, 0.42);
 
   // 重生：不是烧黑，而是点亮 —— 保留地表纹理，整体提亮并偏暖
-  vec3 litCol = gl_FragColor.rgb * (1.0 + 0.18 * lit + 0.20 * full) * mix(vec3(1.0), gold, 0.30 * full + 0.14 * lit) + gold * 0.03 * lit;
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, litCol, clamp(lit * 0.40 + full * 0.38, 0.0, 0.82));
+  vec3 litCol = gl_FragColor.rgb * (1.0 + 0.16 * lit + 0.26 * full) * mix(vec3(1.0), gold, 0.22 * full + 0.14 * lit) + gold * 0.05 * full;
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, litCol, clamp(lit * 0.46 + full * 0.40, 0.0, 0.74));
   // 点亮后与境外拉开：国境之外整体压暗
-  gl_FragColor.rgb *= mix(1.0, 0.86, full * (1.0 - inCn));
+  gl_FragColor.rgb *= mix(1.0, 0.72, full * (1.0 - inCn));
 
-  // 国境描边：掩码差分取边缘，随 uBurn 收尾亮起
-  if (uBurn > 0.9) {
-    vec2 px = vec2(1.0 / 1024.0, 1.0 / 512.0);
-    float e0 = texture2D(uChina, vUv).r;
-    // 羽化后的掩码：0.5 附近就是国境线
-    float edge = 1.0 - smoothstep(0.003, 0.012, abs(e0 - 0.5));
-    float rim = edge * smoothstep(0.9, 0.99, uBurn);
-    gl_FragColor.rgb += vec3(1.0, 0.84, 0.5) * rim * 0.3;
-  }
   gl_FragColor.rgb += gold * ring * 0.35;
   gl_FragColor.rgb += vec3(1.0, 0.86, 0.62) * grain * lit * 0.18;
   gl_FragColor.rgb += gold * (1.0 - smoothstep(0.0, 0.12, tIgn)) * lit * 0.06;

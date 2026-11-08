@@ -179,4 +179,5 @@ const emit = defineEmits(['restart', 'browse'])
     line-height: 1.9;
   }
 }
+.finale-line{text-shadow:0 2px 22px rgba(0,0,0,.72),0 0 40px rgba(0,0,0,.5)}
 </style>
