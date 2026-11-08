@@ -29,6 +29,22 @@ const coordinate = computed(() => {
   return `${lat} ${lng}`
 })
 
+/** 把长段落切成 2 段：取中点附近第一个句号，避免一整块文字压得人不想读。 */
+const paragraphs = computed(() => {
+  const text = (props.node && props.node.description) || ''
+  if (text.length < 90) return text ? [text] : []
+  const mid = Math.floor(text.length / 2)
+  let cut = -1
+  for (let d = 0; d < 120; d += 1) {
+    const right = text.indexOf('。', mid + d)
+    if (right > -1 && right < text.length - 20) { cut = right + 1; break }
+    const left = text.lastIndexOf('。', mid - d)
+    if (left > 40) { cut = left + 1; break }
+  }
+  if (cut < 0) return [text]
+  return [text.slice(0, cut).trim(), text.slice(cut).trim()].filter(Boolean)
+})
+
 const orderLabel = computed(() =>
   props.order ? `第 ${String(props.order).padStart(2, '0')} 站 / 共 ${props.total} 站` : '',
 )
@@ -75,14 +91,12 @@ watch(
   <Transition name="detail">
     <aside
       v-if="node"
-      class="detail-panel"
+      class="detail-panel glass-panel"
       role="dialog"
       aria-label="历史节点详情"
       :aria-hidden="!node"
     >
-      <button class="detail-close" type="button" aria-label="关闭详情" @click="close">
-        <span aria-hidden="true"></span>
-      </button>
+      <button class="panel-close" type="button" aria-label="关闭详情" @click="close" />
 
       <header class="detail-head">
         <p class="detail-eyebrow">
@@ -90,11 +104,19 @@ watch(
           <span class="detail-date">{{ node.date }}</span>
         </p>
         <h2 class="detail-title">{{ node.name }}</h2>
+        <span class="detail-rule" aria-hidden="true"></span>
         <p v-if="node.quote" class="detail-quote">{{ node.quote }}</p>
       </header>
 
       <div class="detail-body">
-        <p class="detail-text">{{ node.description }}</p>
+        <p
+          v-for="(para, i) in paragraphs"
+          :key="i"
+          class="detail-text"
+          :class="{ 'is-lead': i === 0 }"
+        >
+          {{ para }}
+        </p>
       </div>
 
       <button
@@ -125,17 +147,11 @@ watch(
   top: 88px;
   right: 40px;
   display: flex;
-  width: 380px;
-  max-height: calc(100vh - 176px);
+  width: 392px;
+  max-height: min(76vh, 720px);
   box-sizing: border-box;
   padding: 34px 32px 22px;
   flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  background: rgba(20, 25, 35, 0.6);
-  box-shadow:
-    0 30px 80px rgba(4, 7, 12, 0.55),
-    inset 0 1px rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   overflow: hidden;
@@ -206,8 +222,9 @@ watch(
 
 .detail-eyebrow {
   display: flex;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   align-items: baseline;
+  justify-content: space-between;
   gap: 12px;
   color: rgba(243, 241, 230, 0.44);
   font: 10px/1 'Space Mono', ui-monospace, monospace;
@@ -229,8 +246,16 @@ watch(
   font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
   font-size: 34px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   line-height: 1.2;
+}
+
+.detail-rule {
+  display: block;
+  width: 34px;
+  height: 1px;
+  margin-top: 16px;
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.92), rgba(212, 175, 55, 0));
 }
 
 .detail-quote {
@@ -251,6 +276,9 @@ watch(
   min-height: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   overflow: auto;
+  padding-right: 4px;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 26px), transparent);
   scrollbar-width: thin;
   scrollbar-color: rgba(212, 175, 55, 0.35) transparent;
 }
@@ -266,11 +294,19 @@ watch(
 
 .detail-text {
   margin: 0;
-  color: rgba(243, 241, 230, 0.72);
+  color: rgba(244, 241, 225, 0.7);
   font-size: 13.5px;
-  line-height: 2.05;
-  letter-spacing: 0.02em;
+  line-height: 2;
+  letter-spacing: 0.03em;
   text-align: justify;
+}
+
+.detail-text + .detail-text {
+  margin-top: 14px;
+}
+
+.detail-text.is-lead {
+  color: rgba(244, 241, 225, 0.88);
 }
 
 .detail-light {

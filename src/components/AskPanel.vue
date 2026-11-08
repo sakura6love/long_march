@@ -53,7 +53,7 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
 <template>
   <div class="ask">
     <Transition name="ask-window">
-      <section v-if="open" class="ask-window" aria-label="长征知识问答">
+      <section v-if="open" class="ask-window glass-panel" aria-label="长征知识问答">
         <header class="ask-head">
           <span class="ask-kicker">ASK / 长征问答</span>
           <button class="ask-close" type="button" aria-label="收起问答" @click="toggle">
@@ -153,10 +153,6 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
   padding: 22px 22px 16px;
   flex-direction: column;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  background: rgba(20, 25, 35, 0.72);
-  box-shadow: 0 30px 80px rgba(4, 7, 12, 0.55);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   overflow: hidden;

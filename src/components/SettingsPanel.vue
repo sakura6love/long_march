@@ -15,7 +15,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
   <div class="settings" role="dialog" aria-label="设置">
     <button class="settings-veil" type="button" aria-label="继续" @click="emit('close')"></button>
 
-    <section class="settings-card">
+    <section class="settings-card glass-panel glass-panel--modal">
       <header class="settings-head">
         <h2>设 置</h2>
         <button class="settings-x" type="button" aria-label="继续" @click="emit('close')">继续</button>
@@ -79,8 +79,6 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
   position: relative;
   width: min(520px, 86vw);
   padding: 34px 40px 30px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(20, 25, 35, 0.72);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   animation: settings-in 0.42s cubic-bezier(0.25, 1, 0.5, 1);
