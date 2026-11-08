@@ -217,16 +217,19 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   place-items: center;
   width: 44px;
   height: 44px;
-  border: 1px solid var(--accent-red);
-  background: var(--accent-red);
-  color: #f6e7d6;
+  border: 1px solid rgba(212, 175, 55, 0.32);
+  border-radius: 3px;
+  background: linear-gradient(135deg, var(--accent-red) 0%, #5a0e24 100%);
+  color: #f2d79c;
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 13px;
   line-height: 1.05;
   letter-spacing: 0.04em;
   writing-mode: vertical-rl;
   text-orientation: upright;
-  box-shadow: 0 0 0 1px rgba(139, 28, 28, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
 @media (max-width: 768px) {

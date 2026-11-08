@@ -97,7 +97,7 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
   position: fixed;
   z-index: 30;
   bottom: 32px;
-  left: 32px;
+  left: 60px;
 }
 
 .ask-orb {
@@ -145,7 +145,7 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
 
 .ask-window {
   position: absolute;
-  bottom: 70px;
+  bottom: 72px;
   left: 0;
   display: flex;
   width: 348px;

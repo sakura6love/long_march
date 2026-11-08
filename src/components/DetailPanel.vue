@@ -317,10 +317,10 @@ watch(
   align-items: center;
   justify-content: center;
   gap: 9px;
-  border: 1px solid rgba(212, 175, 55, 0.34);
-  border-radius: 2px;
-  background: rgba(212, 175, 55, 0.05);
-  color: #d8bd83;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(244, 241, 225, 0.82);
   font-size: 12px;
   letter-spacing: 0.18em;
   cursor: pointer;
@@ -342,18 +342,17 @@ watch(
 
 .detail-light:hover:not(:disabled),
 .detail-light:focus-visible:not(:disabled) {
-  border-color: rgba(224, 189, 114, 0.75);
-  background: rgba(212, 175, 55, 0.14);
-  box-shadow: 0 0 24px rgba(212, 175, 55, 0.16);
+  border-color: rgba(212, 175, 55, 0.45);
+  background: rgba(255, 255, 255, 0.075);
+  box-shadow: 0 0 18px rgba(212, 175, 55, 0.12);
   color: #f8df9c;
   outline: none;
 }
 
 .detail-light.is-lit {
-  border-color: rgba(224, 189, 114, 0.55);
-  background: rgba(212, 175, 55, 0.12);
+  border-color: rgba(212, 175, 55, 0.42);
+  background: rgba(212, 175, 55, 0.10);
   color: #f8df9c;
-  cursor: default;
 }
 
 .detail-light.is-lit .detail-light-dot {
