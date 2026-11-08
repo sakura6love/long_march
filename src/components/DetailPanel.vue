@@ -109,15 +109,34 @@ watch(
       </header>
 
       <div class="detail-body">
-        <p
-          v-for="(para, i) in paragraphs"
-          :key="i"
-          class="detail-text"
-          :class="{ 'is-lead': i === 0 }"
-        >
-          {{ para }}
-        </p>
+        <template v-if="node.lead">
+          <p class="detail-lead">{{ node.lead }}</p>
+
+          <section v-for="(sec, i) in node.sections" :key="i" class="detail-section">
+            <h3 class="detail-subhead">{{ sec.h }}</h3>
+            <p class="detail-text">{{ sec.p }}</p>
+          </section>
+
+        </template>
+
+        <template v-else>
+          <p
+            v-for="(para, i) in paragraphs"
+            :key="i"
+            class="detail-text"
+            :class="{ 'is-lead': i === 0 }"
+          >
+            {{ para }}
+          </p>
+        </template>
       </div>
+
+      <dl v-if="node.facts && node.facts.length" class="detail-facts">
+        <div v-for="(f, i) in node.facts" :key="i" class="detail-fact">
+          <dd class="detail-fact-v">{{ f.v }}</dd>
+          <dt class="detail-fact-k">{{ f.k }}</dt>
+        </div>
+      </dl>
 
       <button
         class="detail-light"
@@ -143,7 +162,7 @@ watch(
 <style scoped>
 .detail-panel {
   position: fixed;
-  z-index: 20;
+  z-index: 34;
   top: 88px;
   right: 40px;
   display: flex;
@@ -277,8 +296,9 @@ watch(
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   overflow: auto;
   padding-right: 4px;
-  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), transparent);
-  mask-image: linear-gradient(180deg, #000 calc(100% - 26px), transparent);
+  padding-bottom: 18px;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
   scrollbar-width: thin;
   scrollbar-color: rgba(212, 175, 55, 0.35) transparent;
 }
@@ -309,11 +329,76 @@ watch(
   color: rgba(244, 241, 225, 0.88);
 }
 
+/* ---- 分节结构：导语 / 小标题 / 数据条 ---- */
+.detail-lead {
+  margin: 0 0 20px;
+  color: rgba(244, 241, 225, 0.92);
+  font-size: 14.5px;
+  line-height: 1.92;
+  letter-spacing: 0.035em;
+}
+
+.detail-section + .detail-section {
+  margin-top: 18px;
+}
+
+.detail-subhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 7px;
+  color: var(--accent-gold);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+}
+
+.detail-subhead::before {
+  content: "";
+  width: 12px;
+  height: 1px;
+  background: rgba(212, 175, 55, 0.55);
+  flex: none;
+}
+
+.detail-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  flex: none;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.detail-fact {
+  min-width: 0;
+}
+
+.detail-fact-v {
+  margin: 0;
+  color: rgba(248, 223, 156, 0.94);
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.detail-fact-k {
+  margin: 5px 0 0;
+  color: rgba(163, 168, 180, 0.62);
+  font-size: 10px;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+}
+
 .detail-light {
   display: flex;
   width: 100%;
   height: 42px;
-  margin-top: 18px;
+  margin-top: 16px;
   align-items: center;
   justify-content: center;
   gap: 9px;
@@ -432,8 +517,8 @@ watch(
     bottom: 0;
     left: 0;
     width: auto;
-    height: 50vh;
-    max-height: 50vh;
+    height: auto;
+    max-height: min(78vh, 660px);
     padding: 24px 20px 16px;
     border-right: 0;
     border-bottom: 0;
@@ -464,6 +549,7 @@ watch(
   .detail-body {
     margin-top: 16px;
     padding-top: 14px;
+    min-height: 96px;
   }
 
   .detail-text {

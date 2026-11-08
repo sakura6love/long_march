@@ -347,7 +347,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
     <EventScene :event="showingEvent" />
 
     <EventRail
-      v-if="screen === 'overview' && !settingsOpen && !showingEvent"
+      v-if="screen === 'overview' && !settingsOpen && !showingEvent && !activeNode"
       :events="STORY_EVENTS"
       :seen="seenEvents"
       :progress="railProgress"
@@ -383,7 +383,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       @browse="screen = 'overview'"
     />
 
-    <p v-if="hint" class="story-hint" aria-hidden="true">
+    <p v-if="hint && !activeNode" class="story-hint" aria-hidden="true">
       <span>{{ hint }}</span>
       <i v-if="screen === 'overview' && !settingsOpen && mode !== 'playing'">·</i>
       <em v-if="screen === 'overview' && !settingsOpen && mode !== 'playing'">双击复位</em>

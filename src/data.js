@@ -13,6 +13,8 @@
  * 坐标取节点所在城市、县域或历史事件核心地点的代表性坐标，
  * 用于数字地图的视觉定位；历史行军路线本身并非由单一坐标构成。
  */
+import { STATION_EXTRA } from './lib/storyExtra.js'
+
 const longMarchNodes = [
   {
     id: 'ruijin',
@@ -136,4 +138,7 @@ const longMarchNodes = [
   },
 ]
 
-export default longMarchNodes
+export default longMarchNodes.map((node) => ({
+  ...node,
+  ...(STATION_EXTRA[node.id] || {}),
+}))
