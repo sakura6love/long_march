@@ -159,7 +159,8 @@ const short = (date = '') => {
   line-height: 1;
   letter-spacing: 0.12em;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.68);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
   transition: color 0.35s var(--ease), text-shadow 0.35s var(--ease);
   white-space: nowrap;
 }
@@ -244,7 +245,7 @@ const short = (date = '') => {
 
 /* 未走到：不再叠 opacity，只压颜色 */
 .is-locked .rs-index {
-  color: rgba(255, 255, 255, 0.46);
+  color: rgba(255, 255, 255, 0.52);
 }
 .is-locked .rs-dot {
   background: rgba(255, 255, 255, 0.26);
