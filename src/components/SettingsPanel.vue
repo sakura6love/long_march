@@ -106,7 +106,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
   font-size: 26px;
   font-weight: 500;
   letter-spacing: 0.3em;
-  color: #f3f1e6;
+  color: var(--text-main);
 }
 
 .settings-x {
@@ -120,7 +120,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
 }
 
 .settings-x:hover {
-  color: #f3f1e6;
+  color: var(--text-main);
 }
 
 .row {
@@ -158,7 +158,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
 }
 
 .switch i.on {
-  background: #c4a35a;
+  background: var(--accent-gold);
 }
 
 .split {
@@ -177,7 +177,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 15px;
   letter-spacing: 0.18em;
-  color: #c4a35a;
+  color: var(--accent-gold);
   cursor: pointer;
 }
 
@@ -186,7 +186,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
   left: 0;
   width: 1px;
   height: 14px;
-  background: #c4a35a;
+  background: var(--accent-gold);
   transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
@@ -195,7 +195,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
 }
 
 .restart:disabled {
-  color: rgba(196, 163, 90, 0.3);
+  color: rgba(212, 175, 55, 0.3);
   cursor: default;
 }
 

@@ -90,7 +90,7 @@ const short = (date = '') => {
   right: 0;
   top: 18px;
   height: 1px;
-  background: rgba(196, 163, 90, 0.22);
+  background: rgba(212, 175, 55, 0.22);
 }
 
 .rs-fill {
@@ -98,7 +98,7 @@ const short = (date = '') => {
   left: 0;
   top: 0;
   height: 1px;
-  background: linear-gradient(90deg, rgba(139, 28, 28, 0.2), #8b1c1c);
+  background: linear-gradient(90deg, rgba(139, 28, 28, 0.2), var(--red-trail));
   transition: width 0.9s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
@@ -122,7 +122,7 @@ const short = (date = '') => {
   transform: translateX(-50%);
   font-size: 9px;
   letter-spacing: 0.05em;
-  color: rgba(196, 163, 90, 0.45);
+  color: rgba(212, 175, 55, 0.45);
   transition: color 0.35s;
   white-space: nowrap;
 }
@@ -134,7 +134,7 @@ const short = (date = '') => {
   width: 2px;
   height: 9px;
   margin-left: -1px;
-  background: rgba(196, 163, 90, 0.42);
+  background: rgba(212, 175, 55, 0.42);
   transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
@@ -150,7 +150,7 @@ const short = (date = '') => {
   width: max-content;
   max-width: 190px;
   background: rgba(8, 12, 18, 0.92);
-  border: 1px solid rgba(196, 163, 90, 0.3);
+  border: 1px solid rgba(212, 175, 55, 0.3);
   backdrop-filter: blur(6px);
   white-space: nowrap;
 }
@@ -158,14 +158,14 @@ const short = (date = '') => {
 .rs-tip em {
   font-style: normal;
   font-size: 11px;
-  color: #f3f1e6;
+  color: var(--text-main);
 }
 
 .rs-tip i {
   font-style: normal;
   font-size: 8.5px;
   letter-spacing: 0.04em;
-  color: rgba(196, 163, 90, 0.75);
+  color: rgba(212, 175, 55, 0.75);
 }
 
 .rs-end {
@@ -183,14 +183,14 @@ const short = (date = '') => {
   color: rgba(232, 201, 138, 0.9);
 }
 .is-seen .rs-dot {
-  background: #8b1c1c;
+  background: var(--red-trail);
   box-shadow: 0 0 6px rgba(139, 28, 28, 0.65);
 }
 
 /* 当前 */
 .is-current .rs-dot,
 .is-active .rs-dot {
-  background: #f3d48c;
+  background: #f8df9c;
   height: 16px;
   top: 9px;
   box-shadow: 0 0 10px rgba(232, 201, 138, 0.8);
@@ -205,7 +205,7 @@ const short = (date = '') => {
 }
 
 .rs-node:hover .rs-index {
-  color: #f3f1e6;
+  color: var(--text-main);
 }
 @media (max-width: 768px) {
   .route-strip {

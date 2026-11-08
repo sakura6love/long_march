@@ -438,7 +438,7 @@ body {
 
 .story-hint i {
   font-style: normal;
-  color: rgba(196, 163, 90, 0.38);
+  color: rgba(212, 175, 55, 0.38);
   letter-spacing: 0;
 }
 

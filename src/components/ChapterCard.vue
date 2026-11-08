@@ -55,8 +55,8 @@ function cn(n) {
   transform: translateX(-50%);
   padding: 24px 28px 26px;
   text-align: center;
-  border-top: 1px solid rgba(196, 163, 90, 0.45);
-  border-bottom: 1px solid rgba(196, 163, 90, 0.18);
+  border-top: 1px solid rgba(212, 175, 55, 0.45);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.18);
   background: linear-gradient(180deg, rgba(8, 11, 18, 0.86), rgba(8, 11, 18, 0.45));
   backdrop-filter: blur(8px);
 }
@@ -65,7 +65,7 @@ function cn(n) {
   margin: 0;
   font: 11px/1 'Noto Serif SC', serif;
   letter-spacing: 0.3em;
-  color: rgba(196, 163, 90, 0.85);
+  color: rgba(212, 175, 55, 0.85);
 }
 
 .chapter-name {
@@ -105,7 +105,7 @@ function cn(n) {
 }
 
 .rail-seg.is-now {
-  background: rgba(196, 163, 90, 0.9);
+  background: rgba(212, 175, 55, 0.9);
 }
 
 .rail-seg.is-done {

@@ -28,16 +28,16 @@ defineProps({
         <svg v-if="event.diagram" class="event-diagram" viewBox="0 0 320 96" aria-hidden="true">
           <defs>
             <marker id="arrow" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto">
-              <path d="M0 0 L6 3 L0 6 z" fill="rgba(196,163,90,0.75)" />
+              <path d="M0 0 L6 3 L0 6 z" fill="rgba(212,175,55,0.75)" />
             </marker>
           </defs>
-          <g fill="none" stroke="rgba(196,163,90,0.55)" stroke-width="1" stroke-dasharray="4 3">
+          <g fill="none" stroke="rgba(212,175,55,0.55)" stroke-width="1" stroke-dasharray="4 3">
             <path d="M18 78 C 60 78, 62 26, 104 26" marker-end="url(#arrow)" />
             <path d="M104 26 C 146 26, 148 78, 190 78" marker-end="url(#arrow)" />
             <path d="M190 78 C 232 78, 234 40, 276 40" marker-end="url(#arrow)" />
             <path d="M276 40 C 300 40, 300 16, 312 16" marker-end="url(#arrow)" />
           </g>
-          <g fill="rgba(196,163,90,0.85)" font-size="10" font-family="Noto Serif SC, serif">
+          <g fill="rgba(212,175,55,0.85)" font-size="10" font-family="Noto Serif SC, serif">
             <text x="22" y="94">① 土城</text>
             <text x="108" y="18">② 太平渡</text>
             <text x="194" y="94">③ 茅台</text>
@@ -74,7 +74,7 @@ defineProps({
   margin: 0;
   font-size: 11px;
   letter-spacing: 0.26em;
-  color: #c4a35a;
+  color: var(--accent-gold);
 }
 
 .event-rule {
@@ -82,7 +82,7 @@ defineProps({
   width: 44px;
   height: 1px;
   margin: 16px 0 18px;
-  background: #c4a35a;
+  background: var(--accent-gold);
   opacity: 0.5;
 }
 
@@ -98,7 +98,7 @@ defineProps({
   margin: 22px 0 0;
   padding: 0 0 0 16px;
   list-style: none;
-  border-left: 1px solid rgba(196, 163, 90, 0.28);
+  border-left: 1px solid rgba(212, 175, 55, 0.28);
 }
 
 .event-points li {
@@ -117,7 +117,7 @@ defineProps({
   top: 12px;
   width: 4px;
   height: 1px;
-  background: rgba(196, 163, 90, 0.55);
+  background: rgba(212, 175, 55, 0.55);
 }
 
 .event-text {
@@ -236,7 +236,7 @@ defineProps({
   margin: 22px 0 0;
   padding: 0 0 0 16px;
   list-style: none;
-  border-left: 1px solid rgba(196, 163, 90, 0.28);
+  border-left: 1px solid rgba(212, 175, 55, 0.28);
 }
 
 .event-points li {
@@ -255,7 +255,7 @@ defineProps({
   top: 12px;
   width: 4px;
   height: 1px;
-  background: rgba(196, 163, 90, 0.55);
+  background: rgba(212, 175, 55, 0.55);
 }
 
 .event-text {

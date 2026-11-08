@@ -107,7 +107,7 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
   height: 54px;
   padding: 0;
   place-items: center;
-  border: 1px solid rgba(196, 163, 90, 0.42);
+  border: 1px solid rgba(212, 175, 55, 0.42);
   border-radius: 50%;
   background: rgba(20, 25, 35, 0.62);
   box-shadow: 0 12px 30px rgba(4, 7, 12, 0.45);
@@ -124,7 +124,7 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
 .ask-orb:focus-visible,
 .ask-orb[aria-expanded='true'] {
   border-color: rgba(224, 189, 114, 0.85);
-  background: rgba(196, 163, 90, 0.14);
+  background: rgba(212, 175, 55, 0.14);
   transform: translateY(-1px);
   outline: none;
 }
@@ -132,7 +132,7 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
 .ask-orb-ring {
   position: absolute;
   inset: 5px;
-  border: 1px solid rgba(196, 163, 90, 0.18);
+  border: 1px solid rgba(212, 175, 55, 0.18);
   border-radius: 50%;
 }
 
@@ -169,7 +169,7 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
 }
 
 .ask-kicker {
-  color: rgba(196, 163, 90, 0.85);
+  color: rgba(212, 175, 55, 0.85);
   font: 10px/1 'Space Mono', ui-monospace, monospace;
   letter-spacing: 0.18em;
 }
@@ -218,7 +218,7 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
   list-style: none;
   overflow: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(196, 163, 90, 0.3) transparent;
+  scrollbar-color: rgba(212, 175, 55, 0.3) transparent;
 }
 
 .ask-q {
@@ -244,14 +244,14 @@ const answerOf = (id) => QA.find((item) => item.id === id)?.a || ''
   height: 5px;
   flex: none;
   border-radius: 50%;
-  background: rgba(196, 163, 90, 0.5);
+  background: rgba(212, 175, 55, 0.5);
   transition: background 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .ask-q:hover,
 .ask-q:focus-visible,
 .ask-q.is-open {
-  color: #f3d48c;
+  color: #f8df9c;
   outline: none;
 }
 

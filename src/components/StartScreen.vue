@@ -107,7 +107,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   width: 56px;
   height: 1px;
   margin: 46px 0 40px;
-  background: rgba(196, 163, 90, 0.35);
+  background: rgba(212, 175, 55, 0.35);
 }
 
 .entries {
@@ -178,7 +178,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   font-style: normal;
   font-size: 11px;
   letter-spacing: 0.2em;
-  color: rgba(196, 163, 90, 0.55);
+  color: rgba(212, 175, 55, 0.55);
 }
 
 .credit {
@@ -209,7 +209,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 
 .era span {
   padding: 6px 0;
-  color: rgba(196, 163, 90, 0.5);
+  color: rgba(212, 175, 55, 0.5);
 }
 
 .seal {

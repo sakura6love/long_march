@@ -1160,8 +1160,8 @@ onBeforeUnmount(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #c4a35a;
-  box-shadow: 0 0 12px #c4a35a;
+  background: var(--accent-gold);
+  box-shadow: 0 0 12px var(--accent-gold);
 }
 
 /* ———————————————————— 标签 ———————————————————— */
@@ -1228,7 +1228,7 @@ onBeforeUnmount(() => {
   letter-spacing: 0.08em;
   color: rgba(243, 241, 230, 0.92);
   background: rgba(8, 12, 18, 0.86);
-  border: 1px solid rgba(196, 163, 90, 0.35);
+  border: 1px solid rgba(212, 175, 55, 0.35);
   opacity: 0;
   transform: translateY(2px);
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -1374,7 +1374,7 @@ onBeforeUnmount(() => {
   100% {
     transform: translate(-50%, -50%) scale(1);
     box-shadow:
-      0 0 0 3px rgba(196, 163, 90, 0.18),
+      0 0 0 3px rgba(212, 175, 55, 0.18),
       0 0 18px rgba(224, 189, 114, 0.95);
   }
 }
@@ -1385,7 +1385,7 @@ onBeforeUnmount(() => {
   left: 0;
   width: 30px;
   height: 1px;
-  background: linear-gradient(90deg, #f3d48c, rgba(196, 163, 90, 0.2));
+  background: linear-gradient(90deg, #f8df9c, rgba(212, 175, 55, 0.2));
   box-shadow: 0 0 8px rgba(224, 189, 114, 0.8);
   /* 默认收成一小段并隐藏，避免静止时每个点后面都拖一根毛刺。 */
   opacity: 0;
@@ -1407,7 +1407,7 @@ onBeforeUnmount(() => {
   min-width: 92px;
   padding: 7px 10px 8px;
   border: 1px solid rgba(224, 189, 114, 0.56);
-  border-left: 2px solid #c4a35a;
+  border-left: 2px solid var(--accent-gold);
   border-radius: 1px 5px 5px 1px;
   background:
     linear-gradient(135deg, rgba(46, 52, 56, 0.92), rgba(11, 18, 26, 0.86)),
@@ -1416,7 +1416,7 @@ onBeforeUnmount(() => {
     8px 8px 0 rgba(5, 9, 14, 0.42),
     0 5px 18px rgba(0, 0, 0, 0.32),
     inset 0 1px rgba(255, 255, 255, 0.11);
-  color: #f3f1e6;
+  color: var(--text-main);
   font-family: 'Microsoft YaHei', 'Noto Sans CJK SC', 'PingFang SC', sans-serif;
   text-align: left;
   text-wrap: nowrap;
@@ -1432,7 +1432,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.march-label-code) {
-  color: #c4a35a;
+  color: var(--accent-gold);
   font: 8px/1 'Space Mono', ui-monospace, monospace;
   letter-spacing: 0.12em;
 }
@@ -1457,7 +1457,7 @@ onBeforeUnmount(() => {
 
   right: 30px;
   left: auto;
-  border-right: 2px solid #c4a35a;
+  border-right: 2px solid var(--accent-gold);
   border-left: 1px solid rgba(224, 189, 114, 0.56);
   border-radius: 5px 1px 1px 5px;
   text-align: right;
@@ -1467,7 +1467,7 @@ onBeforeUnmount(() => {
   --beam-shift: -3px;
 
   left: -30px;
-  background: linear-gradient(270deg, #f3d48c, rgba(196, 163, 90, 0.2));
+  background: linear-gradient(270deg, #f8df9c, rgba(212, 175, 55, 0.2));
   transform-origin: right center;
 }
 
@@ -1482,13 +1482,13 @@ onBeforeUnmount(() => {
 :deep(.march-label-anchor:focus-visible .march-label-card) {
   --slide-x: 0px;
 
-  border-color: #f3d48c;
+  border-color: #f8df9c;
   background:
     linear-gradient(135deg, rgba(74, 61, 38, 0.96), rgba(17, 24, 29, 0.94)),
     radial-gradient(circle at 0 0, rgba(224, 189, 114, 0.26), transparent 55%);
   box-shadow:
     10px 10px 0 rgba(5, 9, 14, 0.46),
-    0 7px 24px rgba(196, 163, 90, 0.2),
+    0 7px 24px rgba(212, 175, 55, 0.2),
     inset 0 1px rgba(255, 255, 255, 0.15);
   opacity: 1;
   pointer-events: auto;
@@ -1550,10 +1550,10 @@ onBeforeUnmount(() => {
 }
 
 :deep(.march-label-anchor.is-active .march-label-node) {
-  background: #f3d48c;
+  background: #f8df9c;
   border-color: #fff6d8;
   box-shadow:
-    0 0 0 5px rgba(196, 163, 90, 0.2),
+    0 0 0 5px rgba(212, 175, 55, 0.2),
     0 0 26px rgba(243, 212, 140, 0.95);
   transform: translate(-50%, -50%) scale(1.28);
 }

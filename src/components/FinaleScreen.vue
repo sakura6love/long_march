@@ -65,7 +65,7 @@ const emit = defineEmits(['restart', 'browse'])
   margin: 0;
   font-size: 11px;
   letter-spacing: 0.34em;
-  color: rgba(196, 163, 90, 0.6);
+  color: rgba(212, 175, 55, 0.6);
   animation: rise 1s cubic-bezier(0.25, 1, 0.5, 1) 0.3s both;
 }
 
@@ -74,7 +74,7 @@ const emit = defineEmits(['restart', 'browse'])
   width: 40px;
   height: 1px;
   margin: 20px auto 44px;
-  background: rgba(196, 163, 90, 0.35);
+  background: rgba(212, 175, 55, 0.35);
   animation: rise 1s cubic-bezier(0.25, 1, 0.5, 1) 0.45s both;
 }
 
