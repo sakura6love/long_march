@@ -519,7 +519,7 @@ watch(
     width: auto;
     height: auto;
     max-height: min(78vh, 660px);
-    padding: 24px 20px 16px;
+    padding: 24px 20px calc(16px + env(safe-area-inset-bottom, 0px));
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
