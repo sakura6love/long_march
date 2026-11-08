@@ -230,4 +230,21 @@ const short = (date = '') => {
 .rs-node:hover .rs-index {
   color: #f3f1e6;
 }
+@media (max-width: 768px) {
+  .route-strip {
+    width: 86vw;
+    bottom: 64px;
+    height: 24px;
+  }
+  .rs-title,
+  .rs-end-l,
+  .rs-end-r {
+    display: none;
+  }
+  .rs-num {
+    font-size: 8px;
+  }
+}
+
 </style>
+

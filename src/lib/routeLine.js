@@ -224,90 +224,7 @@ export function createRouteLine(globe, nodes) {
 
 
   // 鈥斺€?鏈儳娈碉細绋€鐤忓喎寮曠嚎锛堟殫绾㈢偣锛屼笉鏄櫄绾匡級鈥斺€?
-  const dotTexture = makeDotTexture()
-  const emberPoints = []
-  for (let i = 0; i < samples.length; i += 10) emberPoints.push(samples[i])
-  const emberGeo = new BufferGeometry().setFromPoints(emberPoints)
-  const emberMat = new PointsMaterial({
-    color: EMBER,
-    map: dotTexture,
-    size: 0.8,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0.55,
-    depthWrite: false,
-    alphaTest: 0.01,
-  })
-  const embers = new Points(emberGeo, emberMat)
-  embers.renderOrder = 2
-
-  // 鈥斺€?鐏槦锛氭湁閲嶅姏銆佹湁瀵垮懡銆佷細鍐峰嵈 鈥斺€?
-  const SPARK_COUNT = 140
-  const sparkPos = new Float32Array(SPARK_COUNT * 3)
-  const sparkCol = new Float32Array(SPARK_COUNT * 3)
-  const sparks = Array.from({ length: SPARK_COUNT }, () => ({
-    life: 0,
-    maxLife: 1,
-    pos: new Vector3(),
-    vel: new Vector3(),
-  }))
-  const sparkGeo = new BufferGeometry()
-  sparkGeo.setAttribute('position', new Float32BufferAttribute(sparkPos, 3))
-  sparkGeo.setAttribute('color', new Float32BufferAttribute(sparkCol, 3))
-  const sparkMat = new PointsMaterial({
-    map: dotTexture,
-    vertexColors: true,
-    size: 6.0,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0.55,
-    depthWrite: false,
-    blending: AdditiveBlending,
-  })
-  const sparkCloud = new Points(sparkGeo, sparkMat)
-  sparkCloud.renderOrder = 6
-  sparkCloud.frustumCulled = false
-  sparkCloud.visible = false
-
-  // 鈥斺€?鐏ご锛氱櫧蹇?+ 姗欑劙 + 鐑燂紝涓夊眰涓€璧锋姈 鈥斺€?
-  const headGroup = new Group()
-  const headCore = new Sprite(
-    new SpriteMaterial({
-      map: makeFlameTexture('core'),
-      blending: AdditiveBlending,
-      depthWrite: false,
-      transparent: true,
-    }),
-  )
-  headCore.scale.setScalar(0.6)
-  const headFlame = new Sprite(
-    new SpriteMaterial({
-      map: makeFlameTexture('flame'),
-      blending: AdditiveBlending,
-      depthWrite: false,
-      transparent: true,
-      opacity: 0.9,
-    }),
-  )
-  headFlame.scale.setScalar(1.3)
-  const headSmoke = new Sprite(
-    new SpriteMaterial({
-      map: makeFlameTexture('smoke'),
-      transparent: true,
-      depthWrite: false,
-      opacity: 0.55,
-    }),
-  )
-  headSmoke.scale.setScalar(1.8)
-  headSmoke.position.y = 0.012
-  headGroup.add(headSmoke, headFlame, headCore)
-  // 火星粒子池（InstancedMesh，一次 draw call）
-  const sparkPool = { mesh: new Group(), spawn() {}, update() {}, setVisible() {} }
-  sparkPool.mesh.renderOrder = 6
-  sparkPool.mesh.visible = false
-  headGroup.renderOrder = 7
-  headGroup.visible = false
-  group.remove(headGroup)
+    const dotTexture = makeDotTexture()
 
   // 姣忎釜閲囨牱鐐硅鐑у埌鐨勬椂鍒伙紙-1 = 杩樻病鐑у埌锛夆€斺€斿喎鍗存寜鐪熷疄鏃堕棿绠?
   const burnTime = new Float32Array(samples.length).fill(-1)
@@ -390,7 +307,6 @@ export function createRouteLine(globe, nodes) {
     } else {
     }
 
-    embers.visible = false
   }
 
   function pointAt(s) {
@@ -500,9 +416,6 @@ export function createRouteLine(globe, nodes) {
     const handlers = burn?.handlers
     burn = null
     applyProgress(burnedS)
-    sparkCloud.visible = false
-    headGroup.visible = false
-    embers.visible = false
     // 火焰贴图必须显式收起：它不挂在 headGroup 上，漏掉就会停在最后一个火头处
     startIdle()
     handlers?.onDone?.()
@@ -553,7 +466,6 @@ export function createRouteLine(globe, nodes) {
     setLit(indices) {
       const maxIdx = indices.length ? Math.max(...indices) : -1
       applyProgress(maxIdx >= 0 ? stationS[Math.min(stationS.length - 1, maxIdx)] : 0)
-      embers.visible = false
     },
     ignite(from, to, handlers = {}) {
       const s0 = stationS[Math.max(0, Math.min(stationS.length - 1, from))]
@@ -568,10 +480,6 @@ export function createRouteLine(globe, nodes) {
       const speed = span / Math.min(3.6, Math.max(1.8, 1.6 + span * 26))
 
       burn = { s: s0, s0, s1, speed, events, handlers, paused: false }
-      sparkCloud.visible = false
-      sparkPool.setVisible(true)
-      headGroup.visible = false
-      headGroup.position.copy(pointAt(s0))
       applyProgress(s0)
       arm()
     },
@@ -603,10 +511,7 @@ export function createRouteLine(globe, nodes) {
       core.visible = false
       glow.visible = false
       charBand.visible = false
-      headGroup.visible = false
-      sparkCloud.visible = false
         group.visible = false
-      embers.visible = visible
     },
     setVisible(next) {
       visible = next
