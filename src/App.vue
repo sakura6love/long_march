@@ -261,18 +261,14 @@ watch(chainEnd, (k) => {
   }, 4500)
 })
 
-watch(chainEnd, (k) => {
-  if (k === longMarchNodes.length && !burning.value) {
+watch([chainEnd, burning], ([k, b]) => {
+  if (k === longMarchNodes.length && !b && screen.value !== 'finale') {
+    screen.value = 'finale'
+    finaleReady.value = false
+    globeRef.value?.pullBack?.()
     window.setTimeout(() => {
-      if (chainEnd.value === longMarchNodes.length) {
-        screen.value = 'finale'
-        finaleReady.value = false
-        globeRef.value?.pullBack?.()
-        window.setTimeout(() => {
-          finaleReady.value = true
-        }, 2400)
-      }
-    }, 1400)
+      finaleReady.value = true
+    }, 1600)
   }
 })
 
