@@ -30,6 +30,7 @@ import longMarchNodes from '../data.js'
 import { createCameraRig, FRAME } from '../lib/cameraRig.js'
 import { createRouteLine } from '../lib/routeLine.js'
 import { STORY_EVENTS } from '../lib/story.js'
+import { dbg } from '../lib/debug.js'
 
 /* 事件标落在线上：用与火焰同一套时间轴（App.stationTimeOfAt）换算站点序号。 */
 const eventMarks = STORY_EVENTS.map((e) => {
@@ -151,7 +152,7 @@ watch(
   () => props.burn,
   (v) => {
     burnValue = v
-    if (window.__marchBurn) window.__marchBurn.uBurn.value = v
+    if (import.meta.env.DEV && window.__marchBurn) window.__marchBurn.uBurn.value = v
   },
   { immediate: true },
 )
@@ -724,7 +725,6 @@ onMounted(() => {
   const assetBase = import.meta.env.BASE_URL
 
   globe.value = Globe()(globeContainer.value)
-  window.__globe = globe.value
     .backgroundColor('rgba(0, 0, 0, 0)')
     .globeImageUrl(`${assetBase}earth-8k.jpg`)
     .showAtmosphere(true)
@@ -739,7 +739,7 @@ onMounted(() => {
     .htmlElement(createChineseLabel)
 
   // 坐标自检：DOM 锚点中心 vs 同一经纬度的投影点，误差应 < 1.5px
-  window.__geoCheck = () => {
+  dbg('__geoCheck', () => {
     const g = globe.value
     const all = [
       ...labelRecords.map((r) => ({ ...r, kind: 'node' })),
@@ -757,7 +757,7 @@ onMounted(() => {
           dy: +(rect.top - p.y).toFixed(2),
         }
       })
-  }
+  })
 
   headPinEl = document.createElement('div')
   headPinEl.className = 'march-head-pin'
@@ -789,8 +789,8 @@ onMounted(() => {
   routeLine = createRouteLine(globe.value, longMarchNodes, STORY_EVENTS)
   loadCountryBorder(assetBase)
   syncEventPositions()
-  window.__route = routeLine
-  window.__globe = globe.value
+  dbg('__route', routeLine)
+  dbg('__globe', globe.value)
   // 序章默认干净：火线、余烬、火焰先全部收起，进俯瞰时再打开
   routeLine.setVisible(false)
   routeLine.setLit(
@@ -879,7 +879,7 @@ uniform float uBurn;`,
 #include <dithering_fragment>`,
     )
 }
-window.__marchBurn = burnUniforms
+dbg('__marchBurn', burnUniforms)
 
 
   // 机位统一交给 cameraRig。
@@ -917,8 +917,8 @@ window.__marchBurn = burnUniforms
 
   // 仅供开发期截图/标定使用；生产构建会被 tree-shake 掉。
   if (import.meta.env.DEV) {
-    window.__marchRig = cameraRig
-    window.__marchGlobe = globe.value
+    dbg('__marchRig', cameraRig)
+    dbg('__marchGlobe', globe.value)
   }
 })
 

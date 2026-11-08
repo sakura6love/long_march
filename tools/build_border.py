@@ -1,7 +1,7 @@
 import json, io, math
 from PIL import Image, ImageDraw, ImageFilter
 
-tj = json.load(io.open('public/geo/countries-50m.json', encoding='utf-8'))
+tj = json.load(io.open('tools/countries-50m.json', encoding='utf-8'))
 tr = tj['transform']; sx, sy = tr['scale']; tx, ty = tr['translate']
 
 arcs = []

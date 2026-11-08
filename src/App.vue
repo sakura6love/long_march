@@ -19,6 +19,7 @@ import EventRail from './components/EventRail.vue'
 import { CHAPTERS } from './lib/chapters.js'
 import { STORY_EVENTS } from './lib/story.js'
 import { readLitIds, lightUp, saveLitIds, clearProgress } from './lib/api.js'
+import { dbg } from './lib/debug.js'
 import { isMuted, setMuted, startAudio, sfxIgnite, sfxPage, sfxTap } from './lib/audio.js'
 
 const globeRef = ref(null)
@@ -276,7 +277,7 @@ watch([chainEnd, burning], ([k, b]) => {
 
 // 调试入口：便于用脚本强制推进到终章
 if (typeof window !== 'undefined') {
-  window.__march = { screen, litIds, chainEnd }
+  dbg('__march', { screen, litIds, chainEnd })
 }
 
 const hint = computed(() => {
@@ -302,7 +303,7 @@ onMounted(() => {
   if (reduced.value) document.documentElement.classList.add('reduce-motion')
 
   if (import.meta.env.DEV) {
-    window.__march = { screen, litIds, chainEnd, burning, pausedEvent }
+    dbg('__march', { screen, litIds, chainEnd, burning, pausedEvent })
   }
 })
 

@@ -18,7 +18,7 @@ export const STORY_EVENTS = [
     title: '血战湘江',
     text: '八万六千人渡江，五天五夜。江水被血染红，浮桥一次次被炸断又一次次架起。过了江，队伍只剩三万——这是长征路上最惨烈的一战，也是"左"倾路线走到尽头的证明。',
     credit: '湘江渡口 · 占位图',
-    image: '/events/xiangjiang.webp',
+    image: `${import.meta.env.BASE_URL}events/xiangjiang.webp`,
   },
   {
     id: 'zunyi',
@@ -29,7 +29,7 @@ export const STORY_EVENTS = [
     title: '遵义会议',
     text: '一间长方形的屋子，一张长桌，三天的争论。会议纠正了军事指挥的错误，重新确立了实事求是的路线。此后红军四渡赤水、巧渡金沙江，都是从这间屋子里开始的。',
     credit: '遵义会议会址 · 占位图',
-    image: '/events/zunyi.webp',
+    image: `${import.meta.env.BASE_URL}events/zunyi.webp`,
   },
   {
     id: 'chishui',
@@ -40,7 +40,7 @@ export const STORY_EVENTS = [
     title: '四渡赤水',
     text: '一渡土城，二渡太平渡，三渡茅台，四渡二郎滩。三个多月里，三万人在地图上画了一个来回折叠的圈，把四十万追兵绕晕在川黔滇的群山里。',
     credit: '赤水河 · 占位图',
-    image: '/events/chishui.webp',
+    image: `${import.meta.env.BASE_URL}events/chishui.webp`,
     diagram: true,
   },
   {
@@ -52,7 +52,7 @@ export const STORY_EVENTS = [
     title: '巧渡金沙江',
     text: '皎平渡只有七条木船。九天九夜，三万人从这条细窄的渡口过江。等追兵赶到，江面上只剩空船和系船的石头。',
     credit: '皎平渡 · 占位图',
-    image: '/events/jinsha.webp',
+    image: `${import.meta.env.BASE_URL}events/jinsha.webp`,
   },
   {
     id: 'luding',
@@ -63,7 +63,7 @@ export const STORY_EVENTS = [
     title: '飞夺泸定桥',
     text: '十三根铁索横在江上，桥板已被抽去。二十二名突击队员攀着铁链匍匐向前，对岸机枪扫射，身下是大渡河的急流。两小时，桥夺回来了。',
     credit: '泸定桥铁索 · 占位图',
-    image: '/events/luding.webp',
+    image: `${import.meta.env.BASE_URL}events/luding.webp`,
   },
   {
     id: 'jiajin',
@@ -74,7 +74,7 @@ export const STORY_EVENTS = [
     title: '翻越夹金山',
     text: '海拔四千多米，空气稀薄，雪深过膝。队伍在雪线上走了一整天，许多人坐下休息就再没站起来。翻过山，红一、红四方面军在懋功会合。',
     credit: '夹金山 · 占位图',
-    image: '/events/jiajin.webp',
+    image: `${import.meta.env.BASE_URL}events/jiajin.webp`,
   },
   {
     id: 'caodi',
@@ -85,7 +85,7 @@ export const STORY_EVENTS = [
     title: '过草地',
     text: '松潘草地，方圆数百里的沼泽。一脚踩空就陷进去，没有树，没有干燥的地方，夜里只能背靠背坐着。七天七夜走出草地，队伍又少了一批人。',
     credit: '松潘草地 · 占位图',
-    image: '/events/caodi.webp',
+    image: `${import.meta.env.BASE_URL}events/caodi.webp`,
   },
   {
     id: 'huining',
@@ -96,7 +96,7 @@ export const STORY_EVENTS = [
     title: '会宁会师',
     text: '红一、红二、红四方面军在会宁会合。两万五千里，从瑞金到会宁，纵横十一个省。这条路上倒下的人，比走到终点的人多得多。',
     credit: '会宁会师楼 · 占位图',
-    image: '/events/huining.webp',
+    image: `${import.meta.env.BASE_URL}events/huining.webp`,
   },
 ]
 
