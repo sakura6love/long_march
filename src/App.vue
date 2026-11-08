@@ -380,7 +380,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       @browse="screen = 'overview'"
     />
 
-    <p v-if="hint" class="story-hint" aria-hidden="true">{{ hint }}</p>
+    <p v-if="hint" class="story-hint" aria-hidden="true">
+      <span>{{ hint }}</span>
+      <i v-if="screen === 'overview' && !settingsOpen && mode !== 'playing'">·</i>
+      <em v-if="screen === 'overview' && !settingsOpen && mode !== 'playing'">双击复位</em>
+    </p>
 
     <button
       v-if="burning && !pausedEvent && screen === 'overview'"
@@ -416,16 +420,33 @@ body {
 .story-hint {
   position: fixed;
   left: 50%;
-  bottom: 4.5vh;
+  bottom: 52px;
   z-index: 8;
   margin: 0;
   transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 11px;
   letter-spacing: 0.26em;
-  color: rgba(243, 241, 230, 0.42);
+  color: rgba(243, 241, 230, 0.46);
   pointer-events: none;
+  white-space: nowrap;
   animation: story-hint-breathe 2.8s ease-in-out infinite;
+}
+
+.story-hint i {
+  font-style: normal;
+  color: rgba(196, 163, 90, 0.38);
+  letter-spacing: 0;
+}
+
+.story-hint em {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: rgba(163, 168, 180, 0.5);
 }
 
 @keyframes story-hint-breathe {

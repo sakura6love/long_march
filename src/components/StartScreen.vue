@@ -129,8 +129,9 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   font-size: 16px;
   letter-spacing: 0.18em;
   color: rgba(244, 241, 225, 0.46);
+  padding-left: 0;
   cursor: pointer;
-  transition: color 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: color 0.5s var(--ease), padding-left 0.5s var(--ease);
 }
 
 .entry-line {
@@ -139,9 +140,11 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   top: 50%;
   width: 0;
   height: 1px;
-  background: rgba(196, 163, 90, 0.7);
+  background: rgba(212, 175, 55, 0.75);
   transform: translateY(-50%);
-  transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  transform-origin: left center;
+  opacity: 0;
+  transition: width 0.55s var(--ease), opacity 0.35s var(--ease);
 }
 
 .entry:hover:not(:disabled),
@@ -149,11 +152,13 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   color: var(--text-main);
   outline: none;
   padding-left: 34px;
+  transition-delay: 0.06s;
 }
 
 .entry:hover:not(:disabled) .entry-line,
 .entry:focus-visible:not(:disabled) .entry-line {
   width: 24px;
+  opacity: 1;
 }
 
 .entry-main {
@@ -162,13 +167,6 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   letter-spacing: 0.22em;
 }
 
-.entry-main .entry-line {
-  width: 24px;
-}
-
-.entry-main:hover {
-  padding-left: 40px;
-}
 
 .entry:disabled {
   color: rgba(243, 241, 230, 0.18);

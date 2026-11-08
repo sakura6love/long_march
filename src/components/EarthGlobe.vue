@@ -1126,6 +1126,7 @@ onBeforeUnmount(() => {
 }
 
 .overlook-hint {
+  display: none; /* 已并入 App 的 story-hint，避免底部堆三行 */
   position: fixed;
   z-index: 6;
   bottom: 22px;
@@ -1207,13 +1208,13 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 13px;
   top: 7px;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   transform: rotate(45deg);
-  background: rgba(139, 28, 28, 0.35);
-  border: 1px solid rgba(232, 201, 138, 0.7);
-  transition: opacity 260ms ease, transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 220ms, box-shadow 220ms;
-  transition: transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 220ms, box-shadow 220ms;
+  background: rgba(212, 175, 55, 0.22);
+  border: 1px solid rgba(232, 201, 138, 0.75);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  transition: transform 300ms var(--ease), background 260ms, box-shadow 260ms;
 }
 
 
@@ -1245,21 +1246,21 @@ onBeforeUnmount(() => {
 }
 
 :deep(.march-event-anchor.is-reached .march-event-diamond) {
-  background: #8b1c1c;
-  border-color: rgba(232, 201, 138, 0.85);
+  background: var(--accent-gold);
+  border-color: #ffeec4;
 }
 
 :deep(.march-event-anchor.is-hot .march-event-diamond) {
-  background: #f0d79a;
-  border-color: rgba(255, 246, 214, 0.95);
-  box-shadow: 0 0 10px rgba(243, 212, 140, 0.85);
-  transform: rotate(45deg) scale(1.18);
+  background: #ffe6b0;
+  border-color: #fff6d6;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 10px rgba(243, 212, 140, 0.85);
+  transform: rotate(45deg) scale(1.25);
 }
 
 :deep(.march-event-anchor:hover .march-event-diamond) {
-  background: #a8261f;
-  transform: rotate(45deg) scale(1.12);
-  box-shadow: 0 0 9px rgba(232, 201, 138, 0.6);
+  background: #ffd88a;
+  transform: rotate(45deg) scale(1.35);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 10px rgba(232, 201, 138, 0.7);
 }
 
 .horizon-frame.labels-off :deep(.march-label-anchor),
@@ -1315,10 +1316,10 @@ onBeforeUnmount(() => {
   left: 0;
   width: 9px;
   height: 9px;
-  border: 1px solid rgba(212, 175, 55, 0.72);
-  border-radius: 50%;
+  border: 1px solid rgba(212, 175, 55, 0.7);
+  border-radius: 1px;
   background: transparent;
-  box-shadow: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
   transform: translate(-50%, -50%);
   transition:
     opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1),
@@ -1329,13 +1330,14 @@ onBeforeUnmount(() => {
 
 /* 开场镜头还没停稳时，光点处于"未点亮"状态，也不接受点击。 */
 :deep(.march-label-anchor.is-lit .march-label-node) {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-color: #f8df9c;
-  background: var(--accent-gold);
+  background: var(--accent-red);
   box-shadow:
-    0 0 0 3px rgba(212, 175, 55, 0.16),
-    0 0 18px rgba(224, 189, 114, 0.9);
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 0 3px rgba(138, 21, 56, 0.3),
+    0 0 12px rgba(138, 21, 56, 0.55);
 }
 
 /* 下一站：只有这一颗在呼吸，其余保持安静 */
@@ -1592,6 +1594,7 @@ onBeforeUnmount(() => {
   }
 
   .overlook-hint {
+  display: none; /* 已并入 App 的 story-hint，避免底部堆三行 */
   position: fixed;
   z-index: 6;
   bottom: 22px;

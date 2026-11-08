@@ -39,7 +39,6 @@ const short = (date = '') => {
 
 <template>
   <div class="route-strip" aria-label="路书">
-    <span class="rs-title"><b>路书</b><i>一九三四 — 一九三六</i></span>
     <span class="rs-end rs-end-l">瑞金</span>
     <span class="rs-end rs-end-r">会宁</span>
     <div class="rs-line" aria-hidden="true">
@@ -77,9 +76,9 @@ const short = (date = '') => {
 .route-strip {
   position: fixed;
   left: 50%;
-  bottom: 70px;
-  width: min(640px, 54vw);
-  height: 34px;
+  bottom: 88px;
+  width: min(520px, 46vw);
+  height: 30px;
   transform: translateX(-50%);
   z-index: 26;
   pointer-events: none;
@@ -89,7 +88,7 @@ const short = (date = '') => {
   position: absolute;
   left: 0;
   right: 0;
-  top: 21px;
+  top: 18px;
   height: 1px;
   background: rgba(196, 163, 90, 0.22);
 }
@@ -106,9 +105,9 @@ const short = (date = '') => {
 .rs-node {
   position: absolute;
   top: 0;
-  width: 22px;
-  height: 34px;
-  margin-left: -11px;
+  width: 20px;
+  height: 30px;
+  margin-left: -10px;
   padding: 0;
   border: 0;
   background: none;
@@ -131,7 +130,7 @@ const short = (date = '') => {
 .rs-dot {
   position: absolute;
   left: 50%;
-  top: 14px;
+  top: 12px;
   width: 2px;
   height: 9px;
   margin-left: -1px;
@@ -169,37 +168,15 @@ const short = (date = '') => {
   color: rgba(196, 163, 90, 0.75);
 }
 
-.rs-title {
-  position: absolute;
-  left: -96px;
-  top: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  align-items: flex-end;
-  text-align: right;
-}
-.rs-title b {
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.34em;
-  color: rgba(243, 241, 230, 0.82);
-}
-.rs-title i {
-  font-style: normal;
-  font-size: 8px;
-  letter-spacing: 0.08em;
-  color: rgba(196, 163, 90, 0.5);
-}
 .rs-end {
   position: absolute;
-  top: 22px;
-  font-size: 8.5px;
-  letter-spacing: 0.12em;
-  color: rgba(196, 163, 90, 0.5);
+  top: -16px;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: rgba(163, 168, 180, 0.55);
 }
-.rs-end-l { left: -34px; }
-.rs-end-r { right: -34px; }
+.rs-end-l { left: 0; }
+.rs-end-r { right: 0; }
 
 /* 已走过 */
 .is-seen .rs-index {
@@ -221,7 +198,7 @@ const short = (date = '') => {
 
 /* 未走到 */
 .is-locked {
-  opacity: 0.42;
+  opacity: 0.55;
 }
 .is-locked:hover {
   opacity: 0.75;
@@ -233,13 +210,12 @@ const short = (date = '') => {
 @media (max-width: 768px) {
   .route-strip {
     width: 86vw;
-    bottom: 64px;
+    bottom: 86px;
     height: 24px;
   }
-  .rs-title,
-  .rs-end-l,
-  .rs-end-r {
-    display: none;
+  .rs-end {
+    top: -14px;
+    font-size: 8.5px;
   }
   .rs-num {
     font-size: 8px;

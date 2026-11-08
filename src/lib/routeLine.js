@@ -26,7 +26,7 @@ import {
 import { Line2 } from 'three/addons/lines/Line2.js'
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
-import { CHISHUI_LOOP, ROUTE_SEGMENTS } from './routePath.js'
+import { ROUTE_SEGMENTS } from './routePath.js'
 
 /** 涓?EarthGlobe 鐨?htmlAltitude 淇濇寔涓€鑷?鈥斺€?绾胯创鍦帮紝鍏夌偣涔熻创鍦般€?*/
 export const ROUTE_LIFT = 0.0015
@@ -143,37 +143,8 @@ export function createRouteLine(globe, nodes) {
   group.name = 'march-route'
   globe.scene().add(group)
 
-  // 四渡赤水：只作注记，虚线小回环，不参与进度
-  const loopCurve = new CatmullRomCurve3(
-    CHISHUI_LOOP.map((w) => toVec(w.lat, w.lng)),
-    false,
-    'catmullrom',
-    0.5,
-  )
-  const loopPts = loopCurve.getPoints(64).map((p) => p.clone().multiplyScalar(radius))
-  const loopFlat = new Float32Array(loopPts.length * 3)
-  loopPts.forEach((p, i) => {
-    loopFlat[i * 3] = p.x
-    loopFlat[i * 3 + 1] = p.y
-    loopFlat[i * 3 + 2] = p.z
-  })
-  const loopGeo = new LineGeometry()
-  loopGeo.setPositions(loopFlat)
-  const loopMat = new LineMaterial({
-    color: 0x8b1c1c,
-    linewidth: 1.6,
-    dashed: true,
-    dashSize: radius * 0.012,
-    gapSize: radius * 0.011,
-    transparent: true,
-    opacity: 0.55,
-    depthWrite: false,
-  })
-  const loopLine = new Line2(loopGeo, loopMat)
-  loopLine.computeLineDistances()
-  loopLine.renderOrder = 1
-  loopLine.frustumCulled = false
-  group.add(loopLine)
+  // 四渡回环已移除：主线已含该段，重复注记会在赤水留下残线
+
 
   const flat = new Float32Array(samples.length * 3)
   samples.forEach((p, i) => {
@@ -240,7 +211,6 @@ export function createRouteLine(globe, nodes) {
   if (globe.width && globe.height) resolution.set(globe.width(), globe.height())
   coreMat.resolution.copy(resolution)
   glowMat.resolution.copy(resolution)
-  loopMat.resolution.copy(resolution)
 
   const tmpColor = new Color()
   const hotWhite = new Color('#ffe6b8')
@@ -523,8 +493,7 @@ export function createRouteLine(globe, nodes) {
       resolution.set(globe.width(), globe.height())
       coreMat.resolution.copy(resolution)
       glowMat.resolution.copy(resolution)
-      loopMat.resolution.copy(resolution)
-      charMat.resolution.copy(resolution)
+          charMat.resolution.copy(resolution)
     },
     dispose() {
       if (raf) cancelAnimationFrame(raf)
