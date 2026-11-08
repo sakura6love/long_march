@@ -79,11 +79,13 @@ const emit = defineEmits(['restart', 'browse'])
 }
 
 .line {
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: clamp(17px, 1.5vw, 22px);
-  letter-spacing: 0.14em;
-  color: rgba(243, 241, 230, 0.9);
+  font-weight: 500;
+  line-height: 1.75;
+  letter-spacing: 0.15em;
+  color: var(--text-main);
 }
 
 .l1 {
@@ -93,8 +95,8 @@ const emit = defineEmits(['restart', 'browse'])
   animation: rise 1.1s cubic-bezier(0.25, 1, 0.5, 1) 1.5s both;
 }
 .l3 {
-  margin-top: 28px;
-  color: rgba(196, 163, 90, 0.85);
+  margin-top: 30px;
+  color: var(--accent-gold);
   animation: rise 1.1s cubic-bezier(0.25, 1, 0.5, 1) 2.1s both;
 }
 
@@ -111,8 +113,8 @@ const emit = defineEmits(['restart', 'browse'])
   width: 52px;
   height: 52px;
   margin: 52px auto 0;
-  border: 1px solid rgba(139, 28, 28, 0.9);
-  background: rgba(139, 28, 28, 0.9);
+  border: 1px solid var(--accent-red);
+  background: var(--accent-red);
   color: #f6e7d6;
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 15px;
@@ -146,18 +148,18 @@ const emit = defineEmits(['restart', 'browse'])
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 15px;
   letter-spacing: 0.2em;
-  color: rgba(243, 241, 230, 0.45);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.4s ease;
 }
 
 .act:hover {
-  color: #f3f1e6;
+  color: var(--text-main);
 }
 
 .act-main {
   padding-left: 20px;
-  color: #c4a35a;
+  color: var(--accent-gold);
 }
 
 .act-main span {
@@ -166,7 +168,7 @@ const emit = defineEmits(['restart', 'browse'])
   top: 50%;
   width: 1px;
   height: 16px;
-  background: #c4a35a;
+  background: var(--accent-gold);
   transform: translateY(-50%);
 }
 

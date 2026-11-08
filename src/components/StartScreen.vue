@@ -83,7 +83,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   margin: 0 0 28px;
   font-size: 11px;
   letter-spacing: 0.32em;
-  color: rgba(196, 163, 90, 0.6);
+  color: rgba(212, 175, 55, 0.62);
 }
 
 .title {
@@ -91,15 +91,15 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: clamp(38px, 3.6vw, 54px);
   font-weight: 500;
-  letter-spacing: 0.16em;
-  color: #f3f1e6;
+  letter-spacing: 0.15em;
+  color: var(--text-main);
 }
 
 .subtitle {
   margin: 22px 0 0;
   font-size: 13px;
   letter-spacing: 0.22em;
-  color: rgba(243, 241, 230, 0.5);
+  color: var(--text-muted);
 }
 
 .rule {
@@ -128,7 +128,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 16px;
   letter-spacing: 0.18em;
-  color: rgba(243, 241, 230, 0.45);
+  color: rgba(244, 241, 225, 0.46);
   cursor: pointer;
   transition: color 0.5s cubic-bezier(0.25, 1, 0.5, 1);
 }
@@ -146,7 +146,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 
 .entry:hover:not(:disabled),
 .entry:focus-visible:not(:disabled) {
-  color: #f3f1e6;
+  color: var(--text-main);
   outline: none;
   padding-left: 34px;
 }
@@ -158,7 +158,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 
 .entry-main {
   font-size: 22px;
-  color: #f3f1e6;
+  color: var(--text-main);
   letter-spacing: 0.22em;
 }
 
@@ -206,7 +206,7 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 12px;
   letter-spacing: 0.42em;
-  color: rgba(243, 241, 230, 0.28);
+  color: rgba(163, 168, 180, 0.45);
 }
 
 .era span {
@@ -219,8 +219,8 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   place-items: center;
   width: 44px;
   height: 44px;
-  border: 1px solid rgba(139, 28, 28, 0.9);
-  background: rgba(139, 28, 28, 0.88);
+  border: 1px solid var(--accent-red);
+  background: var(--accent-red);
   color: #f6e7d6;
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 13px;

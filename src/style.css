@@ -1,0 +1,85 @@
+/* ============================================================
+   国家级数字展馆 · 全局基线
+   只定义"底色与文字"，组件内的具体排版仍由各组件决定。
+   ============================================================ */
+:root {
+  /* 宣纸白：比纯白温润，长时间阅读不刺眼 */
+  --text-main: #f4f1e1;
+  /* 星空蓝倾向的高级灰：用于副标、说明、页码 */
+  --text-muted: #a3a8b4;
+  /* 博物馆香槟金：只做点、线、强调，不做大面积填充 */
+  --accent-gold: #d4af37;
+  /* 故宫绛红：印章、已走过的刻度 */
+  --accent-red: #8a1538;
+  /* 偏蓝调的深空透明色：面板与浮层的底 */
+  --panel-bg: rgba(12, 18, 28, 0.65);
+  /* 更深的底，用于事件卡这类需要压住背景的层 */
+  --panel-bg-strong: rgba(10, 15, 24, 0.82);
+  /* 一条极细的分隔线，全站只用这一种 */
+  --hairline: rgba(212, 175, 55, 0.22);
+  --hairline-soft: rgba(244, 241, 225, 0.1);
+  /* 统一的缓动：全站动效只用它，保证"同一个世界里的运动" */
+  --ease: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #0b0f19;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Noto Serif SC', 'Songti SC', 'Microsoft YaHei', serif;
+  font-size: 15px;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* 展馆里没有"浏览器滚动条"这种东西 */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+::selection {
+  background: rgba(212, 175, 55, 0.26);
+  color: var(--text-main);
+}
+
+:focus-visible {
+  outline: 1px solid rgba(212, 175, 55, 0.55);
+  outline-offset: 4px;
+}

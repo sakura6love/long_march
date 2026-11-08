@@ -220,7 +220,7 @@ watch(
 
 .detail-date {
   color: rgba(243, 241, 230, 0.5);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
 }
 
 .detail-title {

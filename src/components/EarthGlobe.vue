@@ -1315,12 +1315,10 @@ onBeforeUnmount(() => {
   left: 0;
   width: 9px;
   height: 9px;
-  border: 1px solid #f8df9c;
+  border: 1px solid rgba(212, 175, 55, 0.72);
   border-radius: 50%;
-  background: #c4a35a;
-  box-shadow:
-    0 0 0 3px rgba(196, 163, 90, 0.18),
-    0 0 18px rgba(224, 189, 114, 0.95);
+  background: transparent;
+  box-shadow: none;
   transform: translate(-50%, -50%);
   transition:
     opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1),
@@ -1330,6 +1328,26 @@ onBeforeUnmount(() => {
 }
 
 /* 开场镜头还没停稳时，光点处于"未点亮"状态，也不接受点击。 */
+:deep(.march-label-anchor.is-lit .march-label-node) {
+  width: 9px;
+  height: 9px;
+  border-color: #f8df9c;
+  background: var(--accent-gold);
+  box-shadow:
+    0 0 0 3px rgba(212, 175, 55, 0.16),
+    0 0 18px rgba(224, 189, 114, 0.9);
+}
+
+/* 下一站：只有这一颗在呼吸，其余保持安静 */
+:deep(.march-label-anchor.is-next .march-label-node) {
+  animation: node-breathe 2.6s var(--ease) infinite;
+}
+
+@keyframes node-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.38); }
+  50% { box-shadow: 0 0 0 7px rgba(212, 175, 55, 0); }
+}
+
 :deep(.march-label-anchor.is-pending) {
   pointer-events: none;
 }
