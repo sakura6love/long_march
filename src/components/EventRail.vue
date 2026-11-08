@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps({
   events: { type: Array, default: () => [] },
@@ -34,8 +34,17 @@ const fracOf = (at = 0) => {
 }
 
 // 弧长定位后做最小间距松弛：真实距离不等，但标签不能叠在一起
-const MIN_GAP = 7.2 // 百分比，紧凑屏也放得下
+const narrow = ref(false)
+let mq = null
+const onMq = (e) => { narrow.value = e.matches }
+onMounted(() => {
+  mq = window.matchMedia('(max-width: 768px)')
+  narrow.value = mq.matches
+  mq.addEventListener('change', onMq)
+})
+onUnmounted(() => { if (mq) mq.removeEventListener('change', onMq) })
 const slots = computed(() => {
+  const MIN_GAP = narrow.value ? 9.5 : 7.2
   const raw = props.events.map((e) => fracOf(e.at ?? 0) * 100)
   const out = raw.slice()
   for (let pass = 0; pass < 4; pass += 1) {
@@ -258,8 +267,7 @@ const short = (date = '') => {
     letter-spacing: 0.06em;
   }
   .rs-end {
-    top: -15px;
-    font-size: 8.5px;
+    display: none;
   }
 }
 
