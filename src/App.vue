@@ -141,6 +141,8 @@ function toggleMotion() {
 
 /* ---------------- 火 ---------------- */
 
+const stationS = computed(() => globeRef.value?.stationS || [])
+
 function stationTimeOfAt(at) {
   const s = globeRef.value?.stationS || []
   if (!s.length) return 0
@@ -350,6 +352,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :seen="seenEvents"
       :progress="railProgress"
       :total="longMarchNodes.length - 1"
+      :station-s="stationS"
       :active-id="showingEvent ? showingEvent.id : ''"
       @select="openEventById"
     />

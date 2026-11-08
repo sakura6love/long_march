@@ -7,6 +7,7 @@ const props = defineProps({
   activeId: { type: String, default: '' },
   progress: { type: Number, default: 0 },
   total: { type: Number, default: 11 },
+  stationS: { type: Array, default: () => [] },
 })
 defineEmits(['select'])
 
@@ -22,13 +23,36 @@ const lastReached = computed(() => {
   return k
 })
 
-// 按站点序号排布，位置与地图上的行程一致
-const slots = computed(() =>
-  props.events.map((e) => ({
-    ...e,
-    pct: Math.max(0, Math.min(1, (e.at ?? 0) / (props.total || 11))) * 100,
-  })),
-)
+// 弧长归一化：把站点序号映射到路线真实长度的比例（滇黔段不再挤在一起）
+const fracOf = (at = 0) => {
+  const s = props.stationS
+  if (!s || s.length < 2) return Math.max(0, Math.min(1, at / (props.total || 11)))
+  const whole = Math.max(0, Math.min(s.length - 1, Math.floor(at)))
+  const next = Math.min(s.length - 1, whole + 1)
+  const v = s[whole] + (s[next] - s[whole]) * (at - whole)
+  return Math.max(0, Math.min(1, v))
+}
+
+// 弧长定位后做最小间距松弛：真实距离不等，但标签不能叠在一起
+const MIN_GAP = 7.2 // 百分比，紧凑屏也放得下
+const slots = computed(() => {
+  const raw = props.events.map((e) => fracOf(e.at ?? 0) * 100)
+  const out = raw.slice()
+  for (let pass = 0; pass < 4; pass += 1) {
+    for (let i = 1; i < out.length; i += 1) {
+      if (out[i] - out[i - 1] < MIN_GAP) out[i] = out[i - 1] + MIN_GAP
+    }
+    for (let i = out.length - 2; i >= 0; i -= 1) {
+      if (out[i + 1] - out[i] < MIN_GAP) out[i] = out[i + 1] - MIN_GAP
+    }
+    if (out[0] < 0) { const d = -out[0]; for (let i = 0; i < out.length; i += 1) out[i] += d }
+    const over = out[out.length - 1] - 100
+    if (over > 0) { for (let i = 0; i < out.length; i += 1) out[i] -= over }
+  }
+  return props.events.map((e, i) => ({ ...e, pct: Math.max(0, Math.min(100, out[i])) }))
+})
+
+const fillPct = computed(() => fracOf(props.progress) * 100)
 
 const hover = ref('')
 const short = (date = '') => {
@@ -42,7 +66,7 @@ const short = (date = '') => {
     <span class="rs-end rs-end-l">瑞金</span>
     <span class="rs-end rs-end-r">会宁</span>
     <div class="rs-line" aria-hidden="true">
-      <span class="rs-fill" :style="{ width: `${Math.min(100, (progress / (total || 11)) * 100)}%` }" />
+      <span class="rs-fill" :style="{ width: `${Math.min(100, fillPct)}%` }" />
     </div>
 
     <button
