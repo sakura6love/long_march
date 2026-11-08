@@ -420,7 +420,7 @@ body {
 .story-hint {
   position: fixed;
   left: 50%;
-  bottom: 52px;
+  bottom: 72px;
   z-index: 8;
   margin: 0;
   transform: translateX(-50%);

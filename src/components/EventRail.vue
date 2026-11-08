@@ -76,9 +76,9 @@ const short = (date = '') => {
 .route-strip {
   position: fixed;
   left: 50%;
-  bottom: 88px;
-  width: min(520px, 46vw);
-  height: 30px;
+  bottom: 108px;
+  width: min(540px, 48vw);
+  height: 34px;
   transform: translateX(-50%);
   z-index: 26;
   pointer-events: none;
@@ -88,9 +88,9 @@ const short = (date = '') => {
   position: absolute;
   left: 0;
   right: 0;
-  top: 18px;
+  top: 20px;
   height: 1px;
-  background: rgba(212, 175, 55, 0.22);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .rs-fill {
@@ -98,16 +98,17 @@ const short = (date = '') => {
   left: 0;
   top: 0;
   height: 1px;
-  background: linear-gradient(90deg, rgba(139, 28, 28, 0.2), var(--red-trail));
-  transition: width 0.9s cubic-bezier(0.25, 1, 0.5, 1);
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), var(--accent-gold));
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.35);
+  transition: width 0.9s var(--ease);
 }
 
 .rs-node {
   position: absolute;
   top: 0;
-  width: 20px;
-  height: 30px;
-  margin-left: -10px;
+  width: 24px;
+  height: 34px;
+  margin-left: -12px;
   padding: 0;
   border: 0;
   background: none;
@@ -120,22 +121,25 @@ const short = (date = '') => {
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 9px;
-  letter-spacing: 0.05em;
-  color: rgba(212, 175, 55, 0.45);
-  transition: color 0.35s;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.35s var(--ease), text-shadow 0.35s var(--ease);
   white-space: nowrap;
 }
 
 .rs-dot {
   position: absolute;
   left: 50%;
-  top: 12px;
-  width: 2px;
-  height: 9px;
-  margin-left: -1px;
-  background: rgba(212, 175, 55, 0.42);
-  transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  top: 14px;
+  width: 1px;
+  height: 8px;
+  margin-left: -0.5px;
+  background: rgba(255, 255, 255, 0.32);
+  transition: height 0.35s var(--ease), background 0.35s var(--ease), box-shadow 0.35s var(--ease);
 }
 
 .rs-tip {
@@ -170,38 +174,50 @@ const short = (date = '') => {
 
 .rs-end {
   position: absolute;
-  top: -16px;
-  font-size: 9.5px;
+  top: -18px;
+  font-size: 10px;
   letter-spacing: 0.14em;
-  color: rgba(163, 168, 180, 0.55);
+  color: rgba(163, 168, 180, 0.62);
 }
 .rs-end-l { left: 0; }
 .rs-end-r { right: 0; }
 
 /* 已走过 */
 .is-seen .rs-index {
-  color: rgba(232, 201, 138, 0.9);
+  color: rgba(244, 241, 225, 0.72);
 }
 .is-seen .rs-dot {
+  height: 12px;
   background: var(--red-trail);
-  box-shadow: 0 0 6px rgba(139, 28, 28, 0.65);
+  box-shadow: 0 0 6px rgba(139, 28, 28, 0.55);
 }
 
 /* 当前 */
+.is-current .rs-index,
+.is-active .rs-index {
+  color: var(--accent-gold);
+  text-shadow: 0 0 6px rgba(212, 175, 55, 0.42);
+}
+
 .is-current .rs-dot,
 .is-active .rs-dot {
   background: #f8df9c;
-  height: 16px;
+  height: 18px;
   top: 9px;
-  box-shadow: 0 0 10px rgba(232, 201, 138, 0.8);
+  box-shadow:
+    0 0 0 1px rgba(248, 223, 156, 0.35),
+    0 0 10px rgba(232, 201, 138, 0.65);
 }
 
-/* 未走到 */
-.is-locked {
-  opacity: 0.55;
+/* 未走到：不再叠 opacity，只压颜色 */
+.is-locked .rs-index {
+  color: rgba(255, 255, 255, 0.46);
 }
-.is-locked:hover {
-  opacity: 0.75;
+.is-locked .rs-dot {
+  background: rgba(255, 255, 255, 0.26);
+}
+.is-locked:hover .rs-index {
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .rs-node:hover .rs-index {
@@ -209,16 +225,17 @@ const short = (date = '') => {
 }
 @media (max-width: 768px) {
   .route-strip {
-    width: 86vw;
-    bottom: 86px;
-    height: 24px;
+    width: 88vw;
+    bottom: calc(106px + env(safe-area-inset-bottom, 0px));
+    height: 30px;
+  }
+  .rs-index {
+    font-size: 10px;
+    letter-spacing: 0.06em;
   }
   .rs-end {
-    top: -14px;
+    top: -15px;
     font-size: 8.5px;
-  }
-  .rs-num {
-    font-size: 8px;
   }
 }
 
