@@ -7,13 +7,14 @@
  */
 defineProps({
   event: { type: Object, default: null },
+  dimmed: { type: Boolean, default: false },
 })
 
 </script>
 
 <template>
   <Transition name="scene">
-    <div v-if="event" class="event-scene">
+    <div v-if="event" class="event-scene" :class="{ 'is-dimmed': dimmed }">
       <div class="event-copy">
         <p class="event-date">{{ event.date }}</p>
         <span class="event-rule" aria-hidden="true" />
@@ -275,5 +276,52 @@ defineProps({
     right: 24px;
     opacity: 1;
   }
+}
+
+/* ---- 移动端：文字承托 + 安全区；面板打开时让位 ---- */
+@media (max-width: 768px) {
+  .event-copy {
+    left: 16px;
+    right: 16px;
+    bottom: calc(7vh + env(safe-area-inset-bottom));
+    padding: 18px 16px 20px;
+    background: linear-gradient(
+      180deg,
+      rgba(6, 10, 17, 0) 0%,
+      rgba(6, 10, 17, 0.64) 26%,
+      rgba(6, 10, 17, 0.86) 100%
+    );
+  }
+
+  .event-date,
+  .event-title,
+  .event-text,
+  .event-points,
+  .event-credit {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  }
+
+  .event-title {
+    font-size: 24px;
+  }
+
+  .event-text {
+    font-size: 13.5px;
+    line-height: 1.9;
+  }
+
+  .event-points li {
+    font-size: 12.5px;
+  }
+
+  .event-continue,
+  .event-actions {
+    bottom: calc(2.5vh + env(safe-area-inset-bottom));
+  }
+}
+
+.event-scene.is-dimmed .event-copy {
+  opacity: 0;
+  pointer-events: none;
 }
 </style>

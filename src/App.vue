@@ -34,6 +34,7 @@ const mode = computed(() => {
   return 'free'
 })
 const settingsOpen = ref(false)
+const askOpen = ref(false)
 const settingsFrom = ref('start')
 const reduced = ref(false)
 
@@ -311,7 +312,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 </script>
 
 <template>
-  <div class="main-container">
+  <div class="main-container" :class="{ 'is-ask-open': askOpen, 'is-scene': !!showingEvent }">
     <EarthGlobe
       ref="globeRef"
       :lit-ids="litIds"
@@ -345,7 +346,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       @light-up="toggleLit"
     />
 
-    <EventScene :event="showingEvent" />
+    <EventScene :event="showingEvent" :dimmed="askOpen" />
 
     <EventRail
       v-if="screen === 'overview' && !settingsOpen && !showingEvent && !activeNode"
@@ -384,7 +385,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       @browse="screen = 'overview'"
     />
 
-    <p v-if="hint && !activeNode" class="story-hint" aria-hidden="true">
+    <p v-if="hint && !activeNode && !askOpen" class="story-hint" aria-hidden="true">
       <span>{{ hint }}</span>
       <i v-if="screen === 'overview' && !settingsOpen && mode !== 'playing'">·</i>
       <em v-if="screen === 'overview' && !settingsOpen && mode !== 'playing'">双击复位</em>
@@ -399,7 +400,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       跳过
     </button>
 
-    <AskPanel v-if="screen === 'overview' && !settingsOpen" />
+    <AskPanel v-if="screen === 'overview' && !settingsOpen" @update:open="askOpen = $event" />
   </div>
   <ChapterCard v-if="!showingEvent" :chapter="activeChapter" :progress="railProgress" />
 </template>
@@ -481,6 +482,18 @@ body {
 
 .skip-burn:hover {
   color: #e9e2d4;
+}
+
+/* ---- 移动端：顶部只留一行信息，底部提示避让安全区 ---- */
+@media (max-width: 768px) {
+  .main-container.is-scene .masthead-sub,
+  .main-container.is-ask-open .masthead-sub {
+    opacity: 0;
+  }
+
+  .story-hint {
+    bottom: calc(14px + env(safe-area-inset-bottom));
+  }
 }
 </style>
 

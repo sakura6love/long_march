@@ -66,8 +66,18 @@ export function createCameraRig(globe) {
    * 相机放到 (lat - aim, lng) 方向、离地心 altitude 个半径处，看向 (lat, lng)。
    * aim = 0 时退化为"正上方俯视地心"，用于开场整球。
    */
+  /** 竖屏（宽高比 < 0.8）把相机抬远，给标题与面板留出落脚空间。 */
+  function portraitBoost() {
+    const w = globe.width()
+    const h = globe.height()
+    if (!w || !h) return 1
+    const aspect = w / h
+    if (aspect >= 0.8) return 1
+    return Math.min(1.45, 0.8 / aspect)
+  }
+
   function placeCamera(lat, lng, altitude, aim) {
-    const eye = globe.getCoords(lat - aim, lng, altitude)
+    const eye = globe.getCoords(lat - aim, lng, altitude * portraitBoost())
     const target = globe.getCoords(lat, lng, 0.002)
     camera.position.set(eye.x, eye.y, eye.z)
     camera.lookAt(target.x, target.y, target.z)

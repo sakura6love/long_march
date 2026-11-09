@@ -1,10 +1,11 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { askAI, fetchStats, ChatError } from '../lib/ai.js'
 import { contextFor, localAnswer } from '../lib/archive.js'
 import { PRESETS, findPreset } from '../lib/presets.js'
 
 const open = ref(false)
+const emit = defineEmits(['update:open'])
 const draft = ref('')
 const inputEl = ref(null)
 const listEl = ref(null)
@@ -195,11 +196,28 @@ function onKeydown(event) {
 }
 
 watch(open, (value) => {
+  emit('update:open', value)
   if (value) window.addEventListener('keydown', onKeydown, true)
   else window.removeEventListener('keydown', onKeydown, true)
 })
 
+/** 键盘弹出时把抽屉顶上去（iOS 只改 visualViewport，不改 window.innerHeight）。 */
+function syncKeyboardOffset() {
+  const vv = window.visualViewport
+  const gap = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0
+  document.documentElement.style.setProperty('--kb', `${gap}px`)
+}
+
+onMounted(() => {
+  syncKeyboardOffset()
+  window.visualViewport?.addEventListener('resize', syncKeyboardOffset)
+  window.visualViewport?.addEventListener('scroll', syncKeyboardOffset)
+})
+
 onBeforeUnmount(() => {
+  window.visualViewport?.removeEventListener('resize', syncKeyboardOffset)
+  window.visualViewport?.removeEventListener('scroll', syncKeyboardOffset)
+  document.documentElement.style.removeProperty('--kb')
   window.removeEventListener('keydown', onKeydown, true)
   controller?.abort()
   if (raf) cancelAnimationFrame(raf)
@@ -626,6 +644,31 @@ onBeforeUnmount(() => {
     bottom: auto;
     width: min(88vw, 360px);
     max-height: 62vh;
+  }
+}
+
+/* ---- 移动端：底部抽屉 + 键盘避让 + 安全区 ---- */
+@media (max-width: 768px) {
+  .ask {
+    top: auto;
+    right: 14px;
+    left: auto;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .ask-orb {
+    width: 52px;
+    height: 52px;
+  }
+
+  .ask-window {
+    position: fixed;
+    top: auto;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom) + var(--kb, 0px));
+    max-height: min(64dvh, 560px);
   }
 }
 </style>
