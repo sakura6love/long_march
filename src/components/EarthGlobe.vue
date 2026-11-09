@@ -11,7 +11,7 @@
  * 绝对禁止：把 globe 实例放进 ref / reactive。
  * WebGL 对象一旦被 Vue 深度代理，浏览器会直接卡死白屏，这里只能使用 shallowRef。
  */
-import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import Globe from 'globe.gl'
 import {
   AmbientLight,
@@ -75,6 +75,14 @@ const props = defineProps({
   borderOn: { type: Boolean, default: false },
   /** 下一站 id：它的光点会呼吸闪烁 */
   nextId: { type: String, default: '' },
+})
+
+const _glowQ = new URLSearchParams(location.search).get('glow')
+const _glowOverride = _glowQ === null || _glowQ === '' || Number.isNaN(Number(_glowQ)) ? null : Number(_glowQ)
+const glowStyle = computed(() => {
+  const raw = _glowOverride === null ? Math.max(0, Math.min(1, props.burn)) : Math.max(0, Math.min(1, _glowOverride))
+  const v = Math.pow(raw, 0.75)
+  return { '--glow': String(v) }
 })
 
 const emit = defineEmits(['select', 'select-event', 'tap', 'reset'])
@@ -1004,6 +1012,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="horizon-frame"
+    :style="glowStyle"
     :class="{ 'is-finale': finale, 'labels-muted': labelsMuted, 'labels-off': !labelsOn }"
     aria-label="长征路线俯瞰地球，显示中国境内的十二个历史节点"
     @dblclick="handleDoubleClick"
@@ -1740,4 +1749,14 @@ onBeforeUnmount(() => {
   }
 }
 
+
+/* 金色进度：越往后越亮、越金（不改红、不压暗） */
+.horizon-frame :deep(canvas) {
+  filter: sepia(calc(var(--glow, 0) * 0.46))
+          saturate(calc(1 + var(--glow, 0) * 0.45))
+          brightness(calc(1 + var(--glow, 0) * 0.24))
+          hue-rotate(calc(var(--glow, 0) * -10deg))
+          contrast(calc(1 - var(--glow, 0) * 0.05));
+  transition: filter 600ms cubic-bezier(0.25, 1, 0.5, 1);
+}
 </style>
