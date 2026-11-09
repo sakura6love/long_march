@@ -1,0 +1,10 @@
+name = "long-march"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# KV 绑定：在 Cloudflare Dashboard 建命名空间后，把 id 填到这里，
+# 或在 Pages → Settings → Bindings 里绑定（推荐，避免 id 进仓库）。
+# [[kv_namespaces]]
+# binding = "STATS"
+# id = "<your-kv-namespace-id>"

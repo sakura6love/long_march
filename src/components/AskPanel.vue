@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { askAI, fetchStats, ChatError } from '../lib/ai.js'
 import { contextFor, localAnswer } from '../lib/archive.js'
+import { PRESETS, findPreset } from '../lib/presets.js'
 
 const open = ref(false)
 const draft = ref('')
@@ -13,17 +14,13 @@ const stats = ref(null)
 /** @type {import('vue').Ref<Array<{id:number,role:'user'|'bot',raw:string,shown:string,sources:Array,weak:boolean}>>} */
 const messages = ref([])
 
-const PRESETS = [
-  '长征一共走了多远、多久？',
-  '遵义会议为什么是转折点？',
-  '泸定桥是怎么夺下来的？',
-]
 
 const STATUS = {
   idle: { text: '待提问', tone: 'idle' },
   thinking: { text: '检索中', tone: 'busy' },
   streaming: { text: '在线', tone: 'live' },
   online: { text: '在线', tone: 'live' },
+  preset: { text: '馆藏', tone: 'archive' },
   archive: { text: '档案模式', tone: 'archive' },
   offline: { text: '离线', tone: 'archive' },
 }
@@ -65,44 +62,77 @@ function reset() {
   phase.value = 'idle'
 }
 
-async function ask(text) {
+async function ask(text, mode = 'free') {
   const question = String(text ?? draft.value).trim()
   if (!question || busy.value) return
 
   draft.value = ''
-  messages.value.push({ id: (seq += 1), role: 'user', raw: question, shown: question, sources: [], weak: false })
+  messages.value.push({
+    id: (seq += 1),
+    role: 'user',
+    raw: question,
+    shown: question,
+    sources: [],
+    weak: false,
+  })
 
+  /** @type {any} */
   const bot = {
     id: (seq += 1),
     role: 'bot',
+    question,
     raw: '',
     shown: '',
     sources: [],
     weak: false,
+    canRetry: false,
   }
   messages.value.push(bot)
   scrollToEnd()
 
-  const local = localAnswer(question)
-  const offline = typeof navigator !== 'undefined' && navigator.onLine === false
-  phase.value = offline ? 'thinking' : 'thinking'
-
-  if (offline) {
-    bot.raw = local.text
-    bot.sources = local.sources
-    bot.weak = local.weak
-    phase.value = 'offline'
+  // L0：点预设 → 直接给馆藏答案，零网络。
+  const preset = mode === 'preset' ? findPreset(question) : null
+  if (preset) {
+    phase.value = 'preset'
+    bot.raw = preset.a
+    bot.sources = [{ label: preset.label, name: '' }]
     startPump()
     return
   }
+
+  // L1：自由提问 → 先给本地档案答案（<30ms），需要更深再点「联网」。
+  const local = localAnswer(question)
+  bot.raw = local.text
+  bot.sources = local.sources
+  bot.weak = local.weak
+  bot.canRetry = true
+  phase.value = 'archive'
+  startPump()
+}
+
+// L2：用户主动点「再问一次 · 联网」才打网络。
+async function askOnline(bot) {
+  if (!bot || busy.value) return
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+  if (offline) {
+    phase.value = 'offline'
+    return
+  }
+
+  bot.raw = ''
+  bot.shown = ''
+  bot.sources = []
+  bot.canRetry = false
+  phase.value = 'thinking'
+  scrollToEnd()
 
   controller = new AbortController()
   let received = false
 
   try {
     await askAI({
-      question,
-      context: contextFor(question),
+      question: bot.question,
+      context: contextFor(bot.question),
       signal: controller.signal,
       onDelta: (delta) => {
         if (!received) {
@@ -117,19 +147,14 @@ async function ask(text) {
     startPump()
   } catch (error) {
     if (error instanceof ChatError && error.code === 'aborted') {
-      if (!bot.raw) {
-        messages.value = messages.value.filter((m) => m.id !== bot.id)
-      }
       phase.value = 'idle'
       return
     }
-    // 关键：任何失败都不弹错误，直接切本地档案。
-    if (received && bot.raw) {
-      bot.raw += '\n\n（通讯中断，以下为馆藏原文）'
-    }
-    bot.raw = received && bot.raw.startsWith('（') ? bot.raw : `${bot.raw || ''}${local.text}`
+    // 失败不弹错：退回馆藏原文，并把「联网」按钮还回去。
+    const local = localAnswer(bot.question)
+    bot.raw = local.text
     bot.sources = local.sources
-    bot.weak = local.weak
+    bot.canRetry = true
     phase.value = typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'archive'
     startPump()
   } finally {
@@ -207,13 +232,22 @@ onBeforeUnmount(() => {
               <p v-if="m.sources.length && m.shown" class="ask-src">
                 出处 {{ m.sources.map((s) => s.label).join(' · ') }}
               </p>
+              <button v-if="m.canRetry && !busy" type="button" class="ask-retry" @click="askOnline(m)">
+                再问一次 · 联网
+              </button>
             </template>
           </div>
         </div>
 
         <div v-if="!messages.length" class="ask-presets">
-          <button v-for="q in PRESETS" :key="q" type="button" class="ask-preset" @click="ask(q)">
-            {{ q }}
+          <button
+            v-for="item in PRESETS"
+            :key="item.q"
+            type="button"
+            class="ask-preset"
+            @click="ask(item.q, 'preset')"
+          >
+            {{ item.q }}
           </button>
         </div>
 
@@ -539,6 +573,22 @@ onBeforeUnmount(() => {
 .ask-input button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.ask-retry {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: color 0.3s var(--ease);
+}
+
+.ask-retry:hover {
+  color: var(--accent-gold);
 }
 
 .ask-note {
