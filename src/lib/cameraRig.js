@@ -75,8 +75,8 @@ export function createCameraRig(globe) {
    * 横屏（aspect ≥ 0.85）返回 0，不改变原有构图。
    */
   function fitAltitude() {
-    const w = globe.width()
-    const h = globe.height()
+    const w = globe.width() || window.innerWidth || 0
+    const h = globe.height() || window.innerHeight || 0
     if (!w || !h) return 0
     const aspect = w / h
     if (aspect >= 0.85) return 0
