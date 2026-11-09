@@ -536,7 +536,7 @@ function createChineseLabel(pointData) {
   anchor.setAttribute('aria-label', `查看${pointData.name}历史节点`)
   anchor.innerHTML = `
     <span class="march-label-beam" aria-hidden="true"></span>
-    <span class="march-label-node" aria-hidden="true"></span>
+    <svg class="march-label-node" viewBox="0 0 24 32" aria-hidden="true"><path class="ember-shape" d="M12 2 C14 8 18 10 19.5 14 C21 18 20.5 22 19 25 C17 29.5 14.5 31 12 31 C9.5 31 5.5 29 4 24 C2.8 19.5 4.5 16 6.5 13 C8.5 10 10 8 12 2 Z"/></svg>
     <span class="march-label-card"><strong>${pointData.name}</strong></span>
   `
 
@@ -1056,7 +1056,7 @@ onBeforeUnmount(() => {
 
 /* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
 @media (max-width: 768px) {
-  .march-label-node { width: 7px; height: 7px; }
+  .march-label-node { width: 13px; height: 17px; }
   .event-backdrop-img { object-position: 50% 30%; }
   .event-backdrop::after {
     background:
@@ -1382,32 +1382,39 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   left: 0;
-  width: 6px;
-  height: 6px;
-  border: 0;
-  border-radius: 50%;
-  background: #8c2a17;
-  box-shadow:
-    inset 0 0 0 1px rgba(232, 201, 138, 0.72),
-    0 0 0 4px rgba(140, 42, 23, 0.22),
-    0 0 10px rgba(140, 42, 23, 0.28);
+  width: 14px;
+  height: 18px;
+  overflow: visible;
   transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.55));
   transition:
     opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1),
     transform 0.45s cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 0.45s cubic-bezier(0.25, 1, 0.5, 1),
-    background 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+    filter 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+:deep(.march-label-node .ember-shape) {
+  fill: none;
+  stroke: rgba(243, 176, 112, 0.92);
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+  transition:
+    fill 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    stroke 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 /* 开场镜头还没停稳时，光点处于"未点亮"状态，也不接受点击。 */
 :deep(.march-label-anchor.is-lit .march-label-node) {
-  width: 7px;
-  height: 7px;
-  background: #a8331d;
-  box-shadow:
-    inset 0 0 0 1px #e8c98a,
-    0 0 0 3px rgba(200, 90, 40, 0.22),
-    0 0 12px rgba(200, 90, 40, 0.45);
+  width: 15px;
+  height: 20px;
+  filter:
+    drop-shadow(0 0 5px rgba(255, 120, 50, 0.55))
+    drop-shadow(0 0 12px rgba(255, 90, 30, 0.28));
+}
+
+:deep(.march-label-anchor.is-lit .march-label-node .ember-shape) {
+  fill: #f2541b;
+  stroke: rgba(255, 196, 150, 0.85);
 }
 
 /* 下一站：只有这一颗在呼吸，其余保持安静 */
@@ -1416,15 +1423,16 @@ onBeforeUnmount(() => {
 }
 
 @keyframes node-breathe {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.38); }
-  50% { box-shadow: 0 0 0 7px rgba(212, 175, 55, 0); }
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(255, 150, 80, 0)) drop-shadow(0 0 3px rgba(0, 0, 0, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(255, 150, 80, 0.85)) drop-shadow(0 0 14px rgba(255, 120, 50, 0.45));
+  }
 }
 
 :deep(.march-label-anchor:hover .march-label-node) {
-  transform: translate(-50%, -50%) scale(1.4);
-  box-shadow:
-    inset 0 0 0 1px rgba(232, 201, 138, 0.9),
-    0 0 0 9px rgba(140, 42, 23, 0.16);
+  transform: translate(-50%, -50%) scale(1.22);
 }
 
 :deep(.march-label-anchor.is-pending) {
@@ -1443,16 +1451,11 @@ onBeforeUnmount(() => {
 
 @keyframes march-node-bloom {
   0% {
-    transform: translate(-50%, -50%) scale(2.2);
-    box-shadow:
-      0 0 0 0 rgba(243, 212, 140, 0.7),
-      0 0 34px rgba(243, 212, 140, 0.95);
+    transform: translate(-50%, -50%) scale(1.9);
+    filter: drop-shadow(0 0 10px rgba(255, 190, 120, 0.95));
   }
   100% {
     transform: translate(-50%, -50%) scale(1);
-    box-shadow:
-      0 0 0 3px rgba(212, 175, 55, 0.18),
-      0 0 18px rgba(224, 189, 114, 0.95);
   }
 }
 
@@ -1582,22 +1585,18 @@ onBeforeUnmount(() => {
 @keyframes march-next-pulse {
   0%,
   100% {
-    box-shadow:
-      0 0 0 1px rgba(246, 220, 156, 0.45),
-      0 0 12px 2px rgba(224, 189, 114, 0.5);
+    filter: drop-shadow(0 0 4px rgba(246, 220, 156, 0.45));
   }
   50% {
-    box-shadow:
-      0 0 0 5px rgba(243, 212, 140, 0.22),
-      0 0 22px 6px rgba(243, 212, 140, 0.75);
+    filter: drop-shadow(0 0 12px rgba(243, 212, 140, 0.85));
   }
 }
 
 :deep(.march-label-anchor.is-lit .march-label-node) {
-  background: #f6dc9c;
-  box-shadow:
-    0 0 0 1px rgba(246, 220, 156, 0.45),
-    0 0 14px 3px rgba(224, 189, 114, 0.55);
+  background: transparent;
+  filter:
+    drop-shadow(0 0 5px rgba(255, 120, 50, 0.55))
+    drop-shadow(0 0 14px rgba(224, 189, 114, 0.45));
 }
 
 /* 刚被点亮的瞬间：光点弹一下、金环炸开一次，然后回到常亮态。 */
@@ -1608,30 +1607,21 @@ onBeforeUnmount(() => {
 @keyframes node-ignite {
   0% {
     transform: translate(-50%, -50%) scale(1);
-    box-shadow:
-      0 0 0 0 rgba(255, 226, 180, 0.85),
-      0 0 18px rgba(255, 150, 80, 0.5);
+    filter: drop-shadow(0 0 8px rgba(255, 150, 80, 0.5));
   }
   30% {
     transform: translate(-50%, -50%) scale(2.1);
-    box-shadow:
-      0 0 0 13px rgba(255, 226, 180, 0),
-      0 0 30px rgba(255, 150, 80, 0.95);
+    filter: drop-shadow(0 0 22px rgba(255, 150, 80, 0.95));
   }
   100% {
     transform: translate(-50%, -50%) scale(1);
-    box-shadow:
-      0 0 0 0 rgba(255, 226, 180, 0),
-      0 0 14px 3px rgba(224, 189, 114, 0.55);
+    filter: drop-shadow(0 0 10px rgba(224, 189, 114, 0.55));
   }
 }
 
 :deep(.march-label-anchor.is-active .march-label-node) {
-  background: #f8df9c;
-  border-color: #fff6d8;
-  box-shadow:
-    0 0 0 5px rgba(212, 175, 55, 0.2),
-    0 0 26px rgba(243, 212, 140, 0.95);
+  background: transparent;
+  filter: drop-shadow(0 0 16px rgba(243, 212, 140, 0.95));
   transform: translate(-50%, -50%) scale(1.28);
 }
 
