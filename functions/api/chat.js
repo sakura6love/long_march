@@ -60,7 +60,7 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204 })
 }
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   const key = env.DEEPSEEK_API_KEY || ''
   if (!key) return json(503, { error: 'no-key', message: '服务端未配置模型密钥' })
 
@@ -151,7 +151,8 @@ export async function onRequestPost({ request, env }) {
     } catch {
       // 客户端已断开
     }
-    bump(env, 'asks').catch(() => {})
+    const counted = bump(env, 'asks').catch(() => {})
+    if (typeof waitUntil === 'function') waitUntil(counted)
   })()
 
   return new Response(readable, {
