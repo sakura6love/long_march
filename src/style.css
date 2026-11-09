@@ -11,7 +11,7 @@
   --accent-gold: #d4af37;
   /* 故宫绛红：印章、已走过的刻度 */
   --accent-red: #8a1538;
-  --red-trail: var(--red-trail);
+  --red-trail: #8a1538;
   /* 偏蓝调的深空透明色：面板与浮层的底 */
   --panel-bg: rgba(12, 18, 28, 0.65);
   /* 更深的底，用于事件卡这类需要压住背景的层 */
@@ -21,6 +21,12 @@
   --hairline-soft: rgba(244, 241, 225, 0.1);
   /* 统一的缓动：全站动效只用它，保证"同一个世界里的运动" */
   --ease: cubic-bezier(0.25, 1, 0.5, 1);
+  /* 次要文字：日期、出处、说明。金色不再承担文字色 */
+  --text-dim: #a89f8c;
+  /* 两层字族：展示用宋（碑刻感），叙事用黑（可读性） */
+  --font-display: 'Songti SC', 'Noto Serif SC', 'STSong', 'SimSun', serif;
+  --font-body: 'PingFang SC', 'Source Han Sans SC', 'Noto Sans CJK SC',
+    'Microsoft YaHei', system-ui, sans-serif;
 }
 
 *,

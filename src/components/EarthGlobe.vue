@@ -1176,20 +1176,21 @@ onBeforeUnmount(() => {
   margin: 0 0 12px;
   align-items: center;
   gap: 9px;
-  color: rgba(243, 241, 230, 0.5);
+  color: var(--accent-gold);
   font: 10px/1 'Space Mono', ui-monospace, monospace;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
+  opacity: 0.9;
 }
 
 /* 标题是"抬头看得到、低头不抢戏"的存在感：小字号 + 宋体 + 大量字距。 */
 .masthead-title {
   margin: 0;
-  color: rgba(243, 241, 230, 0.9);
-  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
-  font-size: 20px;
+  color: #f7f5ec;
+  font-family: var(--font-display);
+  font-size: 40px;
   font-weight: 500;
-  letter-spacing: 0.3em;
-  line-height: 1.4;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
   text-shadow: 0 1px 18px rgba(4, 7, 12, 0.75);
 }
 
@@ -1219,9 +1220,10 @@ onBeforeUnmount(() => {
 
 .masthead-sub {
   margin: 10px 0 0;
-  color: rgba(243, 241, 230, 0.34);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.02em;
 }
 
 .readout-dot {

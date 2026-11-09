@@ -73,9 +73,11 @@ defineProps({
 
 .event-date {
   margin: 0;
+  font-family: var(--font-body);
   font-size: 11px;
-  letter-spacing: 0.26em;
-  color: var(--accent-gold);
+  letter-spacing: 0.2em;
+  color: rgba(214, 205, 186, 0.92);
+  text-shadow: 0 1px 10px rgba(4, 7, 12, 0.8);
 }
 
 .event-rule {
@@ -89,10 +91,12 @@ defineProps({
 
 .event-title {
   margin: 0;
-  font-size: 34px;
-  line-height: 1.25;
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1.18;
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
+  color: #f7f5ec;
 }
 
 .event-points {
@@ -105,10 +109,12 @@ defineProps({
 .event-points li {
   position: relative;
   margin: 0 0 8px;
+  font-family: var(--font-body);
   font-size: 13px;
   line-height: 1.9;
-  letter-spacing: 0.03em;
-  color: rgba(243, 241, 230, 0.78);
+  letter-spacing: 0.01em;
+  color: rgba(243, 241, 230, 0.88);
+  text-shadow: 0 1px 12px rgba(4, 7, 12, 0.8);
 }
 
 .event-points li::before {
@@ -123,9 +129,12 @@ defineProps({
 
 .event-text {
   margin: 16px 0 0;
+  font-family: var(--font-body);
   font-size: 15px;
-  line-height: 2.02;
-  color: rgba(232, 226, 212, 0.86);
+  line-height: 1.95;
+  letter-spacing: 0.01em;
+  color: rgba(246, 243, 234, 0.94);
+  text-shadow: 0 1px 14px rgba(4, 7, 12, 0.85), 0 0 42px rgba(4, 7, 12, 0.55);
 }
 
 .event-diagram {
@@ -138,9 +147,11 @@ defineProps({
 
 .event-credit {
   margin: 26px 0 0;
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
   line-height: 1.6;
-  color: rgba(243, 241, 230, 0.38);
+  color: var(--text-dim);
+  opacity: 0.8;
 }
 
 .event-actions {
