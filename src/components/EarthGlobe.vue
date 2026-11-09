@@ -1065,7 +1065,9 @@ onBeforeUnmount(() => {
 .event-backdrop::after {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(3, 6, 11, 0.2) 0%, rgba(3, 6, 11, 0) 38%, rgba(3, 6, 11, 0.72) 100%);
+  background:
+    linear-gradient(180deg, rgba(3, 6, 11, 0.58) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.78) 100%),
+    radial-gradient(ellipse at 50% 62%, rgba(122, 162, 205, 0.10) 0%, transparent 58%);
   content: '';
 }
 
@@ -1077,12 +1079,18 @@ onBeforeUnmount(() => {
   object-fit: cover;
   opacity: 0;
   transform: scale(1.06);
-  filter: blur(11px) saturate(0.78) brightness(0.62);
+  filter: saturate(0.78) brightness(0.48) contrast(1.03);
   transition: opacity 1.1s ease;
 }
 
 .event-backdrop-img.is-shown {
-  opacity: 0.95;
+  opacity: 1;
+  animation: sceneDrift 18s ease-out both;
+}
+
+@keyframes sceneDrift {
+  from { transform: scale(1.06); }
+  to { transform: scale(1.0); }
 }
 
 /* 画布本身严格覆盖全屏。 */

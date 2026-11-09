@@ -66,6 +66,7 @@ const railProgress = computed(() =>
 const burning = ref(false)
 const pausedEvent = ref(null)
 const showingEvent = ref(null)
+
 const seenEvents = ref([])
 
 function openEventById(id) {
