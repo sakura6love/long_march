@@ -215,21 +215,33 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 .seal {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid rgba(212, 175, 55, 0.32);
-  border-radius: 3px;
-  background: linear-gradient(135deg, var(--accent-red) 0%, #5a0e24 100%);
-  color: #f2d79c;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 13px;
-  line-height: 1.05;
-  letter-spacing: 0.04em;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(197, 168, 128, 0.55);
+  border-radius: 2px;
+  background: transparent;
+  color: #c5a880;
+  font-family: 'Songti SC', 'Noto Serif SC', serif;
+  font-size: 12.5px;
+  line-height: 1;
+  letter-spacing: 0.18em;
   writing-mode: vertical-rl;
   text-orientation: upright;
+  transition:
+    color 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    background 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.seal:hover,
+.seal:focus-visible {
+  border-color: rgba(156, 42, 34, 0.85);
+  background: rgba(156, 42, 34, 0.15);
+  color: #e3c9a2;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 8px 18px rgba(0, 0, 0, 0.35);
+    inset 0 0 12px rgba(156, 42, 34, 0.35),
+    0 0 16px rgba(156, 42, 34, 0.22);
 }
 
 @media (max-width: 768px) {

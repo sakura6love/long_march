@@ -110,18 +110,25 @@ const emit = defineEmits(['restart', 'browse'])
 .seal {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 68px;
+  height: 68px;
   margin: 52px auto 0;
-  border: 1px solid var(--accent-red);
-  background: var(--accent-red);
-  color: #f6e7d6;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 15px;
-  line-height: 1.05;
-  letter-spacing: 0.04em;
-  writing-mode: vertical-rl;
-  text-orientation: upright;
+  border: 1px solid rgba(224, 195, 152, 0.42);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 236, 214, 0.16), transparent 42%),
+    rgba(139, 28, 19, 0.3);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  color: #e0c398;
+  font-family: 'Songti SC', 'Noto Serif SC', serif;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 226, 186, 0.12),
+    inset 0 8px 18px rgba(90, 14, 10, 0.35),
+    0 10px 30px rgba(0, 0, 0, 0.35);
   animation: stamp 0.7s cubic-bezier(0.25, 1, 0.5, 1) 3s both;
 }
 
