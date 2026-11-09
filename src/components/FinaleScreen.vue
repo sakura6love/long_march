@@ -64,7 +64,7 @@ const emit = defineEmits(['restart', 'browse'])
 .era {
   margin: 0;
   font-size: 11px;
-  letter-spacing: 0.34em;
+  letter-spacing: 0.18em;
   color: rgba(212, 175, 55, 0.6);
   animation: rise 1s cubic-bezier(0.25, 1, 0.5, 1) 0.3s both;
 }
@@ -84,7 +84,7 @@ const emit = defineEmits(['restart', 'browse'])
   font-size: clamp(17px, 1.5vw, 22px);
   font-weight: 500;
   line-height: 1.75;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.04em;
   color: var(--text-main);
 }
 
@@ -147,7 +147,7 @@ const emit = defineEmits(['restart', 'browse'])
   background: none;
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 15px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
   cursor: pointer;
   transition: color 0.4s ease;

@@ -201,9 +201,9 @@ const short = (date = '') => {
 
 .rs-tip i {
   font-style: normal;
-  font-size: 8.5px;
+  font-size: 11px;
   letter-spacing: 0.04em;
-  color: rgba(212, 175, 55, 0.75);
+  color: rgba(243, 241, 230, 0.5);
 }
 
 .rs-end {
@@ -211,7 +211,7 @@ const short = (date = '') => {
   top: -18px;
   font-size: 10px;
   letter-spacing: 0.14em;
-  color: rgba(163, 168, 180, 0.62);
+  color: var(--text-dim);
 }
 .rs-end-l { left: 0; }
 .rs-end-r { right: 0; }
