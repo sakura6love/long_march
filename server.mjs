@@ -1,15 +1,16 @@
 /**
- * 本地开发服务器：把 dist/ 当静态站点，并把 api/ 下的函数挂到 /api/*。
- * 用法：node server.mjs   （先 npm run build）
+ * 本地演示服务器：把 dist/ 当静态站点，并把 functions/api/*.js 挂到 /api/*。
+ * 用法：npm run build && node server.mjs   （默认 8080）
  *
- * 不引 express：只用 node 内置 http，装完依赖即可跑，
- * 也让评委那边“npm i 之后少一个依赖出错的可能”。
+ * 只依赖 node 内置模块，不引 express；API 复用 Cloudflare Pages Functions 的代码，
+ * 保证「本地演示」与「线上部署」走同一份逻辑。
  */
 import http from 'node:http'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
-import chat from './api/chat.js'
-import stats from './api/stats.js'
+import { Readable } from 'node:stream'
+import * as chatApi from './functions/api/chat.js'
+import * as statsApi from './functions/api/stats.js'
 
 const ROOT = resolve(process.cwd(), 'dist')
 const PORT = Number(process.env.PORT) || 8080
@@ -26,6 +27,8 @@ const MIME = {
   '.webp': 'image/webp',
   '.woff2': 'font/woff2',
   '.ico': 'image/x-icon',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
 }
 
 function serveStatic(req, res) {
@@ -39,7 +42,6 @@ function serveStatic(req, res) {
   }
   if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html')
   if (!existsSync(file)) {
-    // SPA 回退
     file = join(ROOT, 'index.html')
     if (!existsSync(file)) {
       res.statusCode = 404
@@ -52,17 +54,63 @@ function serveStatic(req, res) {
   createReadStream(file).pipe(res)
 }
 
-const server = http.createServer((req, res) => {
-  const { pathname } = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
-  if (pathname === '/api/chat') return chat(req, res)
-  if (pathname === '/api/stats') return stats(req, res)
-  if (pathname.startsWith('/api/')) {
-    res.statusCode = 404
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.end(JSON.stringify({ error: 'not-found' }))
+function env() {
+  return {
+    DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
+    DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL,
+    DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL,
+    STATS: undefined, // 本地不接 KV，functions 内部会退回内存
+  }
+}
+
+async function readBody(req) {
+  const chunks = []
+  for await (const c of req) chunks.push(c)
+  return Buffer.concat(chunks)
+}
+
+async function handleApi(api, req, res) {
+  const handler =
+    req.method === 'GET' ? api.onRequestGet || api.onRequest : api.onRequestPost || api.onRequest
+  if (!handler) {
+    res.statusCode = 405
+    res.end(JSON.stringify({ error: 'method-not-allowed' }))
     return
   }
-  return serveStatic(req, res)
+  const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await readBody(req)
+  const request = new Request(`http://localhost${req.url}`, {
+    method: req.method,
+    headers: req.headers,
+    body,
+  })
+  const response = await handler({
+    request,
+    env: env(),
+    waitUntil: (p) => Promise.resolve(p).catch(() => {}),
+  })
+  res.statusCode = response.status
+  response.headers.forEach((v, k) => res.setHeader(k, v))
+  if (response.body) Readable.fromWeb(response.body).pipe(res)
+  else res.end(await response.text())
+}
+
+const server = http.createServer(async (req, res) => {
+  const { pathname } = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
+  try {
+    if (pathname === '/api/chat') return await handleApi(chatApi, req, res)
+    if (pathname === '/api/stats') return await handleApi(statsApi, req, res)
+    if (pathname.startsWith('/api/')) {
+      res.statusCode = 404
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ error: 'not-found' }))
+      return
+    }
+    return serveStatic(req, res)
+  } catch (err) {
+    res.statusCode = 500
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(JSON.stringify({ error: 'server-error', message: String(err && err.message) }))
+  }
 })
 
 server.listen(PORT, () => {
