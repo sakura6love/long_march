@@ -1585,10 +1585,14 @@ onBeforeUnmount(() => {
 @keyframes march-next-pulse {
   0%,
   100% {
-    filter: drop-shadow(0 0 4px rgba(246, 220, 156, 0.45));
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 3px rgba(246, 220, 156, 0.45));
   }
   50% {
-    filter: drop-shadow(0 0 12px rgba(243, 212, 140, 0.85));
+    transform: translate(-50%, -50%) scale(1.22);
+    filter:
+      drop-shadow(0 0 9px rgba(246, 220, 156, 0.95))
+      drop-shadow(0 0 20px rgba(255, 140, 60, 0.65));
   }
 }
 
