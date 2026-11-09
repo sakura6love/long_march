@@ -10,6 +10,10 @@
 
 ## 一、运行方式
 
+**最快的方式（Windows）**：双击 `start.bat`。它会检查 `dist/`（没有就构建），起一个本地静态服务器并自动打开浏览器。
+
+手动方式：
+
 ```bash
 cd long-march
 npm install
@@ -17,6 +21,8 @@ npm run dev      # 开发：http://127.0.0.1:5173/
 npm run build    # 构建：产物在 dist/，可直接静态部署（已设 base: './'，可放任意子目录）
 npm run preview  # 本地预览构建产物
 ```
+
+只发 `dist/` 时，用任意静态服务器即可，例如 `python -m http.server 8080 -d dist` 或 `npx serve dist`。
 
 建议 Chrome / Edge 打开，需支持 WebGL 2。
 
