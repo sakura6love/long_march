@@ -265,20 +265,29 @@ watch(chainEnd, (k) => {
   }, 4500)
 })
 
-watch([chainEnd, burning], ([k, b]) => {
-  if (k === longMarchNodes.length && !b && screen.value !== 'finale') {
-    screen.value = 'finale'
-    finaleReady.value = false
-    globeRef.value?.pullBack?.()
-    window.setTimeout(() => {
-      finaleReady.value = true
-    }, 1600)
-  }
-})
+function finishJourney() {
+  if (screen.value === 'finale') return
+  showingEvent.value = null
+  pausedEvent.value = false
+  activeNode.value = null
+  activeChapter.value = null
+  window.clearTimeout(chapterTimer)
+  askOpen.value = false
+  document.body.style.overflow = ''
+  screen.value = 'finale'
+  finaleReady.value = false
+  globeRef.value?.pullBack?.()
+  window.setTimeout(() => {
+    finaleReady.value = true
+  }, 1600)
+}
 
+watch([chainEnd, burning], ([k, b]) => {
+  if (k === longMarchNodes.length && !b) finishJourney()
+})
 // 调试入口：便于用脚本强制推进到终章
 if (typeof window !== 'undefined') {
-  dbg('__march', { screen, litIds, chainEnd })
+  dbg('__march', { screen, litIds, chainEnd, finishJourney })
 }
 
 const hint = computed(() => {
@@ -346,7 +355,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       @light-up="toggleLit"
     />
 
-    <EventScene :event="showingEvent" :dimmed="askOpen" />
+    <EventScene v-if="screen !== 'finale'" :event="showingEvent" :dimmed="askOpen" />
 
     <EventRail
       v-if="screen === 'overview' && !settingsOpen && !showingEvent && !activeNode"

@@ -164,8 +164,18 @@ watch(
       <footer class="detail-foot">
         <span class="detail-coordinate">{{ coordinate }}</span>
         <div class="detail-steps">
-          <button type="button" aria-label="上一站" @click="emit('navigate', -1)">←</button>
-          <button type="button" aria-label="下一站" @click="emit('navigate', 1)">→</button>
+          <button
+            type="button"
+            class="step-btn"
+            :disabled="order <= 1"
+            @click="emit('navigate', -1)"
+          ><span aria-hidden="true">←</span>上一站</button>
+          <button
+            type="button"
+            class="step-btn"
+            :disabled="order >= total"
+            @click="emit('navigate', 1)"
+          >下一站<span aria-hidden="true">→</span></button>
         </div>
       </footer>
     </aside>
@@ -595,5 +605,30 @@ watch(
   box-shadow:
     0 0 0 1px rgba(243, 212, 140, 0.25),
     0 6px 18px rgba(212, 175, 55, 0.18);
+}
+
+.detail-steps { display: flex; gap: 8px; }
+.step-btn {
+  min-width: 78px;
+  height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid rgba(196, 163, 90, 0.24);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-main);
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: border-color .35s var(--ease), background .35s var(--ease), color .35s var(--ease);
+}
+.step-btn:hover:not(:disabled) { border-color: rgba(229, 192, 123, 0.72); background: rgba(229, 192, 123, 0.06); color: #fff; }
+.step-btn:disabled { opacity: .32; cursor: default; }
+
+@media (max-width: 768px) {
+  .detail-steps { gap: 10px; }
+  .step-btn { min-width: 88px; height: 44px; font-size: 12px; }
 }
 </style>

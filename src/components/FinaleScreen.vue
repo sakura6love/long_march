@@ -37,7 +37,7 @@ const emit = defineEmits(['restart', 'browse'])
 .finale {
   position: fixed;
   inset: 0;
-  z-index: 12;
+  z-index: 40;
   display: grid;
   place-items: center;
 }
@@ -45,7 +45,7 @@ const emit = defineEmits(['restart', 'browse'])
 .finale-veil {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 46%, rgba(4, 7, 12, 0.18), rgba(4, 7, 12, 0.62) 78%);
+  background: radial-gradient(ellipse at 50% 46%, rgba(4, 7, 12, 0.28), rgba(4, 7, 12, 0.86) 78%);
   animation: veil-in 1.4s ease both;
 }
 

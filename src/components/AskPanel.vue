@@ -11,6 +11,11 @@ const inputEl = ref(null)
 const listEl = ref(null)
 const phase = ref('idle')
 const stats = ref(null)
+const askMode = ref('archive')
+function setMode(mode) {
+  askMode.value = mode
+  try { localStorage.setItem('march:askMode', mode) } catch { /* 忽略隐私模式 */ }
+}
 
 /** @type {import('vue').Ref<Array<{id:number,role:'user'|'bot',raw:string,shown:string,sources:Array,weak:boolean}>>} */
 const messages = ref([])
@@ -98,6 +103,13 @@ async function ask(text, mode = 'free') {
     bot.raw = preset.a
     bot.sources = [{ label: preset.label, name: '' }]
     startPump()
+    return
+  }
+
+  // 联网模式：直接走 L2 流式，失败自动回落档案
+  if (askMode.value === 'live') {
+    bot.canRetry = true
+    await askOnline(bot)
     return
   }
 
@@ -273,6 +285,10 @@ function onPopState() {
 }
 
 onMounted(() => {
+  try {
+    const saved = localStorage.getItem('march:askMode')
+    if (saved === 'live' || saved === 'archive') askMode.value = saved
+  } catch { /* 忽略 */ }
   window.addEventListener('focusin', onFocusIn)
   window.addEventListener('focusout', onFocusOut)
   window.addEventListener('popstate', onPopState)
@@ -299,6 +315,10 @@ onBeforeUnmount(() => {
       <section v-if="open" class="ask-window glass-panel" role="dialog" aria-label="长征问答">
         <header class="ask-head">
           <span class="ask-kicker">ASK / 长征问答</span>
+          <div class="ask-mode" role="group" aria-label="回答模式">
+            <button type="button" :class="{ 'is-on': askMode === 'archive' }" @click="setMode('archive')">馆藏</button>
+            <button type="button" :class="{ 'is-on': askMode === 'live' }" @click="setMode('live')">联网</button>
+          </div>
           <span class="ask-status" :class="`is-${status.tone}`">
             <i class="ask-dot" />{{ status.text }}
           </span>
@@ -419,6 +439,24 @@ onBeforeUnmount(() => {
   border-radius: 3px;
 }
 
+.ask-mode {
+  display: inline-flex;
+  border: 1px solid rgba(196, 163, 90, 0.24);
+  margin-left: 10px;
+}
+.ask-mode button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba(243, 241, 230, 0.5);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: color .3s var(--ease), background .3s var(--ease);
+}
+.ask-mode button.is-on { color: #1a1207; background: #e5c07b; }
 .ask-head {
   display: flex;
   align-items: center;
