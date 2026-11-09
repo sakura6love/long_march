@@ -197,27 +197,96 @@ function onKeydown(event) {
 
 watch(open, (value) => {
   emit('update:open', value)
-  if (value) window.addEventListener('keydown', onKeydown, true)
-  else window.removeEventListener('keydown', onKeydown, true)
+  document.body.style.overflow = value ? 'hidden' : ''
+  if (value) {
+    pushAskHistory()
+    window.addEventListener('keydown', onKeydown, true)
+  } else {
+    if (historyPushed) {
+      historyPushed = false
+      try { history.back() } catch (error) { /* ignore */ }
+    }
+    resetKeyboardLayout()
+    window.removeEventListener('keydown', onKeydown, true)
+  }
 })
 
 /** 键盘弹出时把抽屉顶上去（iOS 只改 visualViewport，不改 window.innerHeight）。 */
-function syncKeyboardOffset() {
+function drawerEl() {
+  return document.querySelector('.ask-window')
+}
+
+/** 键盘弹出时把抽屉压进可见视口（安卓 Chrome / WebView 通用）。 */
+function applyKeyboardLayout() {
+  const el = drawerEl()
+  if (!el || !open.value) return
   const vv = window.visualViewport
-  const gap = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0
-  document.documentElement.style.setProperty('--kb', `${gap}px`)
+  const height = vv ? vv.height : window.innerHeight
+  const top = (vv ? vv.offsetTop : 0) + 8
+  el.style.top = `${top}px`
+  el.style.height = `${Math.min(560, Math.max(300, height - 96))}px`
+  el.style.maxHeight = 'none'
+  el.style.bottom = 'auto'
+}
+
+function resetKeyboardLayout() {
+  const el = drawerEl()
+  if (!el) return
+  el.style.top = ''
+  el.style.height = ''
+  el.style.bottom = ''
+  el.style.maxHeight = ''
+}
+
+function isInAskInput(node) {
+  return Boolean(node && node.closest && node.closest('.ask-input'))
+}
+
+function onFocusIn(event) {
+  if (!isInAskInput(event.target)) return
+  applyKeyboardLayout()
+  window.setTimeout(applyKeyboardLayout, 120)
+  window.setTimeout(applyKeyboardLayout, 360)
+}
+
+function onFocusOut() {
+  window.setTimeout(() => {
+    if (!isInAskInput(document.activeElement)) resetKeyboardLayout()
+  }, 160)
+}
+
+/** 安卓返回键：第一次返回先关抽屉，而不是退出页面。 */
+let historyPushed = false
+function pushAskHistory() {
+  if (historyPushed) return
+  try {
+    history.pushState({ ask: 1 }, '')
+    historyPushed = true
+  } catch (error) {
+    historyPushed = false
+  }
+}
+function onPopState() {
+  if (!historyPushed) return
+  historyPushed = false
+  close()
 }
 
 onMounted(() => {
-  syncKeyboardOffset()
-  window.visualViewport?.addEventListener('resize', syncKeyboardOffset)
-  window.visualViewport?.addEventListener('scroll', syncKeyboardOffset)
+  window.addEventListener('focusin', onFocusIn)
+  window.addEventListener('focusout', onFocusOut)
+  window.addEventListener('popstate', onPopState)
+  window.visualViewport?.addEventListener('resize', applyKeyboardLayout)
+  window.visualViewport?.addEventListener('scroll', applyKeyboardLayout)
 })
 
 onBeforeUnmount(() => {
-  window.visualViewport?.removeEventListener('resize', syncKeyboardOffset)
-  window.visualViewport?.removeEventListener('scroll', syncKeyboardOffset)
-  document.documentElement.style.removeProperty('--kb')
+  window.removeEventListener('focusin', onFocusIn)
+  window.removeEventListener('focusout', onFocusOut)
+  window.removeEventListener('popstate', onPopState)
+  window.visualViewport?.removeEventListener('resize', applyKeyboardLayout)
+  window.visualViewport?.removeEventListener('scroll', applyKeyboardLayout)
+  document.body.style.overflow = ''
   window.removeEventListener('keydown', onKeydown, true)
   controller?.abort()
   if (raf) cancelAnimationFrame(raf)
@@ -663,12 +732,15 @@ onBeforeUnmount(() => {
 
   .ask-window {
     position: fixed;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     top: auto;
     left: 12px;
     right: 12px;
     width: auto;
-    bottom: calc(84px + env(safe-area-inset-bottom) + var(--kb, 0px));
-    max-height: min(64dvh, 560px);
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    max-height: min(62dvh, 520px);
   }
 }
 </style>

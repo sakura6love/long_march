@@ -319,6 +319,13 @@ function handleNodeSelect(pointData) {
 
 /** 默认俯瞰位：中国中部（33°N / 108°E）。开场落点与双击复位都用它。 */
 const DEFAULT_VIEW = { lat: 33, lng: 108 }
+// 竖屏时把首屏对准路线中心，让瑞金(116E)与会宁(105E)同时进画
+const PORTRAIT_VIEW = { lat: 31.3, lng: 110.4 }
+function defaultView() {
+  const w = globe.value?.width?.() ?? 0
+  const h = globe.value?.height?.() ?? 0
+  return w && h && w / h < 0.85 ? PORTRAIT_VIEW : DEFAULT_VIEW
+}
 
 const hintVisible = ref(false)
 
@@ -362,8 +369,8 @@ function resetView() {
   setActive(null)
 
   cameraRig?.flyTo({
-    lat: DEFAULT_VIEW.lat,
-    lng: DEFAULT_VIEW.lng,
+    lat: defaultView().lat,
+    lng: defaultView().lng,
     altitude: FRAME.altitude,
     duration: FRAME.flightMs,
   })

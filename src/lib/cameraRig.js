@@ -66,18 +66,27 @@ export function createCameraRig(globe) {
    * 相机放到 (lat - aim, lng) 方向、离地心 altitude 个半径处，看向 (lat, lng)。
    * aim = 0 时退化为"正上方俯视地心"，用于开场整球。
    */
-  /** 竖屏（宽高比 < 0.8）把相机抬远，给标题与面板留出落脚空间。 */
-  function portraitBoost() {
+  /** 要装下的目标半径（km）：长征路线东西向半宽约 950km。 */
+  const FIT_RADIUS_KM = 1020
+
+  /**
+   * 竖屏的水平视角只有约 23°（桌面约 80°），固定 altitude 会只看到中部。
+   * 这里按「目标半径 / tan(hfov/2)」反推所需视高，作为 altitude 的下限；
+   * 横屏（aspect ≥ 0.85）返回 0，不改变原有构图。
+   */
+  function fitAltitude() {
     const w = globe.width()
     const h = globe.height()
-    if (!w || !h) return 1
+    if (!w || !h) return 0
     const aspect = w / h
-    if (aspect >= 0.8) return 1
-    return Math.min(1.45, 0.8 / aspect)
+    if (aspect >= 0.85) return 0
+    const hfov = 2 * Math.atan(Math.tan((camera.fov * Math.PI) / 360) * aspect)
+    const alt = FIT_RADIUS_KM / Math.tan(hfov / 2) / 6371
+    return Math.min(1.25, alt)
   }
 
   function placeCamera(lat, lng, altitude, aim) {
-    const eye = globe.getCoords(lat - aim, lng, altitude * portraitBoost())
+    const eye = globe.getCoords(lat - aim, lng, Math.max(altitude, fitAltitude()))
     const target = globe.getCoords(lat, lng, 0.002)
     camera.position.set(eye.x, eye.y, eye.z)
     camera.lookAt(target.x, target.y, target.z)

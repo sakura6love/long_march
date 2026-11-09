@@ -495,6 +495,13 @@ body {
     bottom: calc(14px + env(safe-area-inset-bottom));
   }
 }
+
+/* 窄屏：路书已提示操作，底部两行提示会让画面变挤 */
+@media (max-width: 480px) {
+  .story-hint {
+    display: none;
+  }
+}
 </style>
 
 
