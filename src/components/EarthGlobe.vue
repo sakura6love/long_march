@@ -777,7 +777,7 @@ onMounted(() => {
 
   globe.value = Globe()(globeContainer.value)
     .backgroundColor('rgba(0, 0, 0, 0)')
-    .globeImageUrl(`${assetBase}earth-8k.jpg`)
+    .globeImageUrl(`${assetBase}earth-8k.webp`)
     .showAtmosphere(true)
     .atmosphereColor('#a8d4ff')
     .atmosphereAltitude(0.22)

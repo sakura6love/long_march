@@ -334,6 +334,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
     class="main-container"
     :class="{ 'is-ask-open': askOpen, 'is-scene': !!showingEvent, 'is-finale': screen === 'finale' }"
   >
+    <h1 class="sr-only">长征万里 · 薪火千秋</h1>
     <EarthGlobe
       ref="globeRef"
       :lit-ids="litIds"
@@ -427,6 +428,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 </template>
 
 <style>
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 html,
 body {
   margin: 0;
