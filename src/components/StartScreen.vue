@@ -228,7 +228,8 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   writing-mode: vertical-rl;
   text-orientation: upright;
   text-shadow: 0 1px 2px rgba(64, 12, 8, 0.65);
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+  filter: brightness(0.68) saturate(0.92) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.55));
+  opacity: 0.92;
   cursor: pointer;
   transform: rotate(-3deg);
   transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
@@ -238,7 +239,8 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 .seal:hover,
 .seal:focus-visible {
   transform: rotate(-3deg) scale(1.05);
-  filter: drop-shadow(0 0 12px rgba(200, 70, 45, 0.55));
+  filter: brightness(0.82) saturate(1) drop-shadow(0 0 12px rgba(200, 70, 45, 0.5));
+  opacity: 1;
 }
 
 @media (max-width: 768px) {
