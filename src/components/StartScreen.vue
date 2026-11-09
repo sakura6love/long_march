@@ -219,7 +219,8 @@ const emit = defineEmits(['start', 'resume', 'settings'])
   height: 56px;
   border: 0;
   background: url('/seals/xinhuo.webp') center / 100% 100% no-repeat;
-  color: #f4dcb4;
+  color: transparent;
+  text-shadow: none;
   font-family: 'Songti SC', 'Noto Serif SC', serif;
   font-size: 13px;
   line-height: 1;

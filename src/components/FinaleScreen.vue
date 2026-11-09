@@ -110,19 +110,21 @@ const emit = defineEmits(['restart', 'browse'])
 .seal {
   display: grid;
   place-items: center;
-  width: 88px;
-  height: 88px;
+  width: 96px;
+  height: 96px;
   margin: 52px auto 0;
   border: 0;
   border-radius: 0;
   background: url('/seals/changzheng.webp') center / 100% 100% no-repeat;
-  color: #f0d6a8;
+  color: transparent;
+  text-shadow: none;
   font-family: 'Songti SC', 'Noto Serif SC', serif;
   font-size: 19px;
   font-weight: 400;
   letter-spacing: 0.08em;
   text-shadow: 0 1px 3px rgba(52, 8, 6, 0.75);
-  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.5))
+          drop-shadow(0 0 16px rgba(150, 30, 20, 0.35));
   animation: stamp 0.7s cubic-bezier(0.25, 1, 0.5, 1) 3s both;
 }
 
