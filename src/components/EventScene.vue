@@ -368,4 +368,35 @@ defineProps({
   .event-points li { font-size: 13px; }
   .event-continue { bottom: calc(1.5vh + env(safe-area-inset-bottom)); }
 }
+/* 横屏手机（844×390 这类）：竖向空间不足，文案改为右侧窄栏并压缩 */
+@media (max-height: 480px) and (orientation: landscape) {
+  .event-copy {
+    left: auto;
+    right: 4vw;
+    bottom: 6vh;
+    width: 50vw;
+    max-width: none;
+    max-height: 74vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .event-title {
+    font-size: 26px;
+  }
+  .event-text {
+    font-size: 13px;
+    line-height: 1.75;
+  }
+  .event-points {
+    margin-top: 12px;
+  }
+  .event-points li {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .event-credit {
+    margin-top: 12px;
+  }
+}
+
 </style>

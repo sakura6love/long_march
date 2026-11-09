@@ -298,7 +298,7 @@ const hint = computed(() => {
   if (activeIndex.value >= 0) return '点击空白 · 关闭'
   if (chainEnd.value >= longMarchNodes.length) return '长征走完了'
   const next = longMarchNodes[chainEnd.value]
-  return next ? `点击光点 · ${next.name}` : ''
+  return next ? `点击火苗 · ${next.name}` : ''
 })
 
 const backdropImage = computed(() => (showingEvent.value ? showingEvent.value.image : ''))

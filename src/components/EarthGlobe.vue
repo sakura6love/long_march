@@ -1732,4 +1732,12 @@ onBeforeUnmount(() => {
 /* 俯瞰态整体可拖：给一个明确的手型 */
 .horizon-frame { cursor: grab; }
 .horizon-frame:active { cursor: grabbing; }
+/* 横屏手机：标题区让位给事件文案 */
+@media (max-height: 480px) and (orientation: landscape) {
+  .masthead {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
 </style>
