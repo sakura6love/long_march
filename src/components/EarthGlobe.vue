@@ -1056,6 +1056,7 @@ onBeforeUnmount(() => {
 
 /* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
 @media (max-width: 768px) {
+  .march-label-node { width: 7px; height: 7px; }
   .event-backdrop-img { object-position: 50% 30%; }
   .event-backdrop::after {
     background:
@@ -1381,12 +1382,15 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   left: 0;
-  width: 9px;
-  height: 9px;
-  border: 1px solid rgba(212, 175, 55, 0.7);
-  border-radius: 1px;
-  background: transparent;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+  width: 6px;
+  height: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: #8c2a17;
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 201, 138, 0.72),
+    0 0 0 4px rgba(140, 42, 23, 0.22),
+    0 0 10px rgba(140, 42, 23, 0.28);
   transform: translate(-50%, -50%);
   transition:
     opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1),
@@ -1397,14 +1401,13 @@ onBeforeUnmount(() => {
 
 /* 开场镜头还没停稳时，光点处于"未点亮"状态，也不接受点击。 */
 :deep(.march-label-anchor.is-lit .march-label-node) {
-  width: 8px;
-  height: 8px;
-  border-color: #f8df9c;
-  background: var(--accent-red);
+  width: 7px;
+  height: 7px;
+  background: #a8331d;
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.6),
-    0 0 0 3px rgba(138, 21, 56, 0.3),
-    0 0 12px rgba(138, 21, 56, 0.55);
+    inset 0 0 0 1px #e8c98a,
+    0 0 0 3px rgba(200, 90, 40, 0.22),
+    0 0 12px rgba(200, 90, 40, 0.45);
 }
 
 /* 下一站：只有这一颗在呼吸，其余保持安静 */
@@ -1415,6 +1418,13 @@ onBeforeUnmount(() => {
 @keyframes node-breathe {
   0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.38); }
   50% { box-shadow: 0 0 0 7px rgba(212, 175, 55, 0); }
+}
+
+:deep(.march-label-anchor:hover .march-label-node) {
+  transform: translate(-50%, -50%) scale(1.4);
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 201, 138, 0.9),
+    0 0 0 9px rgba(140, 42, 23, 0.16);
 }
 
 :deep(.march-label-anchor.is-pending) {
