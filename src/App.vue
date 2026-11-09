@@ -322,7 +322,7 @@ onMounted(() => {
   if (reduced.value) document.documentElement.classList.add('reduce-motion')
 
   if (import.meta.env.DEV) {
-    dbg('__march', { screen, litIds, chainEnd, burning, pausedEvent })
+    dbg('__march', { screen, litIds, chainEnd, burning, pausedEvent, finishJourney })
   }
 })
 
@@ -348,7 +348,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
       :burn="Math.min(1, chainEnd / longMarchNodes.length)"
       :show-events="screen === 'overview' && !showingEvent && !settingsOpen"
       :labels-on="screen === 'overview'"
-      :border-on="screen === 'finale'"
+      :border-on="screen === 'finale' || chainEnd >= longMarchNodes.length"
       @select="handleSelect"
       @select-event="openEventById"
       @tap="handleTap"
