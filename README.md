@@ -191,6 +191,44 @@ KV_REST_API_TOKEN=     # 可选
 
 ---
 
+## 五之二、部署（Cloudflare Pages + Functions）
+
+线上地址：<https://long-march.pages.dev>
+
+本项目是 **Vite 静态站 + Pages Functions**，不是 Worker。部署步骤：
+
+1. Cloudflare Dashboard → **Workers & Pages → Create → Pages → Connect to Git**，选 `sakura6love/long_march`。
+   若只看到 Workers 向导，点页面底部 *"Need to use the legacy Pages workflow? Continue to Pages"*。
+2. 构建配置：
+   - Framework preset：`None`（列表里没有单独的 Vite）
+   - Build command：`npm ci && npm run build`
+   - Build output directory：`dist`
+   - Root directory：留空（仓库根即项目根）
+3. 环境变量（Settings → Variables and Secrets）：
+   - `DEEPSEEK_API_KEY`，类型 **Secret**
+   - `DEEPSEEK_MODEL` = `deepseek-chat`，类型 Text
+   - 保存后必须 **Deployments → ⋯ → Retry deployment** 才生效
+4. KV（可选）：Settings → Functions → KV namespace bindings，变量名 `STATS`。
+   不绑也能用，只是 `/api/stats` 返回 `available:false`、统计存内存、重启归零。
+5. 验证：
+   ```bash
+   curl -s https://long-march.pages.dev/api/stats
+   curl -N -X POST https://long-march.pages.dev/api/chat \
+     -H 'content-type: application/json' \
+     -d '{"q":"遵义会议为什么是转折点","context":""}'
+   ```
+
+`server.mjs` 是本地等价实现（同 `api/chat`、`api/stats` 路由 + 静态托管），用于离线演示；线上由 `functions/api/*` 接管。
+
+### 四层问答（线上实测）
+
+| 层 | 触发 | 行为 | 依赖 |
+|---|---|---|---|
+| L0 馆藏 | 点问题列表（10 条） | 前端写死答案，0 请求 | 无 |
+| L1 档案 | 自由输入 | `localAnswer()` 本地检索，<30ms | 无 |
+| L2 联网 | 点「再问一次 · 联网」 | SSE 流式，首字节 7s / 总 30s 超时，失败静默回退 L1 | `DEEPSEEK_API_KEY` |
+| L3 统计 | 点亮站点 | `POST /api/stats {lights}`，按访客哈希去重、只升不降 | KV（可选） |
+
 ## 六、数据与素材
 
 - 历史节点：`src/data.js`，共 12 站（瑞金、于都、湘江、遵义、赤水、泸定桥、夹金山、草地、腊子口、吴起镇、直罗镇、会宁），坐标、日期、引文与正文均在此。

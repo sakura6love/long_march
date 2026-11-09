@@ -6,6 +6,7 @@
  * 这样面板的排版怎么改，都不会影响地图上光点的位置。
  */
 import { computed, ref, watch } from 'vue'
+import { STATS_URL } from '../lib/ai.js'
 
 const props = defineProps({
   // 当前选中的节点；null 表示收起
@@ -76,7 +77,19 @@ function onLight() {
   }
 
   confirming.value = false
+  const turningOn = !props.lit
   emit('light-up', props.node.id)
+
+  // 点亮上报：只升不降，后端按访客哈希去重；失败静默，不影响交互
+  if (turningOn) {
+    const lights = Math.max(0, Math.min(12, props.litCount + 1))
+    fetch(STATS_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ lights }),
+      keepalive: true,
+    }).catch(() => {})
+  }
 }
 
 watch(

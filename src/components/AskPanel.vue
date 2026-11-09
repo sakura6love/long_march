@@ -143,6 +143,9 @@ async function askOnline(bot) {
         startPump()
       },
     })
+    // 在线答案也补出处：用本地检索已算好的来源，不依赖模型自觉
+    const grounded = localAnswer(bot.question)
+    bot.sources = grounded.sources
     phase.value = 'online'
     startPump()
   } catch (error) {

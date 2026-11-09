@@ -9,8 +9,8 @@ const API_BASE = import.meta.env.VITE_API_BASE || ''
 export const CHAT_URL = `${API_BASE}/api/chat`
 export const STATS_URL = `${API_BASE}/api/stats`
 
-/** 首字节超时：慢网下大模型常在 2~4s 才吐第一个字，3s 会误杀。 */
-export const FIRST_BYTE_TIMEOUT = 4500
+/** 首字节超时：实测大陆网络 TTFB 常到 4s 以上，留 3s 余量避免误判。 */
+export const FIRST_BYTE_TIMEOUT = 7000
 /** 整体超时：留足 150 字中文的输出时间。 */
 export const TOTAL_TIMEOUT = 30000
 
