@@ -62,6 +62,18 @@ defineProps({
   font-family: 'Noto Serif SC', 'Songti SC', serif;
 }
 
+.event-copy::before {
+  position: absolute;
+  z-index: -1;
+  top: -12vh;
+  bottom: -14vh;
+  left: -14vw;
+  right: -6vw;
+  background: linear-gradient(90deg, rgba(4, 7, 12, 0.72) 0%, rgba(4, 7, 12, 0.5) 46%, transparent 100%);
+  content: '';
+  pointer-events: none;
+}
+
 .event-copy {
   position: absolute;
   left: 8vw;

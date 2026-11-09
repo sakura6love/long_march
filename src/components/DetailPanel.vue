@@ -286,7 +286,9 @@ watch(
   margin: 0;
   color: var(--text-main);
   font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
-  font-size: 34px;
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.02em;
   font-weight: 600;
   letter-spacing: 0.08em;
   line-height: 1.2;
