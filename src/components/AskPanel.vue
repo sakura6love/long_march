@@ -476,8 +476,8 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 9.5px;
-  letter-spacing: 0.12em;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
   color: rgba(163, 168, 180, 0.68);
 }
 
@@ -493,11 +493,11 @@ onBeforeUnmount(() => {
 }
 
 .ask-status.is-busy {
-  color: var(--accent-gold);
+  color: var(--text-dim);
 }
 
 .ask-status.is-archive {
-  color: #d8b06a;
+  color: var(--text-dim);
 }
 
 .ask-close {
