@@ -15,6 +15,9 @@ defineProps({
 <template>
   <Transition name="scene">
     <div v-if="event" class="event-scene" :class="{ 'is-dimmed': dimmed }">
+      <!-- 顶部影像带：只露地平线，下半部交给地球 -->
+      <div class="event-bg" :style="{ backgroundImage: `url('${event.image}')` }" aria-hidden="true" />
+      <div class="event-bg-veil" aria-hidden="true" />
       <div class="event-copy">
         <p class="event-date">{{ event.date }}</p>
         <span class="event-rule" aria-hidden="true" />
@@ -324,4 +327,46 @@ defineProps({
   opacity: 0;
   pointer-events: none;
 }
+/* 顶部影像带：34vh，底部渐隐并进地球 */
+.event-bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 34vh;
+  background-size: cover;
+  background-position: 50% 30%;
+  background-repeat: no-repeat;
+  opacity: 0.92;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 58%, rgba(0, 0, 0, 0.5) 82%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 58%, rgba(0, 0, 0, 0.5) 82%, transparent 100%);
+  transition: opacity 0.6s ease;
+}
+
+.event-bg-veil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 34vh;
+  background: linear-gradient(180deg, rgba(4, 7, 12, 0.42) 0%, rgba(4, 7, 12, 0.06) 46%, rgba(4, 7, 12, 0.5) 100%);
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.event-scene.is-dimmed .event-bg,
+.event-scene.is-dimmed .event-bg-veil {
+  opacity: 0;
+}
+
+@media (max-width: 768px) {
+  .event-bg,
+  .event-bg-veil {
+    height: 30vh;
+  }
+  .event-bg {
+    background-position: 50% 26%;
+  }
+}
+
 </style>
