@@ -321,7 +321,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 </script>
 
 <template>
-  <div class="main-container" :class="{ 'is-ask-open': askOpen, 'is-scene': !!showingEvent }">
+  <div
+    class="main-container"
+    :class="{ 'is-ask-open': askOpen, 'is-scene': !!showingEvent, 'is-finale': screen === 'finale' }"
+  >
     <EarthGlobe
       ref="globeRef"
       :lit-ids="litIds"
@@ -495,6 +498,14 @@ body {
 
 /* ---- 移动端：顶部只留一行信息，底部提示避让安全区 ---- */
 @media (max-width: 768px) {
+  .main-container.is-finale .route-strip,
+  .main-container.is-finale .event-scene,
+  .main-container.is-finale .detail-panel,
+  .main-container.is-finale .ask,
+  .main-container.is-finale .story-hint {
+    display: none !important;
+  }
+
   .main-container.is-scene .masthead-sub,
   .main-container.is-ask-open .masthead-sub {
     opacity: 0;

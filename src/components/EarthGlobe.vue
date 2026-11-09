@@ -417,7 +417,7 @@ defineExpose({
     cameraRig?.flyTo({
       lat: DEFAULT_VIEW.lat,
       lng: DEFAULT_VIEW.lng,
-      altitude: 0.62,
+      altitude: 0.78,
       aim: 10,
       duration: 2200,
     })
@@ -1017,7 +1017,7 @@ onBeforeUnmount(() => {
 }
 
 .horizon-frame.is-finale {
-  transform: scale(0.86);
+  transform: none;
 }
 
 .horizon-frame::before {

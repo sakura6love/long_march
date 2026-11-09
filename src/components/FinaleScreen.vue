@@ -38,6 +38,8 @@ const emit = defineEmits(['restart', 'browse'])
   position: fixed;
   inset: 0;
   z-index: 40;
+  background: #05080f;
+  border-radius: 0;
   display: grid;
   place-items: center;
 }
