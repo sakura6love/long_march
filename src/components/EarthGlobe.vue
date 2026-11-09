@@ -197,6 +197,7 @@ function updateHeadPin(burnS) {
   const facing = isFacingCamera(lat, lng)
   const on = burnS > 0.0005 && facing && !!props.showEvents
   el.style.opacity = on ? '1' : '0'
+  el.style.visibility = on ? 'visible' : 'hidden'
   if (p) el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0) translate(-50%, -50%)`
 }
 
@@ -233,7 +234,6 @@ function updateEventStates() {
     record.el.classList.toggle('is-reached', reached)
     record.el.classList.toggle('is-hot', hot)
   }
-  updateHeadPin(burnS)
 }
 
 function updateLabelStates() {
@@ -264,6 +264,9 @@ function tick() {
   // 位移被库内部清掉时立刻补回，保证"点恒在 30% 那条线上"。
   cameraRig?.ensureOffset()
   updateLabelStates()
+  // 火线头部光点必须每帧无条件更新：它曾挂在 updateEventStates 的末尾，
+  // 而那个函数在 labelsOn=false 时会提前 return，导致光点冻结在上一帧、残留在图上。
+  updateHeadPin(props.burn)
 
   // 事件场景：星球缓缓退到剪影，让背景影像浮出来。
   const dimTarget = props.dim ? 1 : 0
@@ -364,6 +367,16 @@ watch(
     }
     if (backdropUrl !== url) return
     activeLayer.value = next
+  },
+)
+
+watch(
+  () => props.labelsOn,
+  (on) => {
+    if (!on && headPinEl) {
+      headPinEl.style.opacity = '0'
+      headPinEl.style.visibility = 'hidden'
+    }
   },
 )
 
@@ -961,6 +974,8 @@ dbg('__marchBurn', burnUniforms)
 })
 
 onBeforeUnmount(() => {
+  headPinEl?.remove()
+  headPinEl = null
   clearIntro()
   cancelAnimationFrame(frameHandle)
   frameHandle = 0
