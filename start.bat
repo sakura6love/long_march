@@ -1,31 +1,29 @@
 @echo off
-chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 
-rem 若 8080 被占用（提示 Address already in use），把下面改成 8081 再试
+rem ---- change this if 8080 is already in use ----
 set "PORT=8080"
 set "URL=http://localhost:%PORT%/"
 
 echo ==========================================
-echo   长征万里 · 薪火千秋  ·  本地预览
-echo   关闭此窗口即停止服务
+echo   Long March  ^|  Local Preview
+echo   Close this window to stop the server.
 echo ==========================================
 echo.
 
 if not exist "dist\index.html" (
-  echo [1/2] 未找到 dist，正在构建……
+  echo [1/2] dist not found, building now...
   where npm >nul 2>nul
   if errorlevel 1 goto :nonode
   call npm run build
   if errorlevel 1 goto :buildfail
 )
 
-echo [2/2] 启动本地服务器：%URL%
-echo       浏览器会自动打开；若没有，请手动访问上面的地址。
+echo [2/2] Serving: %URL%
+echo       The browser will open in 2 seconds.
 echo.
 
-rem 两秒后开浏览器（URL 无空格，不需要引号，避免嵌套引号解析问题）
 start "" /min cmd /c "timeout /t 2 >nul & start %URL%"
 
 where python >nul 2>nul
@@ -53,19 +51,19 @@ goto :stop
 
 :stop
 echo.
-echo 服务器已停止。
+echo Server stopped.
 pause
 exit /b 0
 
 :nonode
 echo.
-echo 没找到可用的 Python 或 Node.js。
-echo 请安装其中之一，或用任意静态服务器指向 dist 目录。
+echo Neither Python nor Node.js was found.
+echo Install one of them, or serve the dist folder with any static server.
 pause
 exit /b 1
 
 :buildfail
 echo.
-echo 构建失败，请检查上面的报错。
+echo Build failed. See the errors above.
 pause
 exit /b 1
