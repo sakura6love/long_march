@@ -10,20 +10,10 @@
       </section>
     </Transition>
 
-    <!-- 右下角分段进度：四段，当前段亮 -->
-    <div class="rail" aria-hidden="true">
-      <span
-        v-for="c in CHAPTERS"
-        :key="c.id"
-        class="rail-seg"
-        :class="{ 'is-done': progress >= c.range[1], 'is-now': progress > c.range[0] && progress < c.range[1] }"
-      ></span>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { CHAPTERS } from '../lib/chapters.js'
 
 defineProps({
   chapter: { type: Object, default: null },
@@ -88,29 +78,9 @@ function cn(n) {
   color: rgba(235, 228, 214, 0.86);
 }
 
-.rail {
-  position: absolute;
-  left: 50%;
-  bottom: 26px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-}
 
-.rail-seg {
-  width: 46px;
-  height: 1px;
-  background: rgba(243, 241, 230, 0.16);
-  transition: background 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-}
 
-.rail-seg.is-now {
-  background: rgba(212, 175, 55, 0.9);
-}
 
-.rail-seg.is-done {
-  background: rgba(176, 48, 28, 0.7);
-}
 
 .card-enter-active,
 .card-leave-active {
@@ -137,15 +107,7 @@ function cn(n) {
     font-size: 32px;
   }
 
-  .rail {
-    right: 20px;
-    bottom: 22px;
-    gap: 6px;
-  }
 
-  .rail-seg {
-    width: 32px;
-  }
 }
 </style>
 
