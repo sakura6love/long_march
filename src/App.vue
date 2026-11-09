@@ -66,6 +66,7 @@ const railProgress = computed(() =>
 const burning = ref(false)
 const pausedEvent = ref(null)
 const showingEvent = ref(null)
+if (import.meta.env.DEV) window.__ev = (i) => { showingEvent.value = STORY_EVENTS[i || 0] }
 
 const seenEvents = ref([])
 

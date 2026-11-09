@@ -1066,7 +1066,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(3, 6, 11, 0.58) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.78) 100%),
+    linear-gradient(180deg, rgba(3, 6, 11, 0.30) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.62) 100%),
     radial-gradient(ellipse at 50% 62%, rgba(122, 162, 205, 0.10) 0%, transparent 58%);
   content: '';
 }
@@ -1079,7 +1079,7 @@ onBeforeUnmount(() => {
   object-fit: cover;
   opacity: 0;
   transform: scale(1.06);
-  filter: saturate(0.78) brightness(0.48) contrast(1.03);
+  filter: saturate(0.95) brightness(0.82) contrast(1.04);
   transition: opacity 1.1s ease;
 }
 
