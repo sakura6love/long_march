@@ -11,7 +11,7 @@
  * 绝对禁止：把 globe 实例放进 ref / reactive。
  * WebGL 对象一旦被 Vue 深度代理，浏览器会直接卡死白屏，这里只能使用 shallowRef。
  */
-import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import Globe from 'globe.gl'
 import {
   AmbientLight,
@@ -334,11 +334,13 @@ const backdropOn = ref(false)
 const bgA = ref('')
 const bgB = ref('')
 const activeLayer = ref(0)
+const imgA = ref(null)
+const imgB = ref(null)
 let backdropUrl = ''
 
 watch(
   () => props.backdrop,
-  (url) => {
+  async (url) => {
     if (!url) {
       backdropOn.value = false
       return
@@ -346,10 +348,22 @@ watch(
     if (url === backdropUrl) return
     backdropUrl = url
     const next = activeLayer.value === 0 ? 1 : 0
+    // 先把新图写进「当前不可见」的那一层，等它解码完成再切 opacity。
+    // 否则 <img> 会继续绘制上一轮的旧位图，出现"闪过前一张图"。
     if (next === 0) bgA.value = url
     else bgB.value = url
-    activeLayer.value = next
     backdropOn.value = true
+    await nextTick()
+    const el = next === 0 ? imgA.value : imgB.value
+    if (el && typeof el.decode === 'function') {
+      try {
+        await el.decode()
+      } catch (e) {
+        /* 解码失败就直接切，至少不会卡住 */
+      }
+    }
+    if (backdropUrl !== url) return
+    activeLayer.value = next
   },
 )
 
@@ -969,8 +983,8 @@ onBeforeUnmount(() => {
     @wheel.prevent="handleWheel"
   >
     <div class="event-backdrop" :class="{ 'is-on': backdropOn }" aria-hidden="true">
-      <img class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 0 }" :src="bgA" alt="" />
-      <img class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 1 }" :src="bgB" alt="" />
+      <img ref="imgA" class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 0 }" :src="bgA" alt="" />
+      <img ref="imgB" class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 1 }" :src="bgB" alt="" />
     </div>
     <div
       ref="globeContainer"
@@ -1060,6 +1074,12 @@ onBeforeUnmount(() => {
 
 .event-backdrop.is-on {
   opacity: 1;
+  animation: sceneDrift 22s ease-out both;
+}
+
+@keyframes sceneDrift {
+  from { transform: scale(1.06); }
+  to { transform: scale(1.0); }
 }
 
 .event-backdrop::after {
@@ -1078,19 +1098,13 @@ onBeforeUnmount(() => {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transform: scale(1.06);
+  will-change: opacity;
   filter: saturate(0.95) brightness(0.82) contrast(1.04);
   transition: opacity 1.1s ease;
 }
 
 .event-backdrop-img.is-shown {
   opacity: 1;
-  animation: sceneDrift 18s ease-out both;
-}
-
-@keyframes sceneDrift {
-  from { transform: scale(1.06); }
-  to { transform: scale(1.0); }
 }
 
 /* 画布本身严格覆盖全屏。 */

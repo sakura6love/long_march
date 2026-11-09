@@ -305,6 +305,13 @@ const backdropImage = computed(() => (showingEvent.value ? showingEvent.value.im
 const globeDimmed = computed(() => !!showingEvent.value)
 
 onMounted(() => {
+  // 预解码八张事件图：切站时 decode() 已就绪，避免换图瞬间闪出上一张
+  STORY_EVENTS.forEach((ev) => {
+    if (!ev.image) return
+    const img = new Image()
+    img.src = ev.image
+    if (typeof img.decode === 'function') img.decode().catch(() => {})
+  })
   litIds.value = readLitIds()
   window.addEventListener('keydown', handleKeydown)
   try {
