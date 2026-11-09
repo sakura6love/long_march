@@ -151,9 +151,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
     } catch {
       // 客户端已断开
     }
-    const counted = bump(env, 'asks').catch(() => {})
-    if (typeof waitUntil === 'function') waitUntil(counted)
   })()
+
+  const counted = bump(env, 'asks').catch(() => {})
+  if (typeof waitUntil === 'function') waitUntil(counted)
 
   return new Response(readable, {
     headers: {
