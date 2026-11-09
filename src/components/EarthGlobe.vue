@@ -417,7 +417,7 @@ defineExpose({
     cameraRig?.flyTo({
       lat: DEFAULT_VIEW.lat,
       lng: DEFAULT_VIEW.lng,
-      altitude: 0.78,
+      altitude: 0.62,
       aim: 10,
       duration: 2200,
     })

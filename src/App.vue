@@ -414,7 +414,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
     <AskPanel v-if="screen === 'overview' && !settingsOpen" @update:open="askOpen = $event" />
   </div>
-  <ChapterCard v-if="!showingEvent" :chapter="activeChapter" :progress="railProgress" />
+  <ChapterCard v-if="!showingEvent && screen !== 'finale'" :chapter="activeChapter" :progress="railProgress" />
 </template>
 
 <style>
@@ -499,8 +499,6 @@ body {
 /* ---- 移动端：顶部只留一行信息，底部提示避让安全区 ---- */
 @media (max-width: 768px) {
   .main-container.is-finale .route-strip,
-  .main-container.is-finale .event-scene,
-  .main-container.is-finale .detail-panel,
   .main-container.is-finale .ask,
   .main-container.is-finale .story-hint {
     display: none !important;
