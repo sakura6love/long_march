@@ -324,4 +324,25 @@ defineProps({
   opacity: 0;
   pointer-events: none;
 }
+
+/* 移动端事件版式：文案底部贴底、限高可滚，把上方让给影像 */
+@media (max-width: 768px) {
+  .event-copy {
+    left: 20px;
+    right: 20px;
+    bottom: calc(5vh + env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+    max-height: 46vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 0 12px;
+    background: linear-gradient(180deg, rgba(5, 8, 14, 0) 0%, rgba(5, 8, 14, 0.86) 26%, rgba(5, 8, 14, 0.94) 100%);
+  }
+  .event-title { font-size: 25px; }
+  .event-text { font-size: 15px; line-height: 1.95; }
+  .event-points li { font-size: 13px; }
+  .event-continue { bottom: calc(1.5vh + env(safe-area-inset-bottom)); }
+}
 </style>

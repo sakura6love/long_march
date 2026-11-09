@@ -367,6 +367,23 @@ watch(
   },
 )
 
+// —— 事件态竖屏构图：地球缩小、地平线下沉，给背景图让出上方空间 ——
+watch(
+  () => props.backdrop,
+  (url) => {
+    const w = globe.value?.width?.() || window.innerWidth || 0
+    const h = globe.value?.height?.() || window.innerHeight || 0
+    if (!w || !h || w / h >= 0.85) return
+    cameraRig?.flyTo({
+      lat: defaultView().lat,
+      lng: defaultView().lng,
+      altitude: url ? 0.98 : 0.46,
+      aim: url ? 24 : 16,
+      duration: 1200,
+    })
+  },
+)
+
 // —— 事件播放时把星球压暗成剪影 ——
 let hemiLight = null
 let ambientLight = null
@@ -1024,6 +1041,12 @@ onBeforeUnmount(() => {
 
 /* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
 @media (max-width: 768px) {
+  .event-backdrop-img { object-position: 50% 30%; }
+  .event-backdrop::after {
+    background:
+      linear-gradient(180deg, rgba(3, 6, 11, 0.26) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.62) 100%),
+      radial-gradient(ellipse at 50% 62%, rgba(122, 162, 205, 0.10) 0%, transparent 58%);
+  }
   .horizon-frame.labels-muted :deep(.march-label-card) {
     opacity: 0 !important;
     pointer-events: none;
