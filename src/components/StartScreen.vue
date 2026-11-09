@@ -215,33 +215,29 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 .seal {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  border: 1px solid rgba(197, 168, 128, 0.55);
-  border-radius: 2px;
-  background: transparent;
-  color: #c5a880;
+  width: 56px;
+  height: 56px;
+  border: 0;
+  background: url('/seals/xinhuo.webp') center / 100% 100% no-repeat;
+  color: #f4dcb4;
   font-family: 'Songti SC', 'Noto Serif SC', serif;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   writing-mode: vertical-rl;
   text-orientation: upright;
-  transition:
-    color 0.45s cubic-bezier(0.25, 1, 0.5, 1),
-    border-color 0.45s cubic-bezier(0.25, 1, 0.5, 1),
-    background 0.45s cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+  text-shadow: 0 1px 2px rgba(64, 12, 8, 0.65);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+  cursor: pointer;
+  transform: rotate(-3deg);
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+              filter 0.35s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .seal:hover,
 .seal:focus-visible {
-  border-color: rgba(156, 42, 34, 0.85);
-  background: rgba(156, 42, 34, 0.15);
-  color: #e3c9a2;
-  box-shadow:
-    inset 0 0 12px rgba(156, 42, 34, 0.35),
-    0 0 16px rgba(156, 42, 34, 0.22);
+  transform: rotate(-3deg) scale(1.05);
+  filter: drop-shadow(0 0 12px rgba(200, 70, 45, 0.55));
 }
 
 @media (max-width: 768px) {
