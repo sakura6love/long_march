@@ -5,10 +5,11 @@
  */
 defineProps({
   muted: { type: Boolean, default: false },
+  bgm: { type: Boolean, default: true },
   reduced: { type: Boolean, default: false },
   canRestart: { type: Boolean, default: true },
 })
-const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
+const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion', 'toggle-bgm'])
 </script>
 
 <template>
@@ -31,6 +32,19 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion'])
         >
           <i :class="{ on: !muted }"></i>
           {{ muted ? '关' : '开' }}
+        </button>
+      </div>
+
+      <div class="row">
+        <span class="row-label">背景音乐</span>
+        <button
+          class="switch"
+          type="button"
+          :aria-pressed="bgm"
+          @click="emit('toggle-bgm')"
+        >
+          <i :class="{ on: bgm }"></i>
+          {{ bgm ? '开' : '关' }}
         </button>
       </div>
 

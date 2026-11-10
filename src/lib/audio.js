@@ -155,3 +155,83 @@ export function setMuted(next) {
 export function isMuted() {
   return muted
 }
+
+
+/* ---------------- 背景音乐（独立开关，不跟随音效） ---------------- */
+const BGM_KEY = 'march:bgm'
+const BGM_SRC = `${import.meta.env.BASE_URL}audio/bgm.m4a`
+const BGM_LEVEL = 0.34
+
+let bgmEl = null
+let bgmOn = true
+try {
+  bgmOn = localStorage.getItem(BGM_KEY) !== '0'
+} catch {
+  bgmOn = true
+}
+
+function ensureBgm() {
+  if (bgmEl) return bgmEl
+  bgmEl = new Audio(BGM_SRC)
+  bgmEl.loop = true
+  bgmEl.preload = 'auto'
+  bgmEl.volume = 0
+  return bgmEl
+}
+
+function fadeBgm(to, ms = 700, done) {
+  const el = bgmEl
+  if (!el) return
+  if (fadeBgm.timer) window.clearInterval(fadeBgm.timer)
+  const from = el.volume
+  const t0 = performance.now()
+  fadeBgm.timer = window.setInterval(() => {
+    const k = Math.min(1, (performance.now() - t0) / ms)
+    el.volume = Math.min(1, Math.max(0, from + (to - from) * k))
+    if (k >= 1) {
+      window.clearInterval(fadeBgm.timer)
+      fadeBgm.timer = null
+      done?.()
+    }
+  }, 40)
+}
+
+/** 首次用户手势里调用：开始播放并淡入。 */
+export function startBgm() {
+  if (!bgmOn) return
+  const el = ensureBgm()
+  if (el.paused) el.play().catch(() => {})
+  fadeBgm(BGM_LEVEL, 1200)
+}
+
+/** 开关背景音乐：关 = 暂停（保留进度），开 = 从原位置继续。 */
+export function setBgmOn(next) {
+  bgmOn = Boolean(next)
+  try {
+    localStorage.setItem(BGM_KEY, bgmOn ? '1' : '0')
+  } catch {
+    /* 忽略 */
+  }
+  if (!bgmOn) {
+    fadeBgm(0, 500, () => bgmEl?.pause())
+    return
+  }
+  const el = ensureBgm()
+  if (el.paused) el.play().catch(() => {})
+  fadeBgm(BGM_LEVEL, 700)
+}
+
+export function isBgmOn() {
+  return bgmOn
+}
+
+// 仅开发环境：给无头验证用
+if (import.meta.env.DEV) {
+  window.__bgm = () => ({ on: bgmOn, paused: bgmEl?.paused ?? null, volume: bgmEl?.volume ?? null, t: bgmEl?.currentTime ?? null })
+}
+
+/** 事件卡阅读时把音乐让路，读完恢复。 */
+export function duckBgm(on) {
+  if (!bgmEl || !bgmOn) return
+  fadeBgm(on ? 0.12 : BGM_LEVEL, 500)
+}

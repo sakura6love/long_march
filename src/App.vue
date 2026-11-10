@@ -20,7 +20,18 @@ import { CHAPTERS } from './lib/chapters.js'
 import { STORY_EVENTS } from './lib/story.js'
 import { readLitIds, lightUp, saveLitIds, clearProgress } from './lib/api.js'
 import { dbg } from './lib/debug.js'
-import { isMuted, setMuted, startAudio, sfxIgnite, sfxPage, sfxTap } from './lib/audio.js'
+import {
+  duckBgm,
+  isBgmOn,
+  isMuted,
+  setBgmOn,
+  setMuted,
+  startAudio,
+  startBgm,
+  sfxIgnite,
+  sfxPage,
+  sfxTap,
+} from './lib/audio.js'
 
 const globeRef = ref(null)
 const screen = ref('start') // start | overview | finale
@@ -66,6 +77,9 @@ const railProgress = computed(() =>
 const burning = ref(false)
 const pausedEvent = ref(null)
 const showingEvent = ref(null)
+
+// 事件卡打开时把背景音乐压低，读完恢复。
+watch(showingEvent, (v) => duckBgm(Boolean(v)))
 if (import.meta.env.DEV) window.__ev = (i) => { showingEvent.value = STORY_EVENTS[i || 0] }
 
 const seenEvents = ref([])
@@ -92,8 +106,16 @@ function goOverview() {
   sfxPage()
 }
 
+const bgmOn = ref(isBgmOn())
+
+function toggleBgm() {
+  bgmOn.value = !bgmOn.value
+  setBgmOn(bgmOn.value)
+}
+
 function handleStart() {
   startAudio()
+  startBgm()
   litIds.value = []
   clearProgress()
   activeIndex.value = -1
@@ -393,12 +415,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
     <SettingsPanel
       v-if="settingsOpen"
       :muted="isMuted()"
+      :bgm="bgmOn"
       :reduced="reduced"
       :can-restart="true"
       @close="closeSettings"
       @restart="restart"
       @toggle-mute="toggleMute"
       @toggle-motion="toggleMotion"
+      @toggle-bgm="toggleBgm"
     />
 
     <FinaleScreen
