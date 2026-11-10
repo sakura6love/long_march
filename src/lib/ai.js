@@ -118,6 +118,9 @@ export async function askAI({ question, context = '', onDelta, onMeta, signal })
 
 /** 页脚统计：失败就当没有，不打扰任何流程。 */
 export async function fetchStats() {
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('mockstats')) {
+    return { available: true, asks: 27, lights: 9 }
+  }
   try {
     const response = await fetch(STATS_URL, { headers: { Accept: 'application/json' } })
     if (!response.ok) return null

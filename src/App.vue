@@ -20,6 +20,7 @@ import { CHAPTERS } from './lib/chapters.js'
 import { STORY_EVENTS } from './lib/story.js'
 import { readLitIds, lightUp, saveLitIds, clearProgress } from './lib/api.js'
 import { dbg } from './lib/debug.js'
+import { fetchStats } from './lib/ai.js'
 import {
   duckBgm,
   isBgmOn,
@@ -108,6 +109,12 @@ function goOverview() {
 
 const bgmOn = ref(isBgmOn())
 const mutedOn = ref(isMuted())
+const stats = ref(null)
+
+async function refreshStats() {
+  const data = await fetchStats()
+  if (data) stats.value = data
+}
 
 function toggleBgm() {
   bgmOn.value = !bgmOn.value
@@ -201,12 +208,14 @@ function toggleLit(payload) {
     litIds.value = lightUp(id)
     const after = chainEnd.value
     if (after > before) burnFrom(before, after)
+    setTimeout(refreshStats, 900)
     return
   }
 
   // 取消：只保留该站之前的连续前缀
   const keep = longMarchNodes.slice(0, index).map((n) => n.id)
   litIds.value = saveLitIds(keep)
+  setTimeout(refreshStats, 600)
 }
 
 function burnFrom(before, after) {
@@ -329,6 +338,10 @@ const hint = computed(() => {
 const backdropImage = computed(() => (showingEvent.value ? showingEvent.value.image : ''))
 const globeDimmed = computed(() => !!showingEvent.value)
 
+watch(screen, (v) => {
+  if (v === 'overview' || v === 'finale') refreshStats()
+})
+
 onMounted(() => {
   // 预解码八张事件图：切站时 decode() 已就绪，避免换图瞬间闪出上一张
   STORY_EVENTS.forEach((ev) => {
@@ -338,6 +351,7 @@ onMounted(() => {
     if (typeof img.decode === 'function') img.decode().catch(() => {})
   })
   litIds.value = readLitIds()
+  refreshStats()
   window.addEventListener('keydown', handleKeydown)
   try {
     reduced.value = localStorage.getItem('march:reduced') === '1'
@@ -430,9 +444,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
     <FinaleScreen
       v-if="screen === 'finale' && finaleReady"
+      :stats="stats"
       @restart="restart"
       @browse="screen = 'overview'"
     />
+
+    <p v-if="screen === 'overview' && stats && !settingsOpen" class="global-stats">
+      全站 {{ stats.lights }} 站被点亮 · {{ stats.asks }} 次提问
+    </p>
 
     <p v-if="hint && !activeNode && !askOpen" class="story-hint" aria-hidden="true">
       <span>{{ hint }}</span>
@@ -455,6 +474,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 </template>
 
 <style>
+.global-stats {
+  position: fixed;
+  left: 104px;
+  bottom: 30px;
+  z-index: 24;
+  margin: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: rgba(243, 241, 230, 0.4);
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .global-stats {
+    left: 16px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    font-size: 9.5px;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

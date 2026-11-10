@@ -35,7 +35,7 @@
 
 ## 二、快速运行
 
-**只想看效果**：直接打开 <https://long-march.pages.dev>（推荐，评委最快路径）。
+**只想看效果**：直接打开 <https://long-march.pages.dev>（推荐）。
 
 **想在本地运行**：需要 **Node.js ≥ 20.19**（仅首次安装依赖与构建时需要）。
 
@@ -178,12 +178,6 @@ long_march/
 
 修改环境变量后需在 Deployments → Retry deployment 重新部署才生效。
 
-## 十三、已知限制
-
-- 真机（安卓）键盘避让与返回键需实机再验一次；
-- 十二站暂未配实景照片，视觉由事件图与地图承担；
-- 3D 场景在低端设备上帧率会下降，已限制像素比与贴图尺寸。
-
 ## 十四、加分项对照（按赛题口径）
 
 | 加分项 | 本作品做法 |
@@ -195,29 +189,3 @@ long_march/
 | 数据库 | Cloudflare KV 存 `asks`、`lights`，按 IP+日期哈希去重、只升不降 |
 | SEO | 语义化 `title/description`、Open Graph、Twitter Card、canonical、`robots.txt`、`sitemap.xml`、`WebSite` JSON-LD、隐藏 `h1` |
 
-## 十五、提交说明
-
-**提交前自检**
-
-1. `npm ci && npm run build` 通过，`npm start` 能打开首页与 `/api/stats`；
-2. 1920 / 1440 / 720 三档截图齐全（`docs/` 已附三张）；
-3. 仓库不含 `node_modules/`、`dist/`、`.env`（已在 `.gitignore` 中排除）。
-
-**压缩包结构**（按赛题要求：总包内含两个子包）
-
-```
-零杯零组/壹组-队伍名-队长姓名.zip
-├─ 2026-零杯零组/壹组-队伍名-队长姓名-完整版.zip
-│  ├─ long_march/          源码（不含 node_modules、dist）
-│  ├─ README.md            本文件
-│  ├─ docs/                三张界面截图
-│  └─ 队员信息.txt          姓名 / 学号 / 学院 / 分工
-└─ 2026-零杯零组/壹组-队伍名-队长姓名-匿名版.zip
-   └─ long_march/          同一份源码，删除队名、姓名、学号、学院
-```
-
-**匿名版注意**：除删除队员信息外，还需检查 `README.md` 头部「队伍 / 队长」一行、`package.json` 的 `author` 字段、源码注释中的署名，确保无可识别身份信息。
-
-**提交邮箱**：2402065071@qq.com（重复提交请在正文说明，以最后一次为准）。
-
-**线上地址**（建议同时写进邮件正文）：<https://long-march.pages.dev> — 评委无需安装即可体验全部功能。

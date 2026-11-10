@@ -5,6 +5,7 @@
  */
 defineProps({
   litCount: { type: Number, default: 12 },
+  stats: { type: Object, default: null },
 })
 const emit = defineEmits(['restart', 'browse'])
 </script>
@@ -23,6 +24,10 @@ const emit = defineEmits(['restart', 'browse'])
 
       <div class="seal" aria-hidden="true">长征</div>
 
+      <p v-if="stats && stats.available" class="together">
+        你与 {{ stats.lights }} 位同行者，走完了这段路。
+      </p>
+
       <div class="actions">
         <button class="act act-main" type="button" @click="emit('restart')">
           <span aria-hidden="true"></span>重走长征路
@@ -34,6 +39,13 @@ const emit = defineEmits(['restart', 'browse'])
 </template>
 
 <style scoped>
+.together {
+  margin: 18px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: rgba(243, 241, 230, 0.42);
+}
+
 .finale {
   position: fixed;
   inset: 0;
