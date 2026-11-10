@@ -11,12 +11,12 @@ const STORAGE_KEY = 'march:muted'
 let ctx = null
 let master = null
 let ambientGain = null
-let muted = false
+let muted = true
 
 try {
-  muted = localStorage.getItem(STORAGE_KEY) === '1'
+  muted = localStorage.getItem(STORAGE_KEY) !== '0'
 } catch {
-  muted = false
+  muted = true
 }
 
 function ensure() {
@@ -163,18 +163,18 @@ const BGM_SRC = `${import.meta.env.BASE_URL}audio/bgm.mp3`
 const BGM_LEVEL = 0.34
 
 let bgmEl = null
-let bgmOn = true
+let bgmOn = false
 try {
-  bgmOn = localStorage.getItem(BGM_KEY) !== '0'
+  bgmOn = localStorage.getItem(BGM_KEY) === '1'
 } catch {
-  bgmOn = true
+  bgmOn = false
 }
 
 function ensureBgm() {
   if (bgmEl) return bgmEl
   bgmEl = new Audio(BGM_SRC)
   bgmEl.loop = true
-  bgmEl.preload = 'auto'
+  bgmEl.preload = 'none'
   bgmEl.volume = 0
   return bgmEl
 }

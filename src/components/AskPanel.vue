@@ -128,7 +128,12 @@ async function askOnline(bot) {
   if (!bot || busy.value) return
   const offline = typeof navigator !== 'undefined' && navigator.onLine === false
   if (offline) {
+    const local = localAnswer(bot.question)
+    bot.raw = local.text
+    bot.sources = local.sources
+    bot.canRetry = true
     phase.value = 'offline'
+    startPump()
     return
   }
 
@@ -193,6 +198,7 @@ function toggle() {
 
 function close() {
   open.value = false
+  nextTick(() => document.querySelector('.ask-orb')?.focus())
   controller?.abort()
 }
 
@@ -201,6 +207,12 @@ function onSubmit() {
 }
 
 function onKeydown(event) {
+  if (event.key === 'Tab' && open.value) {
+    const targets = [...drawerEl().querySelectorAll('button:not(:disabled), input:not(:disabled), a[href]')]
+    const first = targets[0], last = targets.at(-1)
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+  }
   if (event.key === 'Escape' && open.value) {
     event.stopPropagation()
     close()
@@ -323,9 +335,9 @@ onBeforeUnmount(() => {
 <template>
   <div class="ask" :class="{ 'is-open': open }">
     <Transition name="ask-window">
-      <section v-if="open" class="ask-window glass-panel" role="dialog" aria-label="长征问答">
+      <section v-if="open" class="ask-window glass-panel" role="dialog" aria-modal="true" aria-label="史料问答">
         <header class="ask-head">
-          <span class="ask-kicker">ASK / 长征问答</span>
+          <span class="ask-kicker">史料问答</span>
           <div class="ask-mode" role="group" aria-label="回答模式">
             <button type="button" :class="{ 'is-on': askMode === 'archive' }" @click="setMode('archive')">馆藏</button>
             <button type="button" :class="{ 'is-on': askMode === 'live' }" @click="setMode('live')">联网</button>
@@ -333,16 +345,16 @@ onBeforeUnmount(() => {
           <span class="ask-status" :class="`is-${status.tone}`">
             <i class="ask-dot" />{{ status.text }}
           </span>
-          <button class="ask-close" type="button" aria-label="关闭" @click="close" />
+          <button class="ask-close" type="button" aria-label="关闭史料问答" @click="close">关闭 ×</button>
         </header>
 
         <p v-if="degraded" class="ask-banner">
-          {{ phase === 'offline' ? '当前离线 · 读取本地馆藏' : '通讯不稳 · 已回溯本地档案' }}
+          {{ phase === 'offline' ? '当前离线 · 读取本地馆藏' : '本地档案 · 无需网络即可阅读' }}
         </p>
 
         <div ref="listEl" class="ask-body">
           <div v-if="!messages.length" class="ask-intro">
-            问一件具体的事。答案只从展陈史料里取，并标出处。
+            从一个问题，走近一段历史。本地回答依据展陈内容；联网回答为 AI 生成，请结合原始资料核对。
           </div>
 
           <div v-for="m in messages" :key="m.id" class="ask-msg" :class="`is-${m.role}`">
@@ -351,7 +363,7 @@ onBeforeUnmount(() => {
               <p v-if="!m.shown && busy" class="ask-thinking"><i /><i /><i /></p>
               <p v-else class="ask-text">{{ m.shown }}</p>
               <p v-if="m.sources.length && m.shown" class="ask-src">
-                出处 {{ m.sources.map((s) => s.label).join(' · ') }}
+                相关展陈 {{ m.sources.map((s) => s.label).join(' · ') }}
               </p>
               <button v-if="m.canRetry && !busy" type="button" class="ask-retry" @click="askOnline(m)">
                 再问一次 · 联网
@@ -362,7 +374,7 @@ onBeforeUnmount(() => {
 
         <div v-if="!messages.length" class="ask-presets">
           <button
-            v-for="item in PRESETS"
+            v-for="item in PRESETS.slice(0, 4)"
             :key="item.q"
             type="button"
             class="ask-preset"
@@ -392,404 +404,14 @@ onBeforeUnmount(() => {
       </section>
     </Transition>
 
-    <button class="ask-orb" type="button" :aria-expanded="open" aria-label="长征问答" @click="toggle">
+    <button class="ask-orb" type="button" :aria-expanded="open" aria-label="史料问答" @click="toggle">
       <span class="ask-orb-ring" />
-      <span class="ask-orb-text">问</span>
+      <span class="ask-orb-text">史料问答</span>
     </button>
   </div>
 </template>
 
 <style scoped>
-.ask {
-  position: fixed;
-  z-index: 30;
-  bottom: 32px;
-  left: 60px;
-}
-
-.ask-orb {
-  position: relative;
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  border: 1px solid rgba(212, 175, 55, 0.34);
-  background: rgba(10, 15, 24, 0.62);
-  color: var(--accent-gold);
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  transition: border-color 0.4s var(--ease), background 0.4s var(--ease);
-}
-
-.ask-orb:hover {
-  border-color: rgba(212, 175, 55, 0.7);
-  background: rgba(18, 26, 38, 0.78);
-}
-
-.ask-orb-ring {
-  position: absolute;
-  inset: 6px;
-  border-radius: 50%;
-  border: 1px solid rgba(212, 175, 55, 0.16);
-}
-
-.ask-orb-text {
-  position: relative;
-  font-size: 15px;
-  letter-spacing: 0.1em;
-}
-
-.ask-window {
-  position: absolute;
-  left: 0;
-  bottom: 72px;
-  display: flex;
-  flex-direction: column;
-  width: 360px;
-  max-height: min(68vh, 560px);
-  padding: 20px 22px 14px;
-  border-radius: 3px;
-}
-
-.ask-mode {
-  display: inline-flex;
-  border: 1px solid rgba(196, 163, 90, 0.24);
-  margin-left: 10px;
-}
-.ask-mode button {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: rgba(243, 241, 230, 0.5);
-  font: inherit;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  padding: 3px 8px;
-  cursor: pointer;
-  transition: color .3s var(--ease), background .3s var(--ease);
-}
-.ask-mode button.is-on { color: #1a1207; background: #e5c07b; }
-.ask-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: none;
-}
-
-.ask-kicker {
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  color: var(--accent-gold);
-  opacity: 0.8;
-  flex: 1;
-}
-
-.ask-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
-  color: rgba(163, 168, 180, 0.68);
-}
-
-.ask-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.ask-status.is-live {
-  color: #8ec9a0;
-}
-
-.ask-status.is-busy {
-  color: var(--text-dim);
-}
-
-.ask-status.is-archive {
-  color: var(--text-dim);
-}
-
-.ask-close {
-  position: relative;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.ask-close::before,
-.ask-close::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 10px;
-  height: 1px;
-  background: rgba(244, 241, 225, 0.5);
-  transition: background 0.3s var(--ease);
-}
-
-.ask-close::before {
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.ask-close::after {
-  transform: translate(-50%, -50%) rotate(-45deg);
-}
-
-.ask-close:hover::before,
-.ask-close:hover::after {
-  background: #f4f1e1;
-}
-
-.ask-banner {
-  margin: 12px 0 0;
-  padding: 7px 10px;
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
-  color: rgba(248, 223, 156, 0.86);
-  background: rgba(212, 175, 55, 0.08);
-  border-left: 1px solid rgba(212, 175, 55, 0.5);
-}
-
-.ask-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  margin-top: 14px;
-  padding-right: 4px;
-  mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
-}
-
-.ask-intro {
-  font-size: 12px;
-  line-height: 1.9;
-  color: rgba(163, 168, 180, 0.72);
-}
-
-.ask-msg {
-  margin-bottom: 14px;
-}
-
-.ask-msg.is-user .ask-text {
-  margin-left: auto;
-  width: fit-content;
-  max-width: 92%;
-  padding: 6px 10px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  font-size: 12.5px;
-  color: rgba(244, 241, 225, 0.82);
-}
-
-.ask-text {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.95;
-  color: rgba(244, 241, 225, 0.78);
-  white-space: pre-wrap;
-}
-
-.ask-src {
-  margin: 7px 0 0;
-  font-size: 9.5px;
-  letter-spacing: 0.08em;
-  color: rgba(212, 175, 55, 0.62);
-}
-
-.ask-thinking {
-  display: flex;
-  gap: 5px;
-  margin: 4px 0 0;
-}
-
-.ask-thinking i {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: rgba(212, 175, 55, 0.75);
-  animation: ask-blink 1.1s var(--ease) infinite;
-}
-
-.ask-thinking i:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.ask-thinking i:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes ask-blink {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: translateY(0);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-2px);
-  }
-}
-
-.ask-presets {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 14px;
-  flex: none;
-}
-
-.ask-preset {
-  text-align: left;
-  padding: 7px 0;
-  border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: transparent;
-  color: rgba(243, 241, 230, 0.72);
-  font-size: 12px;
-  cursor: pointer;
-  transition: color 0.3s var(--ease), padding-left 0.3s var(--ease);
-}
-
-.ask-preset:hover {
-  color: #f4f1e1;
-  padding-left: 6px;
-}
-
-.ask-input {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex: none;
-}
-
-.ask-input input {
-  flex: 1;
-  min-width: 0;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.22);
-  color: #f4f1e1;
-  font-size: 12px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.3s var(--ease);
-}
-
-.ask-input input:focus {
-  border-color: rgba(212, 175, 55, 0.5);
-}
-
-.ask-input input::placeholder {
-  color: rgba(163, 168, 180, 0.5);
-}
-
-.ask-input button {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid rgba(212, 175, 55, 0.34);
-  border-radius: 2px;
-  background: rgba(212, 175, 55, 0.1);
-  color: #f8df9c;
-  font-size: 11.5px;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: background 0.3s var(--ease), border-color 0.3s var(--ease);
-}
-
-.ask-input button:hover:not(:disabled) {
-  background: rgba(212, 175, 55, 0.2);
-  border-color: rgba(212, 175, 55, 0.6);
-}
-
-.ask-input button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.ask-retry {
-  margin-top: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  transition: color 0.3s var(--ease);
-}
-
-.ask-retry:hover {
-  color: var(--accent-gold);
-}
-
-.ask-note {
-  margin: 10px 0 0;
-  font-size: 9.5px;
-  letter-spacing: 0.05em;
-  color: rgba(163, 168, 180, 0.42);
-  flex: none;
-}
-
-.ask-window-enter-active,
-.ask-window-leave-active {
-  transition: opacity 0.32s var(--ease), transform 0.32s var(--ease);
-}
-
-.ask-window-enter-from,
-.ask-window-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-@media (max-width: 768px) {
-  .ask {
-    top: 16px;
-    right: 16px;
-    bottom: auto;
-    left: auto;
-  }
-
-  .ask-window {
-    top: 70px;
-    bottom: auto;
-    width: min(88vw, 360px);
-    max-height: 62vh;
-  }
-}
-
-/* ---- 移动端：底部抽屉 + 键盘避让 + 安全区 ---- */
-@media (max-width: 768px) {
-  .ask {
-    top: auto;
-    right: 14px;
-    left: auto;
-    bottom: calc(16px + env(safe-area-inset-bottom));
-  }
-
-  .ask-orb {
-    width: 52px;
-    height: 52px;
-  }
-
-  .ask-window {
-    position: fixed;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    top: auto;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    bottom: calc(84px + env(safe-area-inset-bottom));
-    max-height: min(62dvh, 520px);
-  }
-}
+.ask{position:fixed;right:var(--page-gutter);bottom:26px;z-index:60}.ask-orb{display:flex;align-items:center;gap:12px;min-height:48px;padding:10px 22px;border:1px solid var(--accent-gold);border-radius:2px;background:var(--museum-ink);color:var(--museum-paper);font-size:15px}.ask-orb-ring{width:7px;height:7px;background:var(--accent-gold);border-radius:50%}.ask-window{position:absolute;right:0;bottom:64px;display:flex;flex-direction:column;width:460px;height:min(700px,calc(100svh - 130px));padding:26px;background:var(--museum-paper);color:var(--museum-ink);border:1px solid #c9c1b1;box-shadow:0 20px 80px #0006}.ask-head{display:flex;align-items:center;flex-wrap:wrap;gap:12px;border-bottom:1px solid #c9c1b1;padding-bottom:14px}.ask-kicker{font:500 23px var(--font-display);flex:1}.ask-mode{display:flex;gap:4px}.ask-mode button{min-height:36px;padding:4px 10px;border:0;background:none;color:#64665e;font-size:13px}.ask-mode button.is-on{background:var(--accent-red);color:var(--museum-paper)}.ask-status{width:100%;font-size:13px;color:#66685e;order:2}.ask-dot{display:inline-block;width:5px;height:5px;margin-right:6px;border-radius:50%;background:currentColor}.ask-close{border:0;background:none;color:#5d6057;font-size:13px;min-height:44px;padding:0 4px}.ask-banner{padding:9px 12px;background:#e7decd;margin-top:12px;color:#6a493d;font-size:13px}.ask-body{flex:1;min-height:70px;overflow:auto;overscroll-behavior:contain;margin-top:20px;padding-right:4px}.ask-intro{font-size:16px;line-height:1.8;color:#64665e}.ask-msg{margin-bottom:22px}.ask-msg.is-user .ask-text{background:#e3dbcd;padding:12px;margin-left:28px}.ask-text{font-size:16px;line-height:1.9;white-space:pre-wrap}.ask-src{font-size:13px;color:#66685e;border-top:1px solid #d3cbbc;margin-top:12px;padding-top:10px}.ask-retry{font-size:13px;color:var(--accent-red);border:0;border-bottom:1px solid currentColor;background:none;padding:6px 0;min-height:40px}.ask-presets{display:flex;flex-direction:column;margin:16px 0;gap:0;max-height:210px;overflow:auto}.ask-preset{min-height:44px;padding:10px 0;text-align:left;background:none;border:0;border-bottom:1px solid #d3cbbc;font-size:14px;color:#454a3f}.ask-preset:hover{color:var(--accent-red)}.ask-input{display:flex;gap:8px;flex:none;margin-top:16px}.ask-input input{flex:1;min-width:0;height:48px;border:1px solid #9e998a;background:#faf6ed;color:var(--museum-ink);padding:0 12px;font-size:16px}.ask-input input::placeholder{color:#6e7168}.ask-input button{border:0;min-height:48px;background:var(--accent-red);color:var(--museum-paper);padding:8px 18px;font-size:15px}.ask-input button:disabled{background:#bcb3a2;color:#4b4d45}.ask-note{font-size:13px;color:#65675f;margin-top:12px}.ask-thinking{font-size:15px;color:#66685e}.ask-thinking::after{content:'正在检索…'}.ask-window-enter-active,.ask-window-leave-active{transition:opacity .2s,transform .2s}.ask-window-enter-from,.ask-window-leave-to{opacity:0;transform:translateY(10px)}
+@media(max-width:768px){.ask{right:24px;bottom:18px}.ask-orb{min-height:44px;padding:8px 16px}.ask-window{width:min(460px,calc(100vw - 32px));right:-8px;bottom:58px;padding:20px;height:min(680px,calc(100svh - 110px))}.ask-kicker{font-size:21px}.ask-presets{max-height:180px}.ask-note{font-size:13px}}
 </style>

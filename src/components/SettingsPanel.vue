@@ -1,11 +1,18 @@
 <script setup>
-/**
- * 设置：从俯瞰态按 ESC 进入。
- * 只有四项：音效、减少动效、重走长征路、继续。
- */
+import { nextTick, onMounted, ref } from 'vue'
+const dialog = ref(null)
+onMounted(() => nextTick(() => dialog.value?.querySelector('.settings-x')?.focus()))
+function trapFocus(event) {
+  if (event.key !== 'Tab') return
+  const buttons = [...dialog.value.querySelectorAll('button:not(:disabled):not(.settings-veil)')]
+  const first = buttons[0], last = buttons.at(-1)
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+}
+
 defineProps({
-  muted: { type: Boolean, default: false },
-  bgm: { type: Boolean, default: true },
+  muted: { type: Boolean, default: true },
+  bgm: { type: Boolean, default: false },
   reduced: { type: Boolean, default: false },
   canRestart: { type: Boolean, default: true },
 })
@@ -13,12 +20,12 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion', 't
 </script>
 
 <template>
-  <div class="settings" role="dialog" aria-label="设置">
-    <button class="settings-veil" type="button" aria-label="继续" @click="emit('close')"></button>
+  <div ref="dialog" @keydown="trapFocus" class="settings" role="dialog" aria-label="参观设置" aria-modal="true">
+    <button class="settings-veil" tabindex="-1" type="button" aria-label="继续" @click="emit('close')"></button>
 
     <section class="settings-card glass-panel glass-panel--modal">
       <header class="settings-head">
-        <h2>设 置</h2>
+        <h2>参观设置</h2>
         <button class="settings-x" type="button" aria-label="继续" @click="emit('close')">继续</button>
       </header>
 
@@ -28,6 +35,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion', 't
           class="switch"
           type="button"
           :aria-pressed="!muted"
+          aria-label="音效"
           @click="emit('toggle-mute')"
         >
           <i :class="{ on: !muted }"></i>
@@ -41,6 +49,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion', 't
           class="switch"
           type="button"
           :aria-pressed="bgm"
+          aria-label="背景音乐"
           @click="emit('toggle-bgm')"
         >
           <i :class="{ on: bgm }"></i>
@@ -54,6 +63,7 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion', 't
           class="switch"
           type="button"
           :aria-pressed="reduced"
+          aria-label="减少动效"
           @click="emit('toggle-motion')"
         >
           <i :class="{ on: reduced }"></i>
@@ -72,171 +82,5 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion', 't
 </template>
 
 <style scoped>
-.settings {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-}
-
-.settings-veil {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: rgba(4, 7, 12, 0.62);
-  backdrop-filter: blur(2px);
-  cursor: default;
-}
-
-.settings-card {
-  position: relative;
-  width: min(520px, 86vw);
-  padding: 34px 40px 30px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  animation: settings-in 0.42s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-@keyframes settings-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
-.settings-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 26px;
-}
-
-.settings-head h2 {
-  margin: 0;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 26px;
-  font-weight: 500;
-  letter-spacing: 0.3em;
-  color: var(--text-main);
-}
-
-.settings-x {
-  border: 0;
-  background: none;
-  font-family: inherit;
-  font-size: 12px;
-  letter-spacing: 0.22em;
-  color: rgba(243, 241, 230, 0.45);
-  cursor: pointer;
-}
-
-.settings-x:hover {
-  color: var(--text-main);
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 0;
-}
-
-.row-label {
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 14px;
-  letter-spacing: 0.16em;
-  color: rgba(243, 241, 230, 0.82);
-}
-
-.switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  border: 0;
-  background: none;
-  font-family: inherit;
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  color: rgba(243, 241, 230, 0.5);
-  cursor: pointer;
-}
-
-.switch i {
-  position: relative;
-  display: block;
-  width: 34px;
-  height: 18px;
-  border-radius: 9px;
-  background: rgba(243, 241, 230, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(243, 241, 230, 0.18);
-  transition: background 0.28s ease, box-shadow 0.28s ease;
-}
-
-.switch i::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(243, 241, 230, 0.5);
-  transition: transform 0.28s cubic-bezier(0.25, 1, 0.5, 1), background 0.28s ease;
-}
-
-.switch i.on {
-  background: rgba(229, 192, 123, 0.26);
-  box-shadow: inset 0 0 0 1px rgba(229, 192, 123, 0.55);
-}
-
-.switch i.on::after {
-  transform: translateX(16px);
-  background: #e5c07b;
-}
-
-.split {
-  height: 1px;
-  margin: 16px 0 20px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.restart {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  border: 0;
-  padding: 0 0 0 18px;
-  background: none;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 15px;
-  letter-spacing: 0.18em;
-  color: var(--accent-gold);
-  cursor: pointer;
-}
-
-.restart span {
-  position: absolute;
-  left: 0;
-  width: 1px;
-  height: 14px;
-  background: var(--accent-gold);
-  transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.restart:hover span {
-  height: 20px;
-}
-
-.restart:disabled {
-  color: rgba(212, 175, 55, 0.3);
-  cursor: default;
-}
-
-.note {
-  margin: 12px 0 0 18px;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: rgba(243, 241, 230, 0.26);
-}
+.settings{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:24px;overflow:auto}.settings-veil{position:absolute;inset:0;background:#12150fbb;border:0;cursor:default}.settings-card{position:relative;width:min(520px,100%);max-height:calc(100svh - 48px);overflow:auto;padding:36px;background:var(--museum-paper);color:var(--museum-ink)}.settings-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:16px}.settings-head h2{font:500 32px var(--font-display);margin:0}.settings-x{min-height:44px;background:none;border:0;color:#64665e;font-size:15px}.row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:18px 0;border-bottom:1px solid #d3cbbc}.row-label{font-size:17px}.switch{display:flex;align-items:center;gap:12px;min-height:44px;border:0;background:none;color:#565a50;font-size:15px}.switch i{position:relative;display:block;width:42px;height:24px;border-radius:15px;background:#b6b4a7;transition:background .2s}.switch i::after{content:'';position:absolute;top:4px;left:4px;width:16px;height:16px;border-radius:50%;background:#fff9ed;transition:transform .2s}.switch i.on{background:var(--accent-red)}.switch i.on::after{transform:translateX(18px)}.split{margin:20px 0}.restart{min-height:48px;border:1px solid var(--accent-red);background:none;color:var(--accent-red);padding:10px 18px;font-size:16px}.note{color:#65675f;margin-top:12px;font-size:14px}.restart:disabled{opacity:.5}@media(max-width:480px){.settings-card{padding:24px}.settings-head h2{font-size:28px}}
 </style>

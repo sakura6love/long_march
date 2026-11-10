@@ -1,575 +1,307 @@
-﻿<script setup>
-/**
- * 五幕：序章 → 俯瞰 → 展签 → 设置 → 终章。
- *
- * 火只有一条：从瑞金起算，连续点亮的站才连成线；
- * 中间缺一站，火就停在那儿，补上缺口后一次烧过去。
- */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import EarthGlobe from './components/EarthGlobe.vue'
-import DetailPanel from './components/DetailPanel.vue'
-import AskPanel from './components/AskPanel.vue'
-import EventScene from './components/EventScene.vue'
+<script setup>
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import StartScreen from './components/StartScreen.vue'
+import EventScene from './components/EventScene.vue'
+import DetailPanel from './components/DetailPanel.vue'
+import EventRail from './components/EventRail.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import FinaleScreen from './components/FinaleScreen.vue'
-import longMarchNodes from './data.js'
-import ChapterCard from './components/ChapterCard.vue'
-import EventRail from './components/EventRail.vue'
-import { CHAPTERS } from './lib/chapters.js'
+import AskPanel from './components/AskPanel.vue'
+import nodes from './data.js'
 import { STORY_EVENTS } from './lib/story.js'
-import { readLitIds, lightUp, saveLitIds, clearProgress } from './lib/api.js'
-import { dbg } from './lib/debug.js'
-import {
-  duckBgm,
-  isBgmOn,
-  isMuted,
-  setBgmOn,
-  setMuted,
-  startAudio,
-  startBgm,
-  sfxIgnite,
-  sfxPage,
-  sfxTap,
-} from './lib/audio.js'
+import { readLitIds, saveLitIds, clearProgress } from './lib/api.js'
+import { isMuted, setMuted, isBgmOn, setBgmOn, startAudio, startBgm, sfxPage, duckBgm } from './lib/audio.js'
 
-const globeRef = ref(null)
-const screen = ref('start') // start | overview | finale
-const finaleReady = ref(false)
-
-// 三幕：start（序章）/ playing（播放中）/ free（自由浏览）/ finale（终章）
-const mode = computed(() => {
-  if (screen.value === 'start') return 'start'
-  if (screen.value === 'finale') return 'finale'
-  if (burning.value || pausedEvent.value || showingEvent.value || activeChapter.value) return 'playing'
-  return 'free'
+const EarthGlobe = defineAsyncComponent({
+  loader: () => import('./components/EarthGlobe.vue'),
+  onError(error, retry, fail) { mapFailed.value = true; fail() },
 })
+const screen = ref('start')
+const globeRef = ref(null)
+const mapRequested = ref(false)
+const mapReady = ref(false)
+const mapFailed = ref(false)
+const mapEnabled = ref(true)
+const stationListOpen = ref(false)
 const settingsOpen = ref(false)
 const askOpen = ref(false)
-const settingsFrom = ref('start')
 const reduced = ref(false)
-
-const activeIndex = ref(-1)
-const activeNode = computed(() =>
-  activeIndex.value >= 0 ? longMarchNodes[activeIndex.value] : null,
-)
-
-const litIds = ref(readLitIds())
-const activeLit = computed(() => (activeNode.value ? litIds.value.includes(activeNode.value.id) : false))
-// 「第 X 站」始终与当前节点同源，避免从事件栏进来时错位
-const nodeOrder = computed(() => (activeNode.value ? indexOfId(activeNode.value.id) + 1 : 0))
-
-const indexOfId = (id) => longMarchNodes.findIndex((n) => n.id === id)
-const litSet = computed(() => new Set(litIds.value.map(indexOfId)))
-
-/** 连续前缀：从瑞金开始，连续点亮的站的个数。 */
-const chainEnd = computed(() => {
-  let k = 0
-  while (k < longMarchNodes.length && litSet.value.has(k)) k += 1
-  return k
-})
-
-// 路书/事件标用"点亮到的最远一站"，不是连续前缀（允许跳站）
-const railProgress = computed(() =>
-  litIds.value.reduce((m, id) => Math.max(m, indexOfId(id) + 1), 0),
-)
-
-const burning = ref(false)
-const pausedEvent = ref(null)
-const showingEvent = ref(null)
-
-// 事件卡打开时把背景音乐压低，读完恢复。
-watch(showingEvent, (v) => duckBgm(Boolean(v)))
-if (import.meta.env.DEV) window.__ev = (i) => { showingEvent.value = STORY_EVENTS[i || 0] }
-
-const seenEvents = ref([])
-
-function openEventById(id) {
-  const e = STORY_EVENTS.find((x) => x.id === id)
-  if (!e) return
-  activeIndex.value = -1
-  pausedEvent.value = null
-  showingEvent.value = e
-}
-
-const NEXT_LABEL = computed(() => longMarchNodes[chainEnd.value]?.name ?? '')
-const canResume = computed(() => litIds.value.length > 0 && chainEnd.value > 0)
-const nextNodeId = computed(() =>
-  chainEnd.value >= longMarchNodes.length ? '' : longMarchNodes[chainEnd.value].id,
-)
-
-/* ---------------- 幕间 ---------------- */
-
-function goOverview() {
-  screen.value = 'overview'
-  globeRef.value?.enterOverview()
-  sfxPage()
-}
-
-const bgmOn = ref(isBgmOn())
 const mutedOn = ref(isMuted())
+const bgmOn = ref(isBgmOn())
+const litIds = ref(readLitIds().filter(id => nodes.some(node => node.id === id)))
+const activeIndex = ref(-1)
+const activeNode = computed(() => nodes[activeIndex.value] || null)
+const showingEvent = ref(null)
+const eventIndex = computed(() => STORY_EVENTS.findIndex(event => event.id === showingEvent.value?.id))
+const seenEvents = ref([])
+const burning = ref(false)
+const pausedEvent = ref(false)
+const hasFinished = ref(false)
+const chainEnd = computed(() => {
+  let end = 0
+  while (end < nodes.length && litIds.value.includes(nodes[end].id)) end++
+  return end
+})
+const nextNode = computed(() => nodes[chainEnd.value])
+const stationS = computed(() => mapReady.value ? globeRef.value?.stationS || [] : [])
+const mapVisible = computed(() => screen.value === 'overview' && mapEnabled.value && !mapFailed.value && !showingEvent.value && !settingsOpen.value)
+const blocking = computed(() => Boolean(showingEvent.value || activeNode.value || settingsOpen.value || askOpen.value))
+let mapTimer
+let lastFocus
 
-function toggleBgm() {
-  bgmOn.value = !bgmOn.value
-  setBgmOn(bgmOn.value)
+function rememberFocus() { lastFocus = document.activeElement }
+function restoreFocus() { nextTick(() => { if (lastFocus?.isConnected) lastFocus.focus() }) }
+function scrollTop() { window.scrollTo({ top: 0, behavior: 'instant' }) }
+function stopJourneyAnimation() {
+  // Leave the saved route intact; finish visual progression before changing rooms.
+  globeRef.value?.skipFire()
+  pausedEvent.value = false
+  burning.value = false
 }
-
+function clearPanels() {
+  stopJourneyAnimation()
+  showingEvent.value = null
+  activeIndex.value = -1
+  stationListOpen.value = false
+}
+function goTo(destination) {
+  clearPanels()
+  screen.value = destination
+  if (destination === 'overview') {
+    if (mapEnabled.value) requestMap()
+    if (mapReady.value) nextTick(() => globeRef.value?.enterOverview())
+  }
+  scrollTop()
+}
+function requestMap() {
+  if (mapFailed.value) return
+  mapRequested.value = true
+  if (!mapReady.value && !mapTimer) mapTimer = window.setTimeout(() => { mapTimer = null; if (!mapReady.value) mapFailed.value = true }, 20000)
+}
+watch(mapEnabled, enabled => { if (enabled && screen.value === 'overview') requestMap() })
+function onMapReady() {
+  mapReady.value = true
+  window.clearTimeout(mapTimer)
+  mapTimer = null
+  if (screen.value === 'overview') nextTick(() => globeRef.value?.enterOverview())
+}
+function onMapError() { burning.value = false; pausedEvent.value = false; mapFailed.value = true; mapReady.value = false; window.clearTimeout(mapTimer); mapTimer = null }
 function handleStart() {
   startAudio()
   startBgm()
-  litIds.value = []
-  clearProgress()
-  activeIndex.value = -1
-  showingEvent.value = null
-  pausedEvent.value = null
-  globeRef.value?.clearFire()
-  goOverview()
-}
-
-function handleResume() {
-  activeIndex.value = -1
-  goOverview()
-}
-
-function openSettings() {
-  settingsFrom.value = screen.value
-  settingsOpen.value = true
-  sfxTap()
-}
-
-function closeSettings() {
-  settingsOpen.value = false
+  goTo('overview')
   sfxPage()
-  if (settingsFrom.value === 'start') screen.value = 'start'
-  else screen.value = 'overview'
 }
-
 function restart() {
+  clearPanels()
   clearProgress()
   litIds.value = []
-  activeIndex.value = -1
-  showingEvent.value = null
-  pausedEvent.value = null
+  hasFinished.value = false
+  seenEvents.value = []
   settingsOpen.value = false
-  screen.value = 'start'
   globeRef.value?.clearFire()
-  globeRef.value?.leaveOverview()
-  sfxPage()
+  screen.value = 'start'
+  scrollTop()
 }
-
-function toggleMute() {
-  const next = !mutedOn.value
-  mutedOn.value = next
-  setMuted(next)
-}
-
+function openSettings() { rememberFocus(); settingsOpen.value = true }
+function closeSettings() { settingsOpen.value = false; restoreFocus() }
+function toggleMute() { mutedOn.value = !mutedOn.value; setMuted(mutedOn.value) }
+function toggleBgm() { bgmOn.value = !bgmOn.value; setBgmOn(bgmOn.value) }
 function toggleMotion() {
   reduced.value = !reduced.value
-  document.documentElement.classList.toggle('reduce-motion', reduced.value)
+  try { localStorage.setItem('march:reduced', reduced.value ? '1' : '0') } catch { /* Private mode. */ }
 }
-
-/* ---------------- 火 ---------------- */
-
-const stationS = computed(() => globeRef.value?.stationS || [])
-
-function stationTimeOfAt(at) {
-  const s = globeRef.value?.stationS || []
-  if (!s.length) return 0
-  const whole = Math.floor(at)
-  const frac = at - whole
-  const a = s[Math.min(s.length - 1, whole)]
-  const b = s[Math.min(s.length - 1, whole + 1)]
-  return a + (b - a) * frac
+function openEventById(id) {
+  const event = STORY_EVENTS.find(item => item.id === id)
+  if (!event) return
+  if (!showingEvent.value && !activeNode.value) rememberFocus()
+  stopJourneyAnimation()
+  activeIndex.value = -1
+  showingEvent.value = event
+  if (!seenEvents.value.includes(id)) seenEvents.value.push(id)
 }
-
-function handleSelect(node) {
-  if (pausedEvent.value) closeEvent()
-
-  const index = indexOfId(node.id)
-  if (index < 0) return
-  activeIndex.value = index
+function closeEvent() {
+  const resume = pausedEvent.value
+  pausedEvent.value = false
+  showingEvent.value = null
+  if (resume) globeRef.value?.resumeFire()
+  restoreFocus()
+  maybeFinish()
 }
-
-/** 面板上的按钮：点亮 / 取消点亮（取消会连同其后所有站一起熄灭）。 */
+function navigateEvent(step) {
+  const index = eventIndex.value + step
+  if (index >= 0 && index < STORY_EVENTS.length) openEventById(STORY_EVENTS[index].id)
+}
+function selectNode(node) {
+  if (!activeNode.value && !showingEvent.value) rememberFocus()
+  showingEvent.value = null
+  activeIndex.value = nodes.findIndex(item => item.id === node.id)
+  stationListOpen.value = false
+  if (mapReady.value && mapVisible.value) globeRef.value?.focusNode(node, { silent: true })
+}
+function closeNode() { activeIndex.value = -1; restoreFocus(); maybeFinish() }
+function navigateNode(step) { selectNode(nodes[(activeIndex.value + step + nodes.length) % nodes.length]) }
+function stationAt(at) {
+  const s = stationS.value
+  const floor = Math.max(0, Math.floor(at))
+  return (s[floor] || 0) + ((s[Math.min(floor + 1, s.length - 1)] || 0) - (s[floor] || 0)) * (at - floor)
+}
 function toggleLit(payload) {
   const id = typeof payload === 'string' ? payload : payload?.id
-  const index = indexOfId(id)
-  if (index < 0) return
-
-  if (!litIds.value.includes(id)) {
-    const before = chainEnd.value
-    litIds.value = lightUp(id)
-    const after = chainEnd.value
-    if (after > before) burnFrom(before, after)
+  const index = nodes.findIndex(node => node.id === id)
+  if (index < 0 || burning.value) return
+  if (litIds.value.includes(id)) {
+    litIds.value = saveLitIds(litIds.value.filter(value => nodes.findIndex(node => node.id === value) < index))
+    hasFinished.value = false
     return
   }
-
-  // 取消：只保留该站之前的连续前缀
-  const keep = longMarchNodes.slice(0, index).map((n) => n.id)
-  litIds.value = saveLitIds(keep)
-}
-
-function burnFrom(before, after) {
-  const events = STORY_EVENTS.filter((e) => {
-    const s = stationTimeOfAt(e.at)
-    const s0 = stationTimeOfAt(before - 1)
-    const s1 = stationTimeOfAt(after - 1)
-    return s > s0 && s <= s1
-  }).map((e) => ({ event: e, s: stationTimeOfAt(e.at) }))
-
+  const before = chainEnd.value
+  litIds.value = saveLitIds([...litIds.value, id])
+  const after = chainEnd.value
+  // No animation exists for a single point; keep its reading panel usable.
+  if (after <= Math.max(1, before) || !mapReady.value || !mapVisible.value || reduced.value) return
   burning.value = true
-  sfxIgnite()
   globeRef.value?.ignite(Math.max(0, before - 1), after - 1, {
-    events,
+    events: STORY_EVENTS.filter(event => event.at > Math.max(0, before - 1) && event.at <= after - 1).map(event => ({ event, s: stationAt(event.at) })),
     onEvent(event) {
-      pausedEvent.value = event
+      pausedEvent.value = true
       showingEvent.value = event
-      if (!seenEvents.value.includes(event.id)) seenEvents.value.push(event.id)
       activeIndex.value = -1
+      if (!seenEvents.value.includes(event.id)) seenEvents.value.push(event.id)
     },
-    onDone() {
-      burning.value = false
-    },
+    onDone() { burning.value = false; maybeFinish() },
   })
 }
-
-function closeEvent() {
-  if (!pausedEvent.value) return
-  pausedEvent.value = null
-  showingEvent.value = null
-  globeRef.value?.resumeFire()
-}
-
-function skipBurn() {
-  globeRef.value?.skipFire()
-  burning.value = false
-}
-
-/* ---------------- 点击与键盘 ---------------- */
-
-function handleTap() {
-  // 章卡优先：点一下先收起章卡，不推进播放
-  if (activeChapter.value) {
-    window.clearTimeout(chapterTimer)
-    activeChapter.value = null
-    return
-  }
-
-  if (pausedEvent.value) {
-    closeEvent()
-    return
-  }
-  if (activeIndex.value >= 0) activeIndex.value = -1
-}
-
-function handleKeydown(event) {
-  if (event.key !== 'Escape') return
-  if (settingsOpen.value) {
-    closeSettings()
-    return
-  }
-  if (pausedEvent.value) {
-    closeEvent()
-    return
-  }
-  if (activeIndex.value >= 0) {
-    activeIndex.value = -1
-    return
-  }
-  if (screen.value === 'overview') openSettings()
-}
-
-const activeChapter = ref(null)
-let chapterTimer = null
-
-watch(chainEnd, (k) => {
-  const hit = CHAPTERS.find((c) => c.range[1] + 1 === k && k < longMarchNodes.length)
-  if (!hit || screen.value !== 'overview') return
-  activeChapter.value = hit
-  window.clearTimeout(chapterTimer)
-  chapterTimer = window.setTimeout(() => {
-    activeChapter.value = null
-  }, 4500)
-})
-
-function finishJourney() {
-  if (screen.value === 'finale') return
-  showingEvent.value = null
-  pausedEvent.value = false
-  activeNode.value = null
-  activeChapter.value = null
-  window.clearTimeout(chapterTimer)
-  askOpen.value = false
-  document.body.style.overflow = ''
+function skipBurn() { globeRef.value?.skipFire(); burning.value = false; maybeFinish() }
+function maybeFinish() {
+  if (chainEnd.value !== nodes.length || burning.value || showingEvent.value || activeNode.value || hasFinished.value) return
+  hasFinished.value = true
   screen.value = 'finale'
-  finaleReady.value = false
-  globeRef.value?.pullBack?.()
-  window.setTimeout(() => {
-    finaleReady.value = true
-  }, 1600)
+  scrollTop()
 }
-
-watch([chainEnd, burning], ([k, b]) => {
-  if (k === longMarchNodes.length && !b) finishJourney()
-})
-// 调试入口：便于用脚本强制推进到终章
-if (typeof window !== 'undefined') {
-  dbg('__march', { screen, litIds, chainEnd, finishJourney })
+function keydown(event) {
+  if (event.key !== 'Escape') return
+  if (settingsOpen.value) closeSettings()
+  else if (showingEvent.value) closeEvent()
+  else if (activeNode.value) closeNode()
+  else stationListOpen.value = false
 }
-
-const hint = computed(() => {
-  if (screen.value !== 'overview' || settingsOpen.value) return ''
-  if (pausedEvent.value) return '点击空白 · 继续'
-  if (activeIndex.value >= 0) return '点击空白 · 关闭'
-  if (chainEnd.value >= longMarchNodes.length) return '长征走完了'
-  const next = longMarchNodes[chainEnd.value]
-  return next ? `点击火苗 · ${next.name}` : ''
+watch(showingEvent, event => {
+  duckBgm(Boolean(event))
+  if (!event) return
+  const following = STORY_EVENTS[STORY_EVENTS.indexOf(event) + 1]
+  if (following && !navigator.connection?.saveData) { const image = new Image(); image.src = following.image }
 })
-
-const backdropImage = computed(() => (showingEvent.value ? showingEvent.value.image : ''))
-const globeDimmed = computed(() => !!showingEvent.value)
-
+watch(reduced, value => document.documentElement.classList.toggle('reduce-motion', value))
+watch([screen, showingEvent], () => {
+  document.title = `${showingEvent.value?.title || ({ start: '长征主题数字展馆', overview: '山河路书', chapters: '章节展陈', finale: '薪火千秋' })[screen.value]} · 长征万里`
+})
 onMounted(() => {
-  // 预解码八张事件图：切站时 decode() 已就绪，避免换图瞬间闪出上一张
-  STORY_EVENTS.forEach((ev) => {
-    if (!ev.image) return
-    const img = new Image()
-    img.src = ev.image
-    if (typeof img.decode === 'function') img.decode().catch(() => {})
-  })
-  litIds.value = readLitIds()
-  window.addEventListener('keydown', handleKeydown)
-  try {
-    reduced.value = localStorage.getItem('march:reduced') === '1'
-  } catch {
-    reduced.value = false
-  }
-  if (reduced.value) document.documentElement.classList.add('reduce-motion')
-
-  if (import.meta.env.DEV) {
-    dbg('__march', { screen, litIds, chainEnd, burning, pausedEvent, finishJourney })
-  }
+  const systemReduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+  try { const saved = localStorage.getItem('march:reduced'); reduced.value = saved === null ? systemReduced : saved === '1' } catch { reduced.value = systemReduced }
+  if (navigator.connection?.saveData) mapEnabled.value = false
+  window.addEventListener('keydown', keydown)
 })
-
-onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
+onBeforeUnmount(() => { window.removeEventListener('keydown', keydown); window.clearTimeout(mapTimer) })
 </script>
 
 <template>
-  <div
-    class="main-container"
-    :class="{ 'is-ask-open': askOpen, 'is-scene': !!showingEvent, 'is-finale': screen === 'finale' }"
-  >
-    <h1 class="sr-only">长征万里 · 薪火千秋</h1>
-    <EarthGlobe
-      ref="globeRef"
-      :lit-ids="litIds"
-      :backdrop="backdropImage"
-      :dim="globeDimmed"
-      :show-hint="screen === 'overview' && !settingsOpen && mode !== 'playing' && activeIndex < 0"
-      :chrome="screen === 'overview'"
-      :finale="screen === 'finale'"
-      :labels-muted="!!showingEvent"
-      :next-id="nextNodeId"
-      :locked="mode === 'playing'"
-      :burn="Math.min(1, chainEnd / longMarchNodes.length)"
-      :show-events="screen === 'overview' && !showingEvent && !settingsOpen"
-      :labels-on="screen === 'overview'"
-      :border-on="screen === 'finale' || chainEnd >= longMarchNodes.length"
-      @select="handleSelect"
-      @select-event="openEventById"
-      @tap="handleTap"
-      @reset="activeIndex = -1"
-    />
-
-    <DetailPanel
-      v-if="activeNode"
-      :node="activeNode"
-      :order="nodeOrder"
-      :total="longMarchNodes.length"
-      :lit="activeLit"
-      :lit-count="litIds.length"
-      @close="activeIndex = -1"
-      @navigate="(step) => globeRef?.focusNode(longMarchNodes[(activeIndex + step + longMarchNodes.length) % longMarchNodes.length])"
-      @light-up="toggleLit"
-    />
-
-    <EventScene v-if="screen !== 'finale'" :event="showingEvent" :dimmed="askOpen" />
-
-    <EventRail
-      v-if="screen === 'overview' && !settingsOpen && !showingEvent && !activeNode"
-      :events="STORY_EVENTS"
-      :seen="seenEvents"
-      :progress="railProgress"
-      :total="longMarchNodes.length - 1"
-      :station-s="stationS"
-      :active-id="showingEvent ? showingEvent.id : ''"
-      @select="openEventById"
-    />
-
-    <StartScreen
-      v-if="screen === 'start'"
-      :has-save="canResume"
-      :resume-label="canResume ? `第 ${chainEnd} 站` : ''"
-      @start="handleStart"
-      @resume="handleResume"
-      @settings="openSettings"
-    />
-
-    <SettingsPanel
-      v-if="settingsOpen"
-      :muted="mutedOn"
-      :bgm="bgmOn"
-      :reduced="reduced"
-      :can-restart="true"
-      @close="closeSettings"
-      @restart="restart"
-      @toggle-mute="toggleMute"
-      @toggle-motion="toggleMotion"
-      @toggle-bgm="toggleBgm"
-    />
-
-    <FinaleScreen
-      v-if="screen === 'finale' && finaleReady"
-      @restart="restart"
-      @browse="screen = 'overview'"
-    />
-
-    <p v-if="hint && !activeNode && !askOpen" class="story-hint" aria-hidden="true">
-      <span>{{ hint }}</span>
-      <i v-if="screen === 'overview' && !settingsOpen && mode !== 'playing'">·</i>
-      <em v-if="screen === 'overview' && !settingsOpen && mode !== 'playing'">双击复位</em>
-    </p>
-
-    <button
-      v-if="burning && !pausedEvent && screen === 'overview'"
-      class="skip-burn"
-      type="button"
-      @click.stop="skipBurn"
-    >
-      跳过
-    </button>
-
-    <AskPanel v-if="screen === 'overview' && !settingsOpen" @update:open="askOpen = $event" />
+  <div class="museum-app" :class="{ 'is-route': screen === 'overview', 'has-exhibit': showingEvent }">
+    <div class="museum-base" :inert="blocking || undefined">
+      <StartScreen v-if="screen === 'start'" :has-save="litIds.length > 0" :resume-label="`已点亮 ${litIds.length} / 12 站`" @start="handleStart" @resume="handleStart" @browse="goTo('chapters')" @settings="openSettings" />
+      <template v-else-if="screen !== 'finale'">
+        <header class="museum-header">
+          <button class="museum-brand" type="button" @click="goTo('start')"><span>长征万里 · 薪火千秋</span><small>长征主题数字展馆</small></button>
+          <nav aria-label="展馆导航">
+            <button type="button" @click="goTo('start')">序厅</button>
+            <button type="button" :aria-current="screen === 'overview' ? 'page' : undefined" @click="goTo('overview')">山河路书</button>
+            <button type="button" :aria-current="screen === 'chapters' ? 'page' : undefined" @click="goTo('chapters')">章节展陈</button>
+            <button type="button" @click="openSettings">设置</button>
+          </nav>
+        </header>
+        <main v-if="screen === 'overview'" class="route-room">
+          <div class="route-heading">
+            <p class="eyebrow">1934 — 1936 / 山河路书</p>
+            <h1>循着足迹，<br>走进历史。</h1>
+            <p class="route-intro">十二处坐标，连起一段征途。<br>选择站点，阅读山河之间的故事。</p>
+            <div class="route-progress"><span>行程留痕</span><strong>{{ litIds.length }} <i>/ 12</i></strong><div class="progress-track"><span :style="{ width: `${litIds.length / nodes.length * 100}%` }"></span></div></div>
+            <button v-if="nextNode" type="button" class="museum-button" @click="selectNode(nextNode)">走近{{ nextNode.name }} <span aria-hidden="true">↗</span></button>
+            <button v-else type="button" class="museum-button" @click="screen = 'finale'">抵达终章 <span aria-hidden="true">↗</span></button>
+            <div class="route-tools">
+              <button type="button" :aria-expanded="stationListOpen" @click="stationListOpen = !stationListOpen">全部站点 {{ stationListOpen ? '−' : '+' }}</button>
+              <button type="button" :aria-pressed="!mapEnabled" @click="mapEnabled = !mapEnabled">{{ mapEnabled ? '静态导览' : '三维地图' }}</button>
+            </div>
+            <ol v-if="stationListOpen" class="station-list" aria-label="十二站导览">
+              <li v-for="(node, i) in nodes" :key="node.id"><button type="button" @click="selectNode(node)"><span>{{ String(i + 1).padStart(2, '0') }}</span>{{ node.name }}<small>{{ litIds.includes(node.id) ? '已点亮' : '阅读' }}</small></button></li>
+            </ol>
+          </div>
+          <div v-if="!mapEnabled || mapFailed" class="static-guide">
+            <p class="eyebrow">{{ mapFailed ? '地图暂不可用 · 仍可继续参观' : '静态导览' }}</p><h2>山河之间，步履不停。</h2>
+            <ol><li v-for="(node, i) in nodes" :key="node.id"><button type="button" @click="selectNode(node)"><span>{{ String(i + 1).padStart(2, '0') }}</span><strong>{{ node.name }}</strong><small>{{ node.date }}</small><em>{{ litIds.includes(node.id) ? '已点亮' : '走近这一站 ↗' }}</em></button></li></ol>
+          </div>
+          <p v-else-if="!mapReady" class="map-loading" role="status">山河正在展开… <span>可先选择站点或浏览下方章节</span></p>
+          <p v-else class="map-instruction">拖动探索 · 滚轮缩放 · 双击复位</p>
+          <p class="route-scope">以中央红军行程及重要会师节点为线索，路线为概括示意。</p>
+          <EventRail :events="STORY_EVENTS" :seen="seenEvents" :progress="chainEnd - 1" :total="nodes.length - 1" :station-s="stationS" @select="openEventById" />
+          <button v-if="burning && !pausedEvent" type="button" class="skip-animation" @click="skipBurn">跳过路线动画</button>
+        </main>
+        <main v-else class="chapter-index">
+          <div class="index-heading"><div><p class="eyebrow">八个篇章 / 一段征途</p><h1>山河为证。</h1></div><p>从江河到雪山，从转折到会师。<br>选择一个章节，读懂一段历史。</p></div>
+          <div class="chapter-grid">
+            <button v-for="(event, i) in STORY_EVENTS" :key="event.id" type="button" class="chapter-entry" @click="openEventById(event.id)">
+              <div class="chapter-image"><img :src="event.image" :alt="`${event.title}氛围示意图，AI生成`" loading="lazy" decoding="async" width="960" height="600"><span>{{ String(i + 1).padStart(2, '0') }}</span></div>
+              <p>{{ event.date }}</p><h2>{{ event.title }}<span aria-hidden="true">↗</span></h2><small>{{ event.place }} · AI 氛围示意图</small>
+            </button>
+          </div>
+          <footer class="index-footer"><span>图像为 AI 生成的氛围示意，不代表历史实拍。</span><button type="button" @click="goTo('overview')">回到山河路书 ↗</button></footer>
+        </main>
+      </template>
+    </div>
+    <div v-show="mapVisible" class="map-stage" :inert="blocking || undefined"><EarthGlobe v-if="mapRequested && !mapFailed" ref="globeRef" :lit-ids="litIds" :chrome="false" :labels-on="screen === 'overview'" :show-events="false" :next-id="nextNode?.id || ''" :locked="blocking || burning" :visible="mapVisible" :reduced="reduced" :border-on="chainEnd >= nodes.length" @ready="onMapReady" @error="onMapError" @select="selectNode" @select-event="openEventById" /></div>
+    <DetailPanel v-if="activeNode" :node="activeNode" :busy="burning" :order="activeIndex + 1" :total="nodes.length" :lit="litIds.includes(activeNode.id)" :lit-count="litIds.length" :later-lit-count="litIds.filter(id => nodes.findIndex(node => node.id === id) > activeIndex).length" @close="closeNode" @navigate="navigateNode" @light-up="toggleLit" />
+    <EventScene :event="showingEvent" :index="eventIndex" :total="STORY_EVENTS.length" :return-label="screen === 'chapters' ? '返回章节' : '返回路线'" :dimmed="askOpen" @close="closeEvent" @navigate="navigateEvent" />
+    <SettingsPanel v-if="settingsOpen" :muted="mutedOn" :bgm="bgmOn" :reduced="reduced" @close="closeSettings" @restart="restart" @toggle-mute="toggleMute" @toggle-bgm="toggleBgm" @toggle-motion="toggleMotion" />
+    <FinaleScreen v-if="screen === 'finale'" :lit-count="litIds.length" @restart="restart" @browse="goTo('overview')" />
+    <AskPanel v-if="screen !== 'start' && screen !== 'finale' && !settingsOpen && !showingEvent && !activeNode" @update:open="askOpen = $event" />
   </div>
-  <ChapterCard v-if="!showingEvent && screen !== 'finale'" :chapter="activeChapter" :progress="railProgress" />
 </template>
 
-<style>
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #0b0f19;
-  overflow: hidden;
-}
-
-.main-container {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-}
-
-.story-hint {
-  position: fixed;
-  left: 50%;
-  bottom: 72px;
-  z-index: 8;
-  margin: 0;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 11px;
-  letter-spacing: 0.26em;
-  color: rgba(243, 241, 230, 0.46);
-  pointer-events: none;
-  white-space: nowrap;
-  animation: story-hint-breathe 2.8s ease-in-out infinite;
-}
-
-.story-hint i {
-  font-style: normal;
-  color: rgba(212, 175, 55, 0.38);
-  letter-spacing: 0;
-}
-
-.story-hint em {
-  font-style: normal;
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  color: rgba(163, 168, 180, 0.5);
-}
-
-@keyframes story-hint-breathe {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.skip-burn {
-  position: fixed;
-  right: 8vw;
-  bottom: 4.5vh;
-  z-index: 8;
-  padding: 0;
-  border: 0;
-  background: none;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  color: rgba(243, 241, 230, 0.4);
-  cursor: pointer;
-  transition: color 0.3s ease;
-}
-
-.skip-burn:hover {
-  color: #e9e2d4;
-}
-
-/* ---- 移动端：顶部只留一行信息，底部提示避让安全区 ---- */
-@media (max-width: 768px) {
-  .main-container.is-finale .route-strip,
-  .main-container.is-finale .ask,
-  .main-container.is-finale .story-hint {
-    display: none !important;
-  }
-
-  .main-container.is-scene .masthead-sub,
-  .main-container.is-ask-open .masthead-sub {
-    opacity: 0;
-  }
-
-  .story-hint {
-    bottom: calc(14px + env(safe-area-inset-bottom));
-  }
-}
-
-/* 窄屏：路书已提示操作，底部两行提示会让画面变挤 */
-@media (max-width: 480px) {
-  .story-hint {
-    display: none;
-  }
-}
+<style scoped>
+.is-route :deep(.ask:not(.is-open)) { bottom:190px; }
+@media(max-width:768px){.is-route :deep(.ask:not(.is-open)){bottom:210px}}
+.map-stage { position:fixed; inset:100px 0 0 24%; z-index:1; overflow:hidden; }
+.map-stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,#181a17,transparent 32%),linear-gradient(0deg,#181a17,transparent 28%)}
+@media(min-width:1700px){.map-stage{top:112px}}
+@media(max-width:768px){.map-stage{inset:330px 0 160px}.map-stage::after{background:linear-gradient(180deg,#181a17,transparent 24%,transparent 80%,#181a17)}}
+@media(max-width:480px){.map-stage{top:390px;bottom:180px}}
+.museum-app { min-height: 100svh; background: var(--museum-ink); }
+.museum-header { position: relative; z-index: 10; height: 100px; display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 0 var(--page-gutter); background: var(--museum-ink); border-bottom: 1px solid var(--hairline-soft); }
+.museum-brand { border: 0; background: none; color: var(--museum-paper); padding: 0; text-align: left; }
+.museum-brand span { display:block; font: 500 23px var(--font-display); letter-spacing: .08em; }
+.museum-brand small { display:block; color: var(--accent-gold); font-size: 13px; margin-top: 6px; letter-spacing: .12em; }
+.museum-header nav { display: flex; gap: 30px; }
+.museum-header nav button { min-height: 48px; padding: 8px 0; background:none; border:0; border-bottom:1px solid transparent; color:var(--text-muted); font-size:15px; }
+.museum-header nav button[aria-current],.museum-header nav button:hover { color:var(--museum-paper); border-color:var(--accent-gold); }
+.route-room { position: relative; min-height: calc(100svh - 100px); z-index: 2; pointer-events: none; }
+.route-heading { position:relative; z-index:3; width: min(350px,30vw); margin-left:var(--page-gutter); padding-top: clamp(32px,5vh,64px); pointer-events:auto; }
+.route-heading h1 { font:500 clamp(36px,3.3vw,60px)/1.35 var(--font-display); margin:18px 0; letter-spacing:.04em; }
+.route-intro { color:var(--text-muted); font-size:16px; line-height:1.9; }
+.route-progress { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:12px; margin:32px 0 24px; max-width:270px; font-size:14px; color:var(--text-muted); }
+.route-progress strong { font:400 28px Georgia,serif; color:var(--museum-paper); }.route-progress i{font:14px var(--font-body);color:var(--text-muted)}
+.progress-track { width:100%;height:2px;background:#45483d; }.progress-track span { display:block;height:100%;background:var(--accent-gold);transition:width .4s; }
+.route-tools { display:flex;gap:24px;margin-top:24px; }.route-tools button { border:0;border-bottom:1px solid var(--hairline);padding:8px 0;min-height:44px;background:none;color:var(--museum-paper);font-size:14px; }
+.station-list { position:absolute; top:100%; left:0; width:310px; max-height: min(360px,45svh); overflow:auto; padding:10px 20px; margin:8px 0; background:#242820; border:1px solid var(--hairline); list-style:none; box-shadow:0 12px 40px #0005; }
+.station-list button { width:100%;display:flex;gap:18px;align-items:center;min-height:44px;background:none;border:0;border-bottom:1px solid var(--hairline-soft);color:var(--museum-paper);text-align:left;font-size:16px; }.station-list span{font:13px Georgia;color:var(--accent-gold)}.station-list small{margin-left:auto;font-size:13px;color:var(--text-muted)}
+.map-instruction,.route-scope,.map-loading { position:absolute;right:var(--page-gutter);font-size:13px;color:var(--text-muted);margin:0; }
+.map-instruction{top:28px}.route-scope{bottom:174px;max-width:440px;text-align:right}.map-loading{top:42%;right:24%;text-align:center;color:var(--museum-paper);font-size:18px}.map-loading span{display:block;font-size:14px;color:var(--text-muted);margin-top:10px}
+.static-guide{position:relative;margin:-330px var(--page-gutter) 200px max(440px,35vw);padding:20px 0;pointer-events:auto}.static-guide h2{font:500 32px var(--font-display);margin:12px 0 24px}.static-guide ol{padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.static-guide li{min-width:0}.static-guide button{display:flex;flex-direction:column;align-items:flex-start;width:100%;min-height:150px;padding:18px;border:1px solid #55584b;background:#23271f;color:var(--museum-paper);text-align:left;gap:6px}.static-guide button>span{font:14px Georgia;color:var(--accent-gold)}.static-guide strong{font:500 23px var(--font-display)}.static-guide small,.static-guide em{font-size:13px;font-style:normal;color:var(--text-muted)}.static-guide button:hover{border-color:var(--accent-gold)}
+.skip-animation{position:fixed;right:var(--page-gutter);bottom:185px;z-index:20;pointer-events:auto;min-height:44px;border:1px solid var(--hairline);background:var(--museum-ink);color:var(--museum-paper);padding:8px 18px}
+.chapter-index{background:var(--museum-paper);color:var(--museum-ink);padding:64px var(--page-gutter) 120px;min-height:calc(100svh - 100px)}
+.index-heading{display:flex;justify-content:space-between;align-items:end;gap:32px;max-width:1680px;margin:0 auto 54px}.index-heading .eyebrow{color:#7a4c3d}.index-heading h1{font:500 clamp(48px,4.5vw,80px)/1.2 var(--font-display);margin:16px 0 0}.index-heading>p{color:#65675f;font-size:16px;line-height:1.9}
+.chapter-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:40px 28px;max-width:1680px;margin:auto}.chapter-entry{min-width:0;padding:0 0 20px;background:none;border:0;border-bottom:1px solid #c9c1b1;text-align:left;color:var(--museum-ink)}.chapter-image{position:relative;overflow:hidden;background:#d5cdbf;aspect-ratio:1.32}.chapter-image img{width:100%;height:100%;object-fit:cover;filter:saturate(.55);transition:transform .5s var(--ease),filter .5s}.chapter-entry:hover img{transform:scale(1.035);filter:saturate(.85)}.chapter-image>span{position:absolute;left:14px;top:12px;font:24px Georgia;color:var(--museum-paper);background:#181a17c9;padding:4px 9px}.chapter-entry>p{font-size:13px;color:#75634b;margin-top:18px}.chapter-entry h2{display:flex;align-items:center;justify-content:space-between;font:500 29px var(--font-display);margin:12px 0}.chapter-entry h2 span{font:22px var(--font-body);color:var(--accent-red)}.chapter-entry small{font-size:13px;color:#65675f}.index-footer{display:flex;justify-content:space-between;gap:24px;margin:48px auto 0;max-width:1680px;color:#65675f;font-size:13px}.index-footer button{border:0;background:none;color:var(--accent-red);font-size:15px;min-height:44px}
+@media(min-width:1700px){.route-heading{width:380px}.static-guide{margin-left:32vw}.museum-header{height:112px}.route-room{min-height:calc(100svh - 112px)}}
+@media(max-width:1100px){.chapter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.museum-header nav{gap:20px}.static-guide{margin-left:380px}.static-guide ol{grid-template-columns:repeat(2,minmax(0,1fr))}.route-scope{max-width:300px}}
+@media(max-width:768px){.museum-header{height:auto;min-height:114px;align-items:flex-start;flex-direction:column;gap:10px;padding:18px 24px 10px}.museum-brand span{font-size:20px}.museum-brand small{display:none}.museum-header nav{width:100%;justify-content:space-between;gap:10px}.museum-header nav button{font-size:14px;min-height:38px}.route-room{min-height:calc(100svh - 114px)}.route-heading{width:auto;margin:0 24px;padding-top:24px}.route-heading h1{font-size:36px;margin:10px 0}.route-heading h1 br{display:none}.route-intro{font-size:14px}.route-intro br{display:none}.route-progress{margin:18px 0 14px;max-width:260px}.route-heading .museum-button{min-height:44px}.route-tools{position:absolute;right:0;bottom:0;gap:14px}.station-list{top:100%;left:auto;right:0;width:min(340px,100%)}.map-instruction{top:auto;bottom:185px;font-size:13px;right:24px}.route-scope{display:none}.map-loading{top:50%;left:24px;right:24px;font-size:16px}.map-loading span{font-size:13px}.static-guide{margin:30px 24px 190px;padding:0}.static-guide h2{font-size:28px}.static-guide ol{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.static-guide button{min-height:136px;padding:14px}.chapter-index{padding:36px 24px 100px}.index-heading{display:block;margin-bottom:32px}.index-heading>p{margin-top:20px;font-size:15px}.chapter-grid{gap:28px 18px}.chapter-entry h2{font-size:24px}.index-footer{display:block}.index-footer button{margin-top:16px}}
+@media(max-width:480px){.route-heading h1{font-size:30px}.route-tools{position:static;margin-top:10px}.route-progress{margin:14px 0;max-width:100%}.route-intro{max-width:32ch}.route-heading .eyebrow{font-size:12px}.chapter-grid{grid-template-columns:1fr}.index-heading h1{font-size:48px}.chapter-image{aspect-ratio:1.6}.static-guide{margin-top:26px}.static-guide button{padding:12px}.map-instruction{display:none}}
+@media(prefers-reduced-motion:reduce){.chapter-image img,.progress-track span{transition:none}}
 </style>
-
-
-

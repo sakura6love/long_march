@@ -45,7 +45,7 @@ export const STATION_EXTRA = {
   },
 
   xiangjiang: {
-    lead: '五天五夜，八万六千人过江，剩下三万。',
+    lead: '湘江一战，是长征途中一次重大的牺牲。',
     sections: [
       {
         h: '第四道封锁线',
@@ -102,7 +102,7 @@ export const STATION_EXTRA = {
   },
 
   luding: {
-    lead: '二十二根铁索，一座必须拿下的桥。',
+    lead: '十三根铁索，一座必须拿下的桥。',
     sections: [
       {
         h: '一昼夜二百四十里',

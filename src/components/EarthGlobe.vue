@@ -20,6 +20,7 @@ import {
   HemisphereLight,
   LinearFilter,
   LinearMipmapLinearFilter,
+  SRGBColorSpace,
   TextureLoader,
   Vector2,
 } from 'three'
@@ -52,8 +53,11 @@ const labelItems = [...longMarchNodes.map((n) => ({ ...n, kind: 'node' })), ...e
 
 const props = defineProps({
   litIds: { type: Array, default: () => [] },
+  /** 阅读面板展开时暂停 GPU 绘制，保留地图与路线状态。 */
+  visible: { type: Boolean, default: true },
+  reduced: { type: Boolean, default: false },
   /** 播放进度：已点亮的段数（0~11）。播放时用它，自由浏览时用 litIds。 */
-  /** 事件背景图（垫在画布下方、星空层之上） */
+  /** 事件背景图，垫在画布下方。 */
   backdrop: { type: String, default: '' },
   /** 只有落在俯瞰态时才显示「双击复位」 */
   showHint: { type: Boolean, default: false },
@@ -85,7 +89,7 @@ const glowStyle = computed(() => {
   return { '--glow': String(v) }
 })
 
-const emit = defineEmits(['select', 'select-event', 'tap', 'reset'])
+const emit = defineEmits(['select', 'select-event', 'tap', 'reset', 'ready', 'error'])
 
 // 只让 DOM 容器参与 Vue 响应式；WebGL 实例使用 shallowRef，避免深度代理。
 const globeContainer = ref(null)
@@ -102,8 +106,62 @@ let introStarted = false
 
 // —— 渲染循环共享的普通变量，绝不进入响应式系统 ——
 let resizeObserver = null
-let rotationTimer = null
 let frameHandle = 0
+let disposed = false
+let failed = false
+let textureReady = false
+let burnUniforms = null
+let burnEffectsLoading = false
+const ownedTextures = new Set()
+const borderAbort = new AbortController()
+let borderLoading = false
+let webglCanvas = null
+
+function reportError(code, message) {
+  if (disposed || failed) return
+  failed = true
+  cancelAnimationFrame(frameHandle)
+  frameHandle = 0
+  globe.value?.pauseAnimation?.()
+  routeLine?.pauseAnimation?.()
+  emit('error', { code, message })
+}
+
+function handleContextLost(event) {
+  event.preventDefault()
+  reportError('webgl-context-lost', '地图显示中断，请切换到路线列表继续浏览。')
+}
+
+function moveCamera(next) {
+  if (!cameraRig) return
+  if (prefersReducedMotion()) cameraRig.apply(next)
+  else cameraRig.flyTo(next)
+}
+
+function syncRendering() {
+  if (!globe.value || failed || disposed) return
+  const on = props.visible && !document.hidden
+  if (on) {
+    resizeGlobe()
+    globe.value.resumeAnimation()
+    routeLine?.resumeAnimation?.()
+    if (!frameHandle) tick()
+  } else {
+    globe.value.pauseAnimation()
+    routeLine?.pauseAnimation?.()
+    cameraRig?.cancelFlight()
+    cancelAnimationFrame(frameHandle)
+    frameHandle = 0
+  }
+}
+watch(() => props.visible, syncRendering)
+watch(() => props.reduced, (reduced) => {
+  if (reduced) {
+    clearIntro()
+    revealAll()
+    if (cameraRig) cameraRig.apply(cameraRig.state)
+  }
+})
 
 // 当前选中的节点 id：它的卡片会保持展开。
 let activeId = null
@@ -126,6 +184,7 @@ function resizeGlobe() {
     globe.value.width(clientWidth).height(clientHeight)
     cameraRig?.reframe()
     routeLine?.resize(clientWidth, clientHeight)
+    borderGroup?.children.forEach((line) => line.material.resolution.set(clientWidth, clientHeight))
   }
 }
 
@@ -160,7 +219,8 @@ watch(
   () => props.burn,
   (v) => {
     burnValue = v
-    if (import.meta.env.DEV && window.__marchBurn) window.__marchBurn.uBurn.value = v
+    if (burnUniforms) burnUniforms.uBurn.value = v
+    if (v > 0 && textureReady) ensureBurnEffects()
   },
   { immediate: true },
 )
@@ -184,6 +244,7 @@ watch(
 
 /** 一次性的点燃动画：光点弹一下 + 一圈金环扩散。 */
 function igniteLabel(id) {
+  if (prefersReducedMotion()) return
   const record = labelRecords.find((r) => r.id === id)
   if (!record) return
   const el = record.el
@@ -211,7 +272,7 @@ function updateHeadPin(burnS) {
 
 function updateEventStates() {
   if (!globe.value || eventRecords.length === 0) return
-  if (!props.labelsOn) {
+  if (!props.labelsOn || !props.showEvents) {
     for (const record of eventRecords) {
       record.el.classList.add('is-unreached')
       record.el.classList.remove('is-reached', 'is-hot')
@@ -268,6 +329,8 @@ function updateLabelStates() {
 }
 
 function tick() {
+  frameHandle = 0
+  if (!props.visible || document.hidden || failed || disposed) return
   frameHandle = requestAnimationFrame(tick)
   // 位移被库内部清掉时立刻补回，保证"点恒在 30% 那条线上"。
   cameraRig?.ensureOffset()
@@ -281,10 +344,10 @@ function tick() {
   if (Math.abs(dimLevel - dimTarget) > 0.001) {
     dimLevel += (dimTarget - dimLevel) * 0.14
     const k = 1 - 0.93 * dimLevel
-    if (hemiLight) hemiLight.intensity = 0.55 * k
-    if (ambientLight) ambientLight.intensity = 0.12 * k
-    if (terrainLight) terrainLight.intensity = 3.05 * k
-    if (rimLight) rimLight.intensity = 0.26 * k
+    if (hemiLight) hemiLight.intensity = 0.95 * k
+    if (ambientLight) ambientLight.intensity = 0.55 * k
+    if (terrainLight) terrainLight.intensity = 1.35 * k
+    if (rimLight) rimLight.intensity = 0.18 * k
   }
 }
 
@@ -314,7 +377,7 @@ function focusNode(pointData, options = {}) {
 
   // 统一机位：飞行 1.6s，落点固定在屏高 30% 的"主角线"上。
   // 不再用 pointOfView —— 它只管中心，管不了"点落在哪条线上"。
-  cameraRig?.flyTo({
+  moveCamera({
     lat: pointData.lat,
     lng: pointData.lng,
     altitude: cameraRig.state.altitude,
@@ -395,7 +458,7 @@ watch(
     const w = globe.value?.width?.() || window.innerWidth || 0
     const h = globe.value?.height?.() || window.innerHeight || 0
     if (!w || !h || w / h >= 0.85) return
-    cameraRig?.flyTo({
+    moveCamera({
       lat: defaultView().lat,
       lng: defaultView().lng,
       altitude: url ? 0.98 : 0.46,
@@ -420,7 +483,7 @@ function resetView() {
   revealAll()
   setActive(null)
 
-  cameraRig?.flyTo({
+  moveCamera({
     lat: defaultView().lat,
     lng: defaultView().lng,
     altitude: FRAME.altitude,
@@ -451,7 +514,7 @@ defineExpose({
         .filter((i) => i >= 0),
     )
     if (introStarted) {
-      cameraRig?.flyTo({
+      moveCamera({
         lat: DEFAULT_VIEW.lat,
         lng: DEFAULT_VIEW.lng,
         altitude: FRAME.altitude,
@@ -466,7 +529,7 @@ defineExpose({
   /** 终章：镜头拉远，让整个中国进入画面 */
   pullBack() {
     hintVisible.value = false
-    cameraRig?.flyTo({
+    moveCamera({
       lat: DEFAULT_VIEW.lat,
       lng: DEFAULT_VIEW.lng,
       altitude: 0.62,
@@ -479,9 +542,12 @@ defineExpose({
     routeLine?.setVisible(false)
     clearIntro()
     hintVisible.value = false
-    cameraRig?.flyTo({ lat: 16, lng: 96, altitude: 2.0, aim: 0, duration: 1600 })
+    moveCamera({ lat: 16, lng: 96, altitude: 2.0, aim: 0, duration: 1600 })
   },
-  ignite: (from, to, handlers) => routeLine?.ignite(from, to, handlers),
+  ignite: (from, to, handlers) => {
+    ensureBurnEffects()
+    return routeLine?.ignite(from, to, handlers)
+  },
   skipFire: () => routeLine?.skip(),
   resumeFire: () => routeLine?.resume(),
   clearFire: () => {
@@ -577,13 +643,12 @@ function createChineseLabel(pointData) {
 }
 
 /** 开场时临时放宽的相机距离上限（altitude 2.0 ≈ 3 个地球半径）。 */
-const INTRO_MAX_DISTANCE = 320
 
 /** 开场动画的定时器，卸载或用户提前点击时统一清空。 */
 let introTimers = []
 
 function prefersReducedMotion() {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return props.reduced || window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 function clearIntro() {
@@ -611,17 +676,19 @@ function revealAll() {
 let borderGroup = null
 
 async function loadCountryBorder(base) {
+  if (borderLoading || borderGroup || disposed) return
+  borderLoading = true
   try {
-    const res = await fetch(`${base}geo/china-border.json`)
+    const res = await fetch(`${base}geo/china-border.json`, { signal: borderAbort.signal })
     if (!res.ok) return
     const data = await res.json()
     const rings = (Array.isArray(data?.rings) ? data.rings : []).filter(
       (r) => Array.isArray(r) && r.length > 3,
     )
-    if (!rings.length || !globe.value) return
+    if (!rings.length || !globe.value || disposed) return
 
     const group = new Group()
-    const res2 = new Vector2(window.innerWidth, window.innerHeight)
+    const res2 = new Vector2(globe.value.width(), globe.value.height())
     for (const ring of rings) {
       const pts = []
       for (const [lng, lat] of ring) {
@@ -632,8 +699,8 @@ async function loadCountryBorder(base) {
       const g = new LineGeometry()
       g.setPositions(pts)
       const m = new LineMaterial({
-        color: 0xffd88a,
-        linewidth: 2.2,
+        color: 0xb9a27e,
+        linewidth: 1.5,
         transparent: true,
         opacity: 1,
         depthWrite: false,
@@ -653,6 +720,7 @@ async function loadCountryBorder(base) {
 
 function applyBorder() {
   if (borderGroup) borderGroup.visible = props.borderOn
+  else if (props.borderOn && globe.value) loadCountryBorder(import.meta.env.BASE_URL)
 }
 
 watch(() => props.borderOn, applyBorder)
@@ -715,7 +783,7 @@ function startIntro() {
   // 相机在 mount 时已经退到整球（见 onMounted），这里只等一拍再俯冲。
   introTimers.push(
     window.setTimeout(() => {
-      cameraRig.flyTo({
+      moveCamera({
         lat: DEFAULT_VIEW.lat,
         lng: DEFAULT_VIEW.lng,
         altitude: FRAME.altitude,
@@ -756,7 +824,7 @@ function sharpenGlobeTexture() {
   if (!g) return
 
   const renderer = g.renderer?.()
-  const maxAniso = renderer?.capabilities?.getMaxAnisotropy?.() || 1
+  const maxAniso = Math.min(4, renderer?.capabilities?.getMaxAnisotropy?.() || 1)
   const material = g.globeMaterial()
 
   if (material.map) {
@@ -776,122 +844,27 @@ function sharpenGlobeTexture() {
   material.needsUpdate = true
 }
 
-onMounted(() => {
-  if (!globeContainer.value) return
-
-  // 贴图放在 public 里随包发布：比赛现场断网也能立刻出图，
-  // 不再等 unpkg 的 1.4MB（首屏黑屏两秒会毁掉开场）。
-  const assetBase = import.meta.env.BASE_URL
-
-  globe.value = Globe()(globeContainer.value)
-    .backgroundColor('rgba(0, 0, 0, 0)')
-    .globeImageUrl(`${assetBase}earth-8k.webp`)
-    .showAtmosphere(true)
-    .atmosphereColor('#a8d4ff')
-    .atmosphereAltitude(0.22)
-    // 保持原有所有节点的经纬度与标签高度不变。
-    .htmlElementsData(labelItems)
-    .htmlLat((point) => point.lat)
-    .htmlLng((point) => point.lng)
-    .htmlAltitude(0.0015)
-    .htmlTransitionDuration(0)
-    .htmlElement(createChineseLabel)
-
-  // 坐标自检：DOM 锚点中心 vs 同一经纬度的投影点，误差应 < 1.5px
-  dbg('__geoCheck', () => {
-    const g = globe.value
-    const all = [
-      ...labelRecords.map((r) => ({ ...r, kind: 'node' })),
-      ...eventRecords.map((r) => ({ ...r, kind: 'event' })),
-    ]
-    return all
-      .filter((r) => r.el && r.el.isConnected)
-      .map((r) => {
-        const p = g.getScreenCoords(r.lat, r.lng, 0.0015)
-        const rect = r.el.getBoundingClientRect()
-        return {
-          kind: r.kind,
-          id: r.id,
-          dx: +(rect.left - p.x).toFixed(2),
-          dy: +(rect.top - p.y).toFixed(2),
-        }
-      })
-  })
-
-  headPinEl = document.createElement('div')
-  headPinEl.className = 'march-head-pin'
-  headPinEl.innerHTML = '<span class="march-head-dot"></span>'
-  globeContainer.value?.appendChild(headPinEl)
-
-  const scene = globe.value.scene()
-
-  // 光照只有一个目的：把山脊刻出来，而不是把地球照亮。
-  // 环境光偏暖、压得很低，保证背光那一侧仍是深蓝而不是死黑。
-  // 天空/地面双色环境光：天空偏冷、地面偏暖，比纯环境光更有"大气"。
-  hemiLight = new HemisphereLight(0x9fc4e8, 0x2b2418, 0.55)
-  ambientLight = new AmbientLight(0x3a3a32, 0.12)
-  scene.add(hemiLight)
-  scene.add(ambientLight)
-
-  // 主光：仰角约 9°，从西南方斜切过来 —— 山体阴影被拉长，
-  // 近景才有"摸得到"的起伏；再高就变成正午平光，地形立刻变平。
-  terrainLight = new DirectionalLight(0xffe6c0, 3.05)
-  terrainLight.position.set(-180, 30, 125)
-  scene.add(terrainLight)
-
-  // 补光：极暗的冷色，只负责勾出右上方的球缘，避免边缘融进背景。
-  rimLight = new DirectionalLight(0x5b7fa6, 0.26)
-  rimLight.position.set(120, 18, -160)
-  scene.add(rimLight)
-
-  // 路线火线：先铺一条余烬虚线，点亮的段由 watch(litIds) 重建。
-  routeLine = createRouteLine(globe.value, longMarchNodes, STORY_EVENTS)
-  loadCountryBorder(assetBase)
-  syncEventPositions()
-  dbg('__route', routeLine)
-  dbg('__globe', globe.value)
-  // 序章默认干净：火线、余烬、火焰先全部收起，进俯瞰时再打开
-  routeLine.setVisible(false)
-  routeLine.setLit(
-    props.litIds.map((id) => longMarchNodes.findIndex((n) => n.id === id)).filter((i) => i >= 0),
-  )
-
-  const globeMaterial = globe.value.globeMaterial()
-
-  // 法线与高光贴图：让"山脊有起伏、海面有反光"。
-  // 两张都是数据图，必须保持线性色彩空间（不要设 SRGBColorSpace）。
-  const maxAniso = globe.value.renderer().capabilities.getMaxAnisotropy()
-  const textureLoader = new TextureLoader()
-  const normalTexture = textureLoader.load(`${assetBase}earth-normal.png`)
-  const specularTexture = textureLoader.load(`${assetBase}earth-specular.png`)
-  normalTexture.anisotropy = maxAniso
-  specularTexture.anisotropy = maxAniso
-
-  globeMaterial.normalMap = normalTexture
-  globeMaterial.normalScale.set(2.2, 2.2)
-  globeMaterial.specularMap = specularTexture
-  // 海面高光压成冷灰蓝：纯白会立刻变"湿塑料"。
-  globeMaterial.specular.set(0x3a4d60)
-  globeMaterial.shininess = 70
-  // 微暖的基色乘上去，把贴图里过饱和的蓝绿压回 UI 的暖灰调子。
-  globeMaterial.color.set('#f7f1e4')
-  globeMaterial.roughness = 0.9
-  globeMaterial.metalness = 0.02
-  globeMaterial.emissive.set('#121821')
-  globeMaterial.emissiveIntensity = 0.05
-  globeMaterial.needsUpdate = true
-
+async function ensureBurnEffects() {
+  if (!textureReady || !globe.value || burnUniforms || burnEffectsLoading || prefersReducedMotion()) return
+  burnEffectsLoading = true
+  try {
 // —— 地区燃烧：三张烘焙图 + 四个 uniform ——
 const bakeBase = `${import.meta.env.BASE_URL}bake/`
 const bakeLoader = new TextureLoader()
-const ignTex = bakeLoader.load(`${bakeBase}ignition.png`)
-const cnTex = bakeLoader.load(`${bakeBase}china.png`)
-const crustTex = bakeLoader.load(`${bakeBase}crust.png`)
-const burnUniforms = {
+const results = await Promise.allSettled(['ignition.png', 'china.png', 'crust.png'].map((name) => bakeLoader.loadAsync(`${bakeBase}${name}`)))
+const loaded = results.filter((r) => r.status === 'fulfilled').map((r) => r.value)
+if (disposed || !globe.value || loaded.length !== 3) {
+  loaded.forEach((texture) => texture.dispose())
+  return
+}
+const [ignTex, cnTex, crustTex] = loaded
+loaded.forEach((texture) => ownedTextures.add(texture))
+const globeMaterial = globe.value.globeMaterial()
+burnUniforms = {
   uIgnition: { value: ignTex },
   uChina: { value: cnTex },
   uCrust: { value: crustTex },
-  uBurn: { value: 0 },
+  uBurn: { value: burnValue },
 }
 globeMaterial.defines = Object.assign({}, globeMaterial.defines, { USE_UV: '' })
 globeMaterial.needsUpdate = true
@@ -939,49 +912,163 @@ uniform float uBurn;`,
     )
 }
 dbg('__marchBurn', burnUniforms)
-
-
-  // 机位统一交给 cameraRig。
-  cameraRig = createCameraRig(globe.value)
-
-  // 新机位模型自己管相机：OrbitControls 只保留 target 同步，输入全部关闭，
-  // 免得它和 placeCamera 抢相机的朝向。
-  const controls = globe.value.controls()
-  controls.enabled = false
-  controls.enableZoom = false
-  controls.enablePan = false
-  controls.enableRotate = false
-  controls.enableDamping = false
-
-  resizeGlobe()
-
-  // 首帧就站在"整球"的位置：球缘弧线正好压在画面上沿 12% 处。
-  // 先给 OrbitControls 放宽距离上限，否则它会把 3 个半径夹回近景。
-  if (!prefersReducedMotion()) {
-    cameraRig.apply({ lat: 16, lng: 96, altitude: 2.0, aim: 0 })
+  } catch {
+    // 装饰性的点亮贴图失败时保留可读的地形、节点与路线。
   }
+}
 
-  resizeObserver = new ResizeObserver(resizeGlobe)
-  resizeObserver.observe(globeContainer.value)
+onMounted(async () => {
+  if (!globeContainer.value) return
 
-  // 标签的遮挡 / 翻面判定跟着渲染帧走，成本是 12 次点积，可以忽略。
-  tick()
+  // 贴图放在 public 里随包发布：比赛现场断网也能立刻出图，
+  // 不再等 unpkg 的 1.4MB（首屏黑屏两秒会毁掉开场）。
+  const assetBase = import.meta.env.BASE_URL
+  try {
+    globe.value = Globe({ animateIn: false, rendererConfig: { antialias: true, alpha: true, powerPreference: 'low-power' } })(globeContainer.value)
+      .backgroundColor('rgba(0, 0, 0, 0)')
+      .showAtmosphere(false)
+      // 保持原有所有节点的经纬度与标签高度不变。
+      .htmlElementsData(labelItems)
+      .htmlLat((point) => point.lat)
+      .htmlLng((point) => point.lng)
+      .htmlAltitude(0.0015)
+      .htmlTransitionDuration(0)
+      .htmlElement(createChineseLabel)
+      // 自定义相机不会触发 OrbitControls 的 POV 更新；背面遮挡由
+      // updateLabelStates 每帧负责，避免库以旧相机位置隐藏全部 DOM 标记。
+      .htmlElementVisibilityModifier(() => {})
 
-  // 开场要等贴图真的画出来再开始，否则"俯冲"发生在黑屏上。
-  // 同时留一个兜底：贴图迟迟不来（或加载失败）也不能让光点永远不出现。
-  // 序章阶段先停在远景（整球缓转），由 App 调 enterOverview() 再俯冲。
-  globe.value.onGlobeReady(() => {
+    globe.value.renderer().setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
+    webglCanvas = globe.value.renderer().domElement
+    webglCanvas.addEventListener('webglcontextlost', handleContextLost)
+
+    // 坐标自检：DOM 锚点中心 vs 同一经纬度的投影点，误差应 < 1.5px
+    dbg('__geoCheck', () => {
+      const g = globe.value
+      const all = [
+        ...labelRecords.map((r) => ({ ...r, kind: 'node' })),
+        ...eventRecords.map((r) => ({ ...r, kind: 'event' })),
+      ]
+      return all
+        .filter((r) => r.el && r.el.isConnected)
+        .map((r) => {
+          const p = g.getScreenCoords(r.lat, r.lng, 0.0015)
+          const rect = r.el.getBoundingClientRect()
+          return {
+            kind: r.kind,
+            id: r.id,
+            dx: +(rect.left - p.x).toFixed(2),
+            dy: +(rect.top - p.y).toFixed(2),
+          }
+        })
+    })
+
+    headPinEl = document.createElement('div')
+    headPinEl.className = 'march-head-pin'
+    headPinEl.innerHTML = '<span class="march-head-dot"></span>'
+    globeContainer.value?.appendChild(headPinEl)
+
+    const scene = globe.value.scene()
+
+    // 暖灰环境光保留山川纹理，与纸色档案面板一致。
+    hemiLight = new HemisphereLight(0xe8dfcb, 0x595247, 0.95)
+    ambientLight = new AmbientLight(0xe4ded0, 0.55)
+    scene.add(hemiLight)
+    scene.add(ambientLight)
+
+    // 主光：仰角约 9°，从西南方斜切过来 —— 山体阴影被拉长，
+    // 近景才有"摸得到"的起伏；再高就变成正午平光，地形立刻变平。
+    terrainLight = new DirectionalLight(0xffeed6, 1.35)
+    terrainLight.position.set(-180, 30, 125)
+    scene.add(terrainLight)
+
+    // 中性补光保留边界，不绘制蓝色大气光圈。
+    rimLight = new DirectionalLight(0xbfb6a4, 0.18)
+    rimLight.position.set(120, 18, -160)
+    scene.add(rimLight)
+
+    // 路线火线：先铺一条余烬虚线，点亮的段由 watch(litIds) 重建。
+    routeLine = createRouteLine(globe.value, longMarchNodes, STORY_EVENTS)
+    if (props.borderOn) loadCountryBorder(assetBase)
+    syncEventPositions()
+    dbg('__route', routeLine)
+    dbg('__globe', globe.value)
+    // 序章默认干净：火线、余烬、火焰先全部收起，进俯瞰时再打开
+    routeLine.setVisible(false)
+    routeLine.setLit(
+      props.litIds.map((id) => longMarchNodes.findIndex((n) => n.id === id)).filter((i) => i >= 0),
+    )
+
+    const globeMaterial = globe.value.globeMaterial()
+
+    // 仅载入一张分级主纹理；地形依靠底图细节和柔和侧光，不再预取法线/高光图。
+    globeMaterial.specular.set(0x39372f)
+    globeMaterial.shininess = 5
+    globeMaterial.color.set('#c6bca3')
+    globeMaterial.emissive.set('#302d25')
+    globeMaterial.emissiveIntensity = 0.13
+    globeMaterial.needsUpdate = true
+
+    // 机位统一交给 cameraRig。
+    cameraRig = createCameraRig(globe.value)
+
+    // 新机位模型自己管相机：OrbitControls 只保留 target 同步，输入全部关闭，
+    // 免得它和 placeCamera 抢相机的朝向。
+    const controls = globe.value.controls()
+    controls.enabled = false
+    controls.enableZoom = false
+    controls.enablePan = false
+    controls.enableRotate = false
+    controls.enableDamping = false
+
+    resizeGlobe()
+
+    // 首帧就站在"整球"的位置：球缘弧线正好压在画面上沿 12% 处。
+    if (!prefersReducedMotion()) {
+      cameraRig.apply({ lat: 16, lng: 96, altitude: 2.0, aim: 0 })
+    }
+
+    resizeObserver = new ResizeObserver(resizeGlobe)
+    resizeObserver.observe(globeContainer.value)
+
+    // 标签的遮挡 / 翻面判定跟着渲染帧走，成本是 12 次点积，可以忽略。
+    document.addEventListener('visibilitychange', syncRendering)
+    window.addEventListener('resize', resizeGlobe)
+    syncRendering()
+
+    // 窄屏、节省流量及慢网选 2K；其他桌面选 4K。每次只请求其中一张。
+    const connection = navigator.connection
+    const compact = globeContainer.value.clientWidth <= 900 || connection?.saveData || /(^|-)2g$|3g/.test(connection?.effectiveType || '')
+    const texture = await new TextureLoader().loadAsync(`${assetBase}earth-${compact ? '2k' : '4k'}.webp`)
+    if (disposed || !globe.value || failed) {
+      texture.dispose()
+      return
+    }
+    ownedTextures.add(texture)
+    texture.colorSpace = SRGBColorSpace
+    globeMaterial.map = texture
+    globeMaterial.needsUpdate = true
     sharpenGlobeTexture()
-  })
+    textureReady = true
+    if (props.burn > 0) ensureBurnEffects()
+    emit('ready')
 
-  // 仅供开发期截图/标定使用；生产构建会被 tree-shake 掉。
-  if (import.meta.env.DEV) {
-    dbg('__marchRig', cameraRig)
-    dbg('__marchGlobe', globe.value)
+    // 仅供开发期截图/标定使用；生产构建会被 tree-shake 掉。
+    if (import.meta.env.DEV) {
+      dbg('__marchRig', cameraRig)
+      dbg('__marchGlobe', globe.value)
+    }
+  } catch (error) {
+    reportError('map-load-failed', '地图暂时无法载入，请使用路线列表继续浏览。')
   }
 })
 
 onBeforeUnmount(() => {
+  disposed = true
+  borderAbort.abort()
+  webglCanvas?.removeEventListener('webglcontextlost', handleContextLost)
+  document.removeEventListener('visibilitychange', syncRendering)
+  window.removeEventListener('resize', resizeGlobe)
   headPinEl?.remove()
   headPinEl = null
   clearIntro()
@@ -991,13 +1078,21 @@ onBeforeUnmount(() => {
   cameraRig?.cancelFlight()
   cameraRig = null
 
+  routeLine?.clear()
   routeLine?.dispose()
   routeLine = null
-  window.clearTimeout(rotationTimer)
   resizeObserver?.disconnect()
   resizeObserver = null
 
+  borderGroup?.children.forEach((line) => {
+    line.geometry.dispose()
+    line.material.dispose()
+  })
+  borderGroup = null
+  ownedTextures.forEach((texture) => texture.dispose())
+  ownedTextures.clear()
   labelRecords.length = 0
+  eventRecords.length = 0
   activeId = null
   hoverSuspended = null
 
@@ -1013,7 +1108,7 @@ onBeforeUnmount(() => {
   <div
     class="horizon-frame"
     :style="glowStyle"
-    :class="{ 'is-finale': finale, 'labels-muted': labelsMuted, 'labels-off': !labelsOn }"
+    :class="{ 'is-finale': finale, 'labels-muted': labelsMuted, 'labels-off': !labelsOn, 'is-reduced': reduced, 'is-paused': !visible }"
     aria-label="长征路线俯瞰地球，显示中国境内的十二个历史节点"
     @dblclick="handleDoubleClick"
     @pointerdown="handlePointerDown"
@@ -1024,23 +1119,14 @@ onBeforeUnmount(() => {
     @wheel.prevent="handleWheel"
   >
     <div class="event-backdrop" :class="{ 'is-on': backdropOn }" aria-hidden="true">
-      <img ref="imgA" class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 0 }" :src="bgA" alt="" />
-      <img ref="imgB" class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 1 }" :src="bgB" alt="" />
+      <img v-if="bgA" ref="imgA" class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 0 }" :src="bgA" alt="" />
+      <img v-if="bgB" ref="imgB" class="event-backdrop-img" :class="{ 'is-shown': activeLayer === 1 }" :src="bgB" alt="" />
     </div>
     <div
       ref="globeContainer"
       class="earth-globe"
       aria-label="长征路线数字地球，显示瑞金、遵义等历史节点"
     ></div>
-    <header v-if="chrome" class="masthead">
-      <p class="masthead-kicker" aria-hidden="true">
-        <span class="readout-dot"></span>
-        LOW EARTH ORBIT / CN-ROUTE
-      </p>
-      <h1 class="masthead-title">长征万里 · 薪火千秋</h1>
-      <p class="masthead-sub">1934—1936 · 十二个坐标，一条改变中国的路</p>
-    </header>
-
     <Transition name="hint">
       <p v-if="hintVisible && showHint" class="overlook-hint" aria-hidden="true">双击复位</p>
     </Transition>
@@ -1049,714 +1135,92 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .horizon-frame {
-  transition: transform 2.2s cubic-bezier(0.25, 1, 0.5, 1);
-  transform-origin: 50% 46%;
   position: relative;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   min-height: 360px;
   overflow: hidden;
   isolation: isolate;
   touch-action: none;
-  background:
-    radial-gradient(ellipse at 50% 46%, rgba(58, 96, 130, 0.22), transparent 58%),
-    linear-gradient(180deg, #03060b 0%, #050a12 48%, #0a1622 100%);
+  cursor: grab;
+  background: radial-gradient(ellipse at 50% 42%, #45473e 0%, #30332c 52%, #20231e 100%);
 }
-
-/* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
-@media (max-width: 768px) {
-  .march-label-node { width: 13px; height: 17px; }
-  .event-backdrop-img { object-position: 50% 30%; }
-  .event-backdrop::after {
-    background:
-      linear-gradient(180deg, rgba(3, 6, 11, 0.26) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.62) 100%),
-      radial-gradient(ellipse at 50% 62%, rgba(122, 162, 205, 0.10) 0%, transparent 58%);
-  }
-  .horizon-frame.labels-muted :deep(.march-label-card) {
-    opacity: 0 !important;
-    pointer-events: none;
-  }
-}
-
-.horizon-frame.is-finale {
-  transform: none;
-}
-
-.horizon-frame::before {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  background: url('/stars.png') center / cover no-repeat;
-  opacity: 0.85;
-  content: '';
-  pointer-events: none;
-}
-
-.horizon-frame::after {
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(7, 11, 19, 0.52), transparent 22%, transparent 52%, rgba(7, 11, 19, 0.82) 100%),
-    radial-gradient(ellipse at 50% 30%, transparent 30%, rgba(3, 6, 11, 0.6) 100%);
-  content: '';
-  pointer-events: none;
-}
-
-/* globe.gl 会往容器里塞一个自带的操作提示条（.scene-nav-info），
-   那是库的预制 UI，和整体设计不搭，直接藏掉。 */
-:deep(.scene-nav-info) {
-  display: none !important;
-}
-
-/* 事件背景：垫在画布下方、星空上方；只在事件播放时显形。 */
-.event-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.9s ease;
-}
-
-.event-backdrop.is-on {
-  opacity: 1;
-  animation: sceneDrift 22s ease-out both;
-}
-
-@keyframes sceneDrift {
-  from { transform: scale(1.06); }
-  to { transform: scale(1.0); }
-}
-
-.event-backdrop::after {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(3, 6, 11, 0.30) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.62) 100%),
-    radial-gradient(ellipse at 50% 62%, rgba(122, 162, 205, 0.10) 0%, transparent 58%);
-  content: '';
-}
-
-.event-backdrop-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  will-change: opacity;
-  filter: saturate(0.95) brightness(0.82) contrast(1.04);
-  transition: opacity 1.1s ease;
-}
-
-.event-backdrop-img.is-shown {
-  opacity: 1;
-}
-
-/* 画布本身严格覆盖全屏。 */
-.earth-globe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: visible;
-}
-
-:deep(canvas) {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.masthead {
-  position: absolute;
-  z-index: 6;
-  top: 26px;
-  left: 34px;
-  max-width: 46vw;
-  pointer-events: none;
-}
-
-.masthead-kicker {
-  display: flex;
-  margin: 0 0 12px;
-  align-items: center;
-  gap: 9px;
-  color: var(--accent-gold);
-  font: 10px/1 'Space Mono', ui-monospace, monospace;
-  letter-spacing: 0.18em;
-  opacity: 0.9;
-}
-
-/* 标题是"抬头看得到、低头不抢戏"的存在感：小字号 + 宋体 + 大量字距。 */
-.masthead-title {
-  margin: 0;
-  color: #f7f5ec;
-  font-family: var(--font-display);
-  font-size: 40px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  line-height: 1.15;
-  text-shadow: 0 1px 18px rgba(4, 7, 12, 0.75);
-}
-
-.overlook-hint {
-  display: none; /* 已并入 App 的 story-hint，避免底部堆三行 */
-  position: fixed;
-  z-index: 6;
-  bottom: 22px;
-  left: 50%;
-  margin: 0;
-  transform: translateX(-50%);
-  color: rgba(243, 241, 230, 0.26);
-  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
-  font-size: 11px;
-  letter-spacing: 0.24em;
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.hint-enter-active {
-  transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.hint-enter-from {
-  opacity: 0;
-}
-
-.masthead-sub {
-  margin: 10px 0 0;
-  color: var(--text-dim);
-  font-family: var(--font-body);
-  font-size: 12px;
-  letter-spacing: 0.02em;
-}
-
-.readout-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent-gold);
-  box-shadow: 0 0 12px var(--accent-gold);
-}
-
-/* ———————————————————— 标签 ———————————————————— */
-
-
-:deep(.march-head-pin) {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 0;
-  height: 0;
-  z-index: 12;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 260ms ease;
-  will-change: transform;
-}
-
-:deep(.march-head-dot) {
-  position: absolute;
-  left: -5px;
-  top: -5px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #8c2a17;
-  border: 1.5px solid #e8c98a;
-  box-shadow: 0 0 10px rgba(200, 70, 40, 0.75), 0 0 22px rgba(140, 42, 23, 0.45);
-}
-
-:deep(.march-event-anchor) {
-  position: relative;
-  width: 20px;
-  height: 20px;
-  z-index: 30;
-  padding: 0;
-  border: 0;
-  background: none;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-:deep(.march-event-diamond) {
-  position: absolute;
-  left: 13px;
-  top: 7px;
-  width: 5px;
-  height: 5px;
-  transform: rotate(45deg);
-  background: rgba(212, 175, 55, 0.22);
-  border: 1px solid rgba(232, 201, 138, 0.75);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
-  transition: transform 300ms var(--ease), background 260ms, box-shadow 260ms;
-}
-
-
-:deep(.march-event-tip) {
-  position: absolute;
-  left: 16px;
-  top: -18px;
-  padding: 2px 6px;
-  white-space: nowrap;
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
-  color: rgba(243, 241, 230, 0.92);
-  background: rgba(8, 12, 18, 0.86);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  opacity: 0;
-  transform: translateY(2px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  pointer-events: none;
-}
-
-:deep(.march-event-anchor:hover .march-event-tip) {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-:deep(.march-event-anchor.is-unreached) {
-  opacity: 0;
-  pointer-events: none;
-}
-
-:deep(.march-event-anchor.is-reached .march-event-diamond) {
-  background: var(--accent-gold);
-  border-color: #ffeec4;
-}
-
-:deep(.march-event-anchor.is-hot .march-event-diamond) {
-  background: #ffe6b0;
-  border-color: #fff6d6;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 10px rgba(243, 212, 140, 0.85);
-  transform: rotate(45deg) scale(1.25);
-}
-
-:deep(.march-event-anchor:hover .march-event-diamond) {
-  background: #ffd88a;
-  transform: rotate(45deg) scale(1.35);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 10px rgba(232, 201, 138, 0.7);
-}
-
-.horizon-frame.labels-off :deep(.march-label-anchor),
-.horizon-frame.labels-off :deep(.march-event-anchor) {
-  opacity: 0 !important;
-  visibility: hidden;
-  pointer-events: none !important;
-}
-
-:deep(.march-label-anchor) {
-  position: relative;
-  display: block;
-  width: 0;
-  height: 0;
-  padding: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  cursor: pointer;
-  pointer-events: auto;
-  opacity: 1;
-  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-/* 锚点是 0×0，用伪元素撑出 36px 的透明命中圆，
-   用户不必精准点到 9px 的小圆点。 */
-:deep(.march-label-anchor::before) {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  content: '';
-  transform: translate(-50%, -50%);
-}
-
-/* 转到球体背面：整块淡出，同时让出点击。 */
-:deep(.march-label-anchor.is-far) {
-  opacity: 0;
-  pointer-events: none;
-}
-
-:deep(.march-label-anchor.is-far .march-label-card),
-:deep(.march-label-anchor.is-far .march-label-node),
-:deep(.march-label-anchor.is-far::before) {
-  pointer-events: none;
-}
-
-:deep(.march-label-node) {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 14px;
-  height: 18px;
-  overflow: visible;
-  transform: translate(-50%, -50%);
-  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.55));
-  transition:
-    opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1),
-    filter 0.45s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-:deep(.march-label-node .ember-shape) {
-  fill: none;
-  stroke: rgba(243, 176, 112, 0.92);
-  stroke-width: 1.75;
-  stroke-linejoin: round;
-  transition:
-    fill 0.45s cubic-bezier(0.25, 1, 0.5, 1),
-    stroke 0.45s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-/* 开场镜头还没停稳时，光点处于"未点亮"状态，也不接受点击。 */
-:deep(.march-label-anchor.is-lit .march-label-node) {
-  width: 15px;
-  height: 20px;
-  filter:
-    drop-shadow(0 0 5px rgba(255, 120, 50, 0.55))
-    drop-shadow(0 0 12px rgba(255, 90, 30, 0.28));
-}
-
-:deep(.march-label-anchor.is-lit .march-label-node .ember-shape) {
-  fill: #f2541b;
-  stroke: rgba(255, 196, 150, 0.85);
-}
-
-/* 下一站：只有这一颗在呼吸，其余保持安静 */
-:deep(.march-label-anchor.is-next .march-label-node) {
-  animation: node-breathe 2.6s var(--ease) infinite;
-}
-
-@keyframes node-breathe {
-  0%, 100% {
-    filter: drop-shadow(0 0 0 rgba(255, 150, 80, 0)) drop-shadow(0 0 3px rgba(0, 0, 0, 0.5));
-  }
-  50% {
-    filter: drop-shadow(0 0 6px rgba(255, 150, 80, 0.85)) drop-shadow(0 0 14px rgba(255, 120, 50, 0.45));
-  }
-}
-
-:deep(.march-label-anchor:hover .march-label-node) {
-  transform: translate(-50%, -50%) scale(1.22);
-}
-
-:deep(.march-label-anchor.is-pending) {
-  pointer-events: none;
-}
-
-:deep(.march-label-anchor.is-pending .march-label-node) {
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.2);
-}
-
-/* 点亮的一瞬间：先胀开一圈光晕，再收回常态 —— 像有人在天上点了盏灯。 */
-:deep(.march-label-anchor.is-revealed .march-label-node) {
-  animation: march-node-bloom 900ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-@keyframes march-node-bloom {
-  0% {
-    transform: translate(-50%, -50%) scale(1.9);
-    filter: drop-shadow(0 0 10px rgba(255, 190, 120, 0.95));
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-:deep(.march-label-beam) {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 30px;
-  height: 1px;
-  background: linear-gradient(90deg, #f8df9c, rgba(212, 175, 55, 0.2));
-  box-shadow: 0 0 8px rgba(224, 189, 114, 0.8);
-  /* 默认收成一小段并隐藏，避免静止时每个点后面都拖一根毛刺。 */
-  opacity: 0;
-  transform: translate(var(--beam-shift, 3px), -50%) scaleX(0.35);
-  transform-origin: left center;
-  transition:
-    opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1),
-    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-/* 卡片默认隐藏：靠 --slide-x 做位移，和垂直居中互不打架。 */
-:deep(.march-label-card) {
-  --slide-x: -6px;
-
-  position: absolute;
-  top: 0;
-  left: 30px;
-  display: grid;
-  min-width: 92px;
-  padding: 7px 10px 8px;
-  border: 1px solid rgba(224, 189, 114, 0.56);
-  border-left: 2px solid var(--accent-gold);
-  border-radius: 1px 5px 5px 1px;
-  background:
-    linear-gradient(135deg, rgba(46, 52, 56, 0.92), rgba(11, 18, 26, 0.86)),
-    radial-gradient(circle at 0 0, rgba(224, 189, 114, 0.18), transparent 55%);
-  box-shadow:
-    8px 8px 0 rgba(5, 9, 14, 0.42),
-    0 5px 18px rgba(0, 0, 0, 0.32),
-    inset 0 1px rgba(255, 255, 255, 0.11);
-  color: var(--text-main);
-  font-family: 'Microsoft YaHei', 'Noto Sans CJK SC', 'PingFang SC', sans-serif;
-  text-align: left;
-  text-wrap: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-50%) translateX(var(--slide-x));
-  transition:
-    opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1) 0.12s,
-    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1) 0.12s,
-    background 0.45s cubic-bezier(0.25, 1, 0.5, 1),
-    border-color 0.45s cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 0.45s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-:deep(.march-label-code) {
-  color: var(--accent-gold);
-  font: 8px/1 'Space Mono', ui-monospace, monospace;
-  letter-spacing: 0.12em;
-}
-
-:deep(.march-label-card strong) {
-  margin-top: 4px;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  white-space: nowrap;
-}
-
-:deep(.march-label-card small) {
-  margin-top: 3px;
-  color: rgba(243, 241, 230, 0.55);
-  font: 9px/1.2 'Space Mono', ui-monospace, monospace;
-}
-
-/* 靠近屏幕右缘：卡片翻到左侧，引线同步反向。 */
-:deep(.march-label-anchor.is-flipped .march-label-card) {
-  --slide-x: 6px;
-
-  right: 30px;
-  left: auto;
-  border-right: 2px solid var(--accent-gold);
-  border-left: 1px solid rgba(224, 189, 114, 0.56);
-  border-radius: 5px 1px 1px 5px;
-  text-align: right;
-}
-
-:deep(.march-label-anchor.is-flipped .march-label-beam) {
-  --beam-shift: -3px;
-
-  left: -30px;
-  background: linear-gradient(270deg, #f8df9c, rgba(212, 175, 55, 0.2));
-  transform-origin: right center;
-}
-
-/* 悬停 / 键盘聚焦 / 选中：三种状态共用同一套展开样式。 */
-:deep(.march-label-anchor:hover .march-label-beam),
-:deep(.march-label-anchor:focus-visible .march-label-beam) {
-  opacity: 1;
-  transform: translate(var(--beam-shift, 3px), -50%) scaleX(1);
-}
-
-:deep(.march-label-anchor:hover .march-label-card),
-:deep(.march-label-anchor:focus-visible .march-label-card) {
-  --slide-x: 0px;
-
-  border-color: #f8df9c;
-  background:
-    linear-gradient(135deg, rgba(74, 61, 38, 0.96), rgba(17, 24, 29, 0.94)),
-    radial-gradient(circle at 0 0, rgba(224, 189, 114, 0.26), transparent 55%);
-  box-shadow:
-    10px 10px 0 rgba(5, 9, 14, 0.46),
-    0 7px 24px rgba(212, 175, 55, 0.2),
-    inset 0 1px rgba(255, 255, 255, 0.15);
-  opacity: 1;
-  pointer-events: auto;
-  transition-delay: 0.18s, 0.18s, 0s, 0s, 0s;
-}
-
-/* 点亮过的站点：光点常亮一层暖金，和"还没点亮"的点拉开差别。 */
-:deep(.march-label-anchor.is-next .march-label-node) {
-  animation: march-next-pulse 1.7s cubic-bezier(0.25, 1, 0.5, 1) infinite;
-}
-
-/* 行军标记：由 3D 旗帜承担，标签这里不再插旗 */
-
-@keyframes march-next-pulse {
-  0%,
-  100% {
-    transform: translate(-50%, -50%) scale(1);
-    filter: drop-shadow(0 0 3px rgba(246, 220, 156, 0.45));
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.22);
-    filter:
-      drop-shadow(0 0 9px rgba(246, 220, 156, 0.95))
-      drop-shadow(0 0 20px rgba(255, 140, 60, 0.65));
-  }
-}
-
-:deep(.march-label-anchor.is-lit .march-label-node) {
-  background: transparent;
-  filter:
-    drop-shadow(0 0 5px rgba(255, 120, 50, 0.55))
-    drop-shadow(0 0 14px rgba(224, 189, 114, 0.45));
-}
-
-/* 刚被点亮的瞬间：光点弹一下、金环炸开一次，然后回到常亮态。 */
-:deep(.march-label-anchor.is-igniting .march-label-node) {
-  animation: node-ignite 900ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-@keyframes node-ignite {
-  0% {
-    transform: translate(-50%, -50%) scale(1);
-    filter: drop-shadow(0 0 8px rgba(255, 150, 80, 0.5));
-  }
-  30% {
-    transform: translate(-50%, -50%) scale(2.1);
-    filter: drop-shadow(0 0 22px rgba(255, 150, 80, 0.95));
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1);
-    filter: drop-shadow(0 0 10px rgba(224, 189, 114, 0.55));
-  }
-}
-
-:deep(.march-label-anchor.is-active .march-label-node) {
-  background: transparent;
-  filter: drop-shadow(0 0 16px rgba(243, 212, 140, 0.95));
-  transform: translate(-50%, -50%) scale(1.28);
-}
-
-@media (max-width: 768px) {
-  /* 手机屏窄，地球铺满整屏：顶部压暗一层，标题才压得住画面。 */
-  /* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
-.horizon-frame::before {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  background: url('/stars.png') center / cover no-repeat;
-  opacity: 0.85;
-  content: '';
-  pointer-events: none;
-}
-
-.horizon-frame::after {
-    background:
-      linear-gradient(180deg, rgba(7, 11, 19, 0.78), transparent 26%, transparent 68%, rgba(7, 11, 19, 0.6)),
-      radial-gradient(ellipse at 50% 74%, transparent 34%, rgba(3, 6, 11, 0.5) 100%);
-  }
-
-  .masthead {
-    top: 18px;
-    left: 18px;
-    max-width: 72vw;
-  }
-
-  .masthead-kicker {
-    margin-bottom: 8px;
-    font-size: 8px;
-  }
-
-  .masthead-title {
-    font-size: 15px;
-    letter-spacing: 0.24em;
-  }
-
-  .overlook-hint {
-  display: none; /* 已并入 App 的 story-hint，避免底部堆三行 */
-  position: fixed;
-  z-index: 6;
-  bottom: 22px;
-  left: 50%;
-  margin: 0;
-  transform: translateX(-50%);
-  color: rgba(243, 241, 230, 0.26);
-  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
-  font-size: 11px;
-  letter-spacing: 0.24em;
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.hint-enter-active {
-  transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.hint-enter-from {
-  opacity: 0;
-}
-
-.masthead-sub {
-    margin-top: 6px;
-    font-size: 9.5px;
-  }
-
-  :deep(.march-label-card) {
-    min-width: 76px;
-    padding: 5px 7px 6px;
-    left: 18px;
-  }
-
-  :deep(.march-label-card strong) {
-    font-size: 12px;
-  }
-
-  :deep(.march-label-beam) {
-    width: 18px;
-  }
-
-  :deep(.march-label-anchor.is-flipped .march-label-card) {
-    right: 18px;
-  }
-
-  :deep(.march-label-anchor.is-flipped .march-label-beam) {
-    left: -18px;
-    width: 18px;
-  }
-}
-
-/* 选中/点燃的站点：收掉标签电自带的柔光，火焰与火线才是唯一光源 */
-.march-label-anchor.is-active,
-.march-label-anchor.is-lit,
-.march-label-anchor.is-igniting,
-.march-label-anchor.is-active > *,
-.march-label-anchor.is-lit > *,
-.march-label-anchor.is-igniting > * {
-  box-shadow: none !important;
-}
-
-/* 俯瞰态整体可拖：给一个明确的手型 */
-.horizon-frame { cursor: grab; }
 .horizon-frame:active { cursor: grabbing; }
-/* 横屏手机：标题区让位给事件文案 */
-@media (max-height: 480px) and (orientation: landscape) {
-  .masthead {
-    opacity: 0;
-    pointer-events: none;
-  }
+.horizon-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(24, 25, 21, .34), transparent 25%, transparent 66%, rgba(24, 25, 21, .7));
 }
-
-
-/* 金色进度：越往后越亮、越金（不改红、不压暗） */
+.earth-globe { position: absolute; inset: 0; overflow: visible; }
+:deep(canvas) { display: block; width: 100%; height: 100%; }
 .horizon-frame :deep(canvas) {
-  filter: sepia(calc(var(--glow, 0) * 0.46))
-          saturate(calc(1 + var(--glow, 0) * 0.45))
-          brightness(calc(1 + var(--glow, 0) * 0.24))
-          hue-rotate(calc(var(--glow, 0) * -10deg))
-          contrast(calc(1 - var(--glow, 0) * 0.05));
-  transition: filter 600ms cubic-bezier(0.25, 1, 0.5, 1);
+  filter: saturate(.28) sepia(.24) brightness(1.12) contrast(.96);
+}
+:deep(.scene-nav-info) { display: none !important; }
+.event-backdrop { position: absolute; inset: 0; z-index: 0; overflow: hidden; opacity: 0; pointer-events: none; transition: opacity .6s ease; }
+.event-backdrop.is-on { opacity: 1; }
+.event-backdrop::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(27, 28, 23, .25), transparent 30%, rgba(27, 28, 23, .65)); }
+.event-backdrop-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: saturate(.6) brightness(.85); transition: opacity .7s ease; }
+.event-backdrop-img.is-shown { opacity: 1; }
+.overlook-hint { position: absolute; z-index: 6; left: 50%; bottom: 24px; transform: translateX(-50%); margin: 0; color: #e7dfcf; font: 13px/1.5 var(--font-body, sans-serif); letter-spacing: .06em; pointer-events: none; }
+.hint-enter-active { transition: opacity .3s ease; }
+.hint-enter-from { opacity: 0; }
+:deep(.march-head-pin) { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 12; pointer-events: none; opacity: 0; }
+:deep(.march-head-dot) { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: #a04432; border: 2px solid #f2dfb6; box-shadow: 0 0 0 5px rgba(185, 126, 82, .17); }
+/* 经纬度锚点保持零尺寸，文字和点击区域从原点展开。 */
+:deep(.march-label-anchor) { position: relative; display: block; width: 0; height: 0; padding: 0; border: 0; background: transparent; cursor: pointer; pointer-events: auto; opacity: 1; transition: opacity .25s ease; }
+:deep(.march-label-anchor::before) { content: ''; position: absolute; width: 44px; height: 44px; left: 0; top: 0; border-radius: 50%; transform: translate(-50%, -50%); }
+:deep(.march-label-anchor.is-far) { opacity: 0; visibility: hidden; pointer-events: none; }
+:deep(.march-label-node) { position: absolute; left: 0; top: 0; width: 15px; height: 20px; overflow: visible; transform: translate(-50%, -50%); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .65)); transition: transform .2s ease; }
+:deep(.march-label-node .ember-shape) { fill: #4f5045; stroke: #ead5af; stroke-width: 1.8; stroke-linejoin: round; }
+:deep(.march-label-anchor.is-lit .ember-shape) { fill: #af5038; stroke: #f2dfba; }
+:deep(.march-label-anchor.is-active .march-label-node),
+:deep(.march-label-anchor:focus-visible .march-label-node) { transform: translate(-50%, -50%) scale(1.4); filter: drop-shadow(0 0 5px rgba(242, 223, 186, .55)); }
+:deep(.march-label-anchor.is-active .ember-shape) { fill: #c15d40; stroke: #fff0ce; }
+:deep(.march-label-anchor:hover .march-label-node) { transform: translate(-50%, -50%) scale(1.2); }
+:deep(.march-label-anchor.is-next .march-label-node) { animation: next-node 2.8s ease-in-out infinite; }
+@keyframes next-node { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+:deep(.march-label-anchor.is-pending) { pointer-events: none; }
+:deep(.march-label-anchor.is-pending .march-label-node) { opacity: 0; }
+:deep(.march-label-anchor.is-revealed .march-label-node),
+:deep(.march-label-anchor.is-igniting .march-label-node) { animation: node-reveal .5s ease-out; }
+@keyframes node-reveal { from { opacity: .1; transform: translate(-50%, -50%) scale(.6); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+:deep(.march-label-beam) { position: absolute; top: 0; left: 0; width: 24px; height: 1px; background: #c4ac87; opacity: 0; transform: translateY(-50%); transition: opacity .2s ease; }
+:deep(.march-label-card) { position: absolute; top: 0; left: 24px; min-width: 74px; padding: 9px 13px; background: rgba(35, 36, 30, .96); border: 1px solid #a89575; border-radius: 1px; color: #f4ecdc; font-family: var(--font-body, 'PingFang SC', 'Microsoft YaHei', sans-serif); text-align: left; white-space: nowrap; opacity: 0; pointer-events: none; transform: translateY(-50%); transition: opacity .18s ease; }
+:deep(.march-label-card strong) { font-size: 15px; line-height: 1.4; font-weight: 500; letter-spacing: .04em; }
+:deep(.march-label-anchor.is-flipped .march-label-card) { right: 24px; left: auto; }
+:deep(.march-label-anchor.is-flipped .march-label-beam) { left: -24px; }
+:deep(.march-label-anchor:hover .march-label-card),
+:deep(.march-label-anchor:focus-visible .march-label-card),
+:deep(.march-label-anchor.is-active .march-label-card),
+:deep(.march-label-anchor:hover .march-label-beam),
+:deep(.march-label-anchor:focus-visible .march-label-beam),
+:deep(.march-label-anchor.is-active .march-label-beam) { opacity: 1; }
+:deep(.march-label-anchor:focus-visible .march-label-card) { outline: 2px solid #f1dfbb; outline-offset: 3px; }
+:deep(.march-event-anchor) { position: relative; width: 0; height: 0; padding: 0; border: 0; background: transparent; pointer-events: auto; cursor: pointer; }
+:deep(.march-event-anchor::before) { content: ''; position: absolute; width: 36px; height: 36px; transform: translate(-50%, -50%); }
+:deep(.march-event-diamond) { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; transform: rotate(45deg); background: #ac9674; border: 1px solid #e7d6b8; }
+:deep(.march-event-anchor.is-hot .march-event-diamond) { background: #f1d6a3; transform: rotate(45deg) scale(1.2); }
+:deep(.march-event-tip) { position: absolute; left: 12px; top: -18px; padding: 5px 9px; white-space: nowrap; font: normal 13px/1.5 var(--font-body, sans-serif); color: #f4ecdc; background: #282a23; border: 1px solid #a89575; opacity: 0; pointer-events: none; }
+:deep(.march-event-anchor:hover .march-event-tip),
+:deep(.march-event-anchor:focus-visible .march-event-tip) { opacity: 1; }
+:deep(.march-event-anchor.is-unreached) { opacity: 0; visibility: hidden; pointer-events: none; }
+.horizon-frame.labels-off :deep(.march-label-anchor),
+.horizon-frame.labels-off :deep(.march-event-anchor) { opacity: 0 !important; visibility: hidden; pointer-events: none !important; }
+.horizon-frame.is-paused :deep(*) { animation-play-state: paused !important; }
+.horizon-frame.is-reduced :deep(*),
+.horizon-frame.is-reduced .event-backdrop,
+.horizon-frame.is-reduced .event-backdrop-img { animation: none !important; transition: none !important; }
+@media (max-width: 768px) {
+  .horizon-frame.labels-muted :deep(.march-label-card) { opacity: 0 !important; pointer-events: none; }
+  :deep(.march-label-card) { min-width: 64px; padding: 7px 10px; }
+  :deep(.march-label-card strong) { font-size: 14px; }
+  .event-backdrop-img { object-position: 50% 30%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .horizon-frame :deep(*), .event-backdrop, .event-backdrop-img { animation: none !important; transition: none !important; }
 }
 </style>

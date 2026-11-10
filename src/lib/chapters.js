@@ -25,7 +25,7 @@ export const CHAPTERS = [
     name: '天险',
     range: [5, 7],
     date: '1935 · 05 — 08',
-    line: '铁索、雪山、草地——三段路，三种死法。',
+    line: '跨越铁索、雪山与草地，在艰险中相互扶持、继续前行。',
   },
   {
     id: 'beishang',

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   events: { type: Array, default: () => [] },
@@ -10,267 +10,105 @@ const props = defineProps({
   stationS: { type: Array, default: () => [] },
 })
 defineEmits(['select'])
-
-const NUM = ['壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖', '拾']
-const num = (i) => NUM[i] || String(i + 1)
-
-const reached = (e) => (e.at ?? 0) <= props.progress + 0.001
-const lastReached = computed(() => {
-  let k = -1
-  props.events.forEach((e, i) => {
-    if (reached(e)) k = i
-  })
-  return k
+const rail = ref(null)
+const canScrollBack = ref(false)
+const canScrollForward = ref(false)
+let observer
+const reached = (event) => props.seen.includes(event.id) || (event.at ?? 0) <= props.progress
+const currentId = computed(() => {
+  if (props.activeId) return props.activeId
+  return [...props.events].reverse().find(reached)?.id || props.events[0]?.id
 })
-
-// 弧长归一化：把站点序号映射到路线真实长度的比例（滇黔段不再挤在一起）
-const fracOf = (at = 0) => {
-  const s = props.stationS
-  if (!s || s.length < 2) return Math.max(0, Math.min(1, at / (props.total || 11)))
-  const whole = Math.max(0, Math.min(s.length - 1, Math.floor(at)))
-  const next = Math.min(s.length - 1, whole + 1)
-  const v = s[whole] + (s[next] - s[whole]) * (at - whole)
-  return Math.max(0, Math.min(1, v))
+const dateLabel = (date = '') => {
+  const match = date.match(/(\d{4})\s*·\s*(\d{2})/)
+  return match ? `${match[1]}.${match[2]}` : date
 }
-
-// 弧长定位后做最小间距松弛：真实距离不等，但标签不能叠在一起
-const narrow = ref(false)
-let mq = null
-const onMq = (e) => { narrow.value = e.matches }
-onMounted(() => {
-  mq = window.matchMedia('(max-width: 768px)')
-  narrow.value = mq.matches
-  mq.addEventListener('change', onMq)
-})
-onUnmounted(() => { if (mq) mq.removeEventListener('change', onMq) })
-const slots = computed(() => {
-  const MIN_GAP = narrow.value ? 9.5 : 7.2
-  const raw = props.events.map((e) => fracOf(e.at ?? 0) * 100)
-  const out = raw.slice()
-  for (let pass = 0; pass < 4; pass += 1) {
-    for (let i = 1; i < out.length; i += 1) {
-      if (out[i] - out[i - 1] < MIN_GAP) out[i] = out[i - 1] + MIN_GAP
-    }
-    for (let i = out.length - 2; i >= 0; i -= 1) {
-      if (out[i + 1] - out[i] < MIN_GAP) out[i] = out[i + 1] - MIN_GAP
-    }
-    if (out[0] < 0) { const d = -out[0]; for (let i = 0; i < out.length; i += 1) out[i] += d }
-    const over = out[out.length - 1] - 100
-    if (over > 0) { for (let i = 0; i < out.length; i += 1) out[i] -= over }
+function updateScroll() {
+  if (!rail.value) return
+  canScrollBack.value = rail.value.scrollLeft > 2
+  canScrollForward.value = rail.value.scrollLeft + rail.value.clientWidth < rail.value.scrollWidth - 2
+}
+function moveRail(direction) {
+  const el = rail.value
+  if (!el) return
+  el.scrollBy({ left: direction * Math.max(160, el.clientWidth * .72), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+}
+async function revealCurrent() {
+  await nextTick()
+  const el = rail.value
+  if (!el) return
+  const button = [...el.querySelectorAll('button')].find((item) => item.dataset.event === currentId.value)
+  if (button) {
+    const left = button.offsetLeft
+    if (left < el.scrollLeft) el.scrollLeft = left
+    else if (left + button.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = left + button.offsetWidth - el.clientWidth
   }
-  return props.events.map((e, i) => ({ ...e, pct: Math.max(0, Math.min(100, out[i])) }))
-})
-
-const fillPct = computed(() => fracOf(props.progress) * 100)
-
-const hover = ref('')
-const short = (date = '') => {
-  const m = date.match(/(\d{4})\s*·\s*(\d{2})/)
-  return m ? `${m[1]}.${m[2]}` : date
+  updateScroll()
 }
+watch(currentId, revealCurrent)
+onMounted(() => {
+  observer = new ResizeObserver(updateScroll)
+  if (rail.value) observer.observe(rail.value)
+  revealCurrent()
+})
+onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <template>
-  <div class="route-strip" aria-label="路书">
-    <span class="rs-end rs-end-l">瑞金</span>
-    <span class="rs-end rs-end-r">会宁</span>
-    <div class="rs-line" aria-hidden="true">
-      <span class="rs-fill" :style="{ width: `${Math.min(100, fillPct)}%` }" />
+  <nav class="route-strip" aria-label="历史事件目录">
+    <div class="rail-heading"><span>历史现场</span><p>八个时刻，万里征程</p></div>
+    <div ref="rail" class="rail-list" @scroll.passive="updateScroll">
+      <button
+        v-for="(event, i) in events" :key="event.id" :data-event="event.id" class="rail-event"
+        :class="{ 'is-current': currentId === event.id, 'is-seen': reached(event) }"
+        :aria-current="currentId === event.id ? 'step' : undefined" type="button" @click.stop="$emit('select', event.id)"
+      ><span class="rail-number">{{ String(i + 1).padStart(2, '0') }}<i v-if="reached(event)" aria-label="已到访">·</i></span><strong>{{ event.title }}</strong><span class="rail-date">{{ dateLabel(event.date) }}</span></button>
     </div>
-
-    <button
-      v-for="(e, i) in slots"
-      :key="e.id"
-      class="rs-node"
-      :class="{
-        'is-seen': reached(e),
-        'is-current': i === lastReached && !activeId,
-        'is-active': activeId === e.id,
-        'is-locked': !reached(e),
-      }"
-      :style="{ left: `${e.pct}%` }"
-      type="button"
-      @click.stop="$emit('select', e.id)"
-      @mouseenter="hover = e.id"
-      @mouseleave="hover = ''"
-    >
-      <span class="rs-index">{{ num(i) }}</span>
-      <span class="rs-dot" aria-hidden="true" />
-
-      <span v-if="hover === e.id || activeId === e.id" class="rs-tip">
-        <em>{{ e.title }}</em>
-        <i>{{ e.place || '' }} · {{ short(e.date) }}</i>
-      </span>
-    </button>
-  </div>
+    <div class="rail-controls"><button type="button" :disabled="!canScrollBack" aria-label="向前浏览事件目录" @click="moveRail(-1)">←</button><button type="button" :disabled="!canScrollForward" aria-label="向后浏览事件目录" @click="moveRail(1)">→</button></div>
+  </nav>
 </template>
 
 <style scoped>
-.route-strip {
-  position: fixed;
-  left: 50%;
-  bottom: 108px;
-  width: min(540px, 48vw);
-  height: 34px;
-  transform: translateX(-50%);
-  z-index: 26;
-  pointer-events: none;
+.route-strip { position: fixed; z-index: 26; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; align-items: center; gap: 24px; width: min(calc(100% - 96px), 1760px); padding: 20px 24px; color: var(--museum-paper, #f2ebdd); background: #20271f; border: 1px solid #4d5345; box-shadow: 0 12px 42px #10150f26; pointer-events: auto; }
+.rail-heading { flex: 0 0 136px; padding: 0 4px; }
+.rail-heading > span { font-family: var(--font-display, serif); font-size: 21px; letter-spacing: .12em; }
+.rail-heading p { margin-top: 6px; font-size: 13px; color: #c2c6b5; }
+.rail-list { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(124px, 1fr); flex: 1; min-width: 0; gap: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
+.rail-list::-webkit-scrollbar { display: none; }
+.rail-event { display: grid; justify-items: start; gap: 3px; min-width: 0; min-height: 82px; padding: 7px 16px 6px; border: 0; border-left: 1px solid #4c5345; background: transparent; color: #f0eddf; text-align: left; cursor: pointer; scroll-snap-align: start; transition: background 180ms ease; }
+.rail-number { display: flex; align-items: center; gap: 9px; font-size: 11px; font-variant-numeric: tabular-nums; letter-spacing: .06em; color: #b6bea9; }
+.rail-number i { color: #dd8b6a; font-size: 18px; font-style: normal; line-height: 10px; }
+.rail-event strong { font-family: var(--font-display, serif); font-size: 16px; font-weight: 500; line-height: 1.6; white-space: nowrap; }
+.rail-date { font-size: 11px; color: #b6bea9; font-variant-numeric: tabular-nums; letter-spacing: .035em; }
+.rail-event:hover { background: #343d2e; }
+.rail-event.is-current { background: #eee6d6; color: #242b20; border-left-color: #eee6d6; }
+.rail-event.is-current .rail-number { color: #9b382d; }
+.rail-event.is-current .rail-date { color: #676c5b; }
+.rail-event:focus-visible { position: relative; outline: 2px solid #dcb376; outline-offset: -3px; }
+.rail-controls { display: flex; flex: 0 0 auto; gap: 5px; }
+.rail-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #77806b; background: transparent; color: #eee6d6; font-size: 20px; cursor: pointer; }
+.rail-controls button:hover:not(:disabled) { background: #3a442f; border-color: #c1c8b4; }
+.rail-controls button:disabled { border-color: #454e3e; color: #69715f; cursor: default; }
+.rail-controls button:focus-visible { outline: 2px solid #dcb376; outline-offset: 3px; }
+@media (min-width: 1680px) { .rail-heading { flex-basis: 156px; } .rail-event { padding-left: 22px; } }
+@media (max-width: 1200px) { .route-strip { gap: 18px; padding: 16px 20px; } .rail-heading { flex-basis: 118px; } .rail-heading > span { font-size: 19px; } .rail-heading p { font-size: 11px; } }
+@media (max-width: 900px) {
+  .route-strip { display: grid; grid-template-columns: 1fr auto; gap: 12px 16px; width: calc(100% - 48px); padding: 16px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+  .rail-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 14px; min-width: 0; padding: 0; }
+  .rail-heading > span { font-size: 19px; }
+  .rail-heading p { margin: 0; font-size: 13px; }
+  .rail-controls { grid-column: 2; grid-row: 1; }
+  .rail-list { grid-column: 1 / -1; grid-row: 2; grid-auto-columns: 150px; }
+  .rail-event { min-height: 80px; padding-left: 16px; }
+  .rail-event strong { font-size: 17px; }
 }
-
-.rs-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 20px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.2);
+@media (max-width: 480px) {
+  .route-strip { width: calc(100% - 28px); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); padding: 12px; }
+  .rail-heading { gap: 0; }
+  .rail-heading > span { font-size: 17px; }
+  .rail-heading p { display: none; }
+  .rail-list { grid-auto-columns: 145px; }
 }
-
-.rs-fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), var(--accent-gold));
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.35);
-  transition: width 0.9s var(--ease);
-}
-
-.rs-node {
-  position: absolute;
-  top: 0;
-  width: 24px;
-  height: 34px;
-  margin-left: -12px;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.rs-index {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: inherit;
-  font-size: 12px;
-  line-height: 1;
-  letter-spacing: 0.12em;
-  font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.68);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
-  transition: color 0.35s var(--ease), text-shadow 0.35s var(--ease);
-  white-space: nowrap;
-}
-
-.rs-dot {
-  position: absolute;
-  left: 50%;
-  top: 14px;
-  width: 1px;
-  height: 8px;
-  margin-left: -0.5px;
-  background: rgba(255, 255, 255, 0.32);
-  transition: height 0.35s var(--ease), background 0.35s var(--ease), box-shadow 0.35s var(--ease);
-}
-
-.rs-tip {
-  position: absolute;
-  left: 50%;
-  bottom: 30px;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 7px 10px;
-  width: max-content;
-  max-width: 190px;
-  background: rgba(8, 12, 18, 0.92);
-  border: 1px solid rgba(212, 175, 55, 0.3);
-  backdrop-filter: blur(6px);
-  white-space: nowrap;
-}
-
-.rs-tip em {
-  font-style: normal;
-  font-size: 11px;
-  color: var(--text-main);
-}
-
-.rs-tip i {
-  font-style: normal;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: rgba(243, 241, 230, 0.5);
-}
-
-.rs-end {
-  position: absolute;
-  top: -18px;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  color: var(--text-dim);
-}
-.rs-end-l { left: 0; }
-.rs-end-r { right: 0; }
-
-/* 已走过 */
-.is-seen .rs-index {
-  color: rgba(244, 241, 225, 0.72);
-}
-.is-seen .rs-dot {
-  height: 12px;
-  background: var(--red-trail);
-  box-shadow: 0 0 6px rgba(139, 28, 28, 0.55);
-}
-
-/* 当前 */
-.is-current .rs-index,
-.is-active .rs-index {
-  color: var(--accent-gold);
-  text-shadow: 0 0 6px rgba(212, 175, 55, 0.42);
-}
-
-.is-current .rs-dot,
-.is-active .rs-dot {
-  background: #f8df9c;
-  height: 18px;
-  top: 9px;
-  box-shadow:
-    0 0 0 1px rgba(248, 223, 156, 0.35),
-    0 0 10px rgba(232, 201, 138, 0.65);
-}
-
-/* 未走到：不再叠 opacity，只压颜色 */
-.is-locked .rs-index {
-  color: rgba(255, 255, 255, 0.52);
-}
-.is-locked .rs-dot {
-  background: rgba(255, 255, 255, 0.26);
-}
-.is-locked:hover .rs-index {
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.rs-node:hover .rs-index {
-  color: var(--text-main);
-}
-@media (max-width: 768px) {
-  .route-strip {
-    width: 88vw;
-    bottom: calc(106px + env(safe-area-inset-bottom, 0px));
-    height: 30px;
-  }
-  .rs-index {
-    font-size: 10px;
-    letter-spacing: 0.06em;
-  }
-  .rs-end {
-    display: none;
-  }
-}
-
+@media (max-height: 540px) and (orientation: landscape) { .route-strip { bottom: 12px; padding: 10px 14px; } .rail-heading, .rail-date { display: none; } .rail-event { min-height: 54px; } }
+@media (prefers-reduced-motion: reduce) { .rail-event { transition: none; } }
 </style>
-

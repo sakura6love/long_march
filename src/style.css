@@ -1,159 +1,51 @@
-/* ============================================================
-   国家级数字展馆 · 全局基线
-   只定义"底色与文字"，组件内的具体排版仍由各组件决定。
-   ============================================================ */
+@font-face {
+  font-family: 'March Serif';
+  src: url('/fonts/march-serif.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+}
 :root {
-  /* 宣纸白：比纯白温润，长时间阅读不刺眼 */
-  --text-main: #f4f1e1;
-  /* 星空蓝倾向的高级灰：用于副标、说明、页码 */
-  --text-muted: #a3a8b4;
-  /* 博物馆香槟金：只做点、线、强调，不做大面积填充 */
-  --accent-gold: #d4af37;
-  /* 故宫绛红：印章、已走过的刻度 */
-  --accent-red: #8a1538;
-  --red-trail: #8a1538;
-  /* 偏蓝调的深空透明色：面板与浮层的底 */
-  --panel-bg: rgba(12, 18, 28, 0.65);
-  /* 更深的底，用于事件卡这类需要压住背景的层 */
-  --panel-bg-strong: rgba(10, 15, 24, 0.82);
-  /* 一条极细的分隔线，全站只用这一种 */
-  --hairline: rgba(212, 175, 55, 0.22);
-  --hairline-soft: rgba(244, 241, 225, 0.1);
-  /* 统一的缓动：全站动效只用它，保证"同一个世界里的运动" */
-  --ease: cubic-bezier(0.25, 1, 0.5, 1);
-  /* 次要文字：日期、出处、说明。金色不再承担文字色 */
-  --text-dim: #a89f8c;
-  /* 两层字族：展示用宋（碑刻感），叙事用黑（可读性） */
-  --font-display: 'Songti SC', 'Noto Serif SC', 'STSong', 'SimSun', serif;
-  --font-body: 'PingFang SC', 'Source Han Sans SC', 'Noto Sans CJK SC',
-    'Microsoft YaHei', system-ui, sans-serif;
+  --museum-ink: #181a17;
+  --museum-paper: #f2ebdd;
+  --text-main: #f2ebdd;
+  --text-muted: #b6b8ab;
+  --text-dim: #b6b8ab;
+  --accent-red: #a6362b;
+  --red-trail: #d26950;
+  --accent-gold: #b69a66;
+  --panel-bg: #242820;
+  --panel-bg-strong: #181a17;
+  --hairline: #66624f;
+  --hairline-soft: #ffffff21;
+  --font-display: 'March Serif', 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  --font-body: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif;
+  --ease: cubic-bezier(.25,1,.5,1);
+  --page-gutter: clamp(32px,5.6vw,120px);
 }
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background: #0b0f19;
-  overflow: hidden;
-}
-
-body {
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.75;
-  letter-spacing: 0.01em;
-  color: var(--text-main);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
-#app {
-  width: 100%;
-  height: 100%;
-}
-
-p {
-  margin: 0;
-}
-
-button {
-  font-family: inherit;
-}
-
-/* 展馆里没有"浏览器滚动条"这种东西 */
-::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
-}
-
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-::selection {
-  background: rgba(212, 175, 55, 0.26);
-  color: var(--text-main);
-}
-
-:focus-visible {
-  outline: 1px solid rgba(212, 175, 55, 0.55);
-  outline-offset: 4px;
-}
-
-/* ---- museum panel base: reads as a surface floating over the globe ---- */
-.glass-panel {
-  background-color: rgba(12, 18, 28, 0.78);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 1px);
-  background-repeat: no-repeat;
-  background-size: 100% 1px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 3px;
-  box-shadow:
-    0 24px 56px rgba(0, 0, 0, 0.46),
-    0 4px 14px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 0 0 1px rgba(212, 175, 55, 0.06);
-}
-
-.glass-panel--modal {
-  background-color: rgba(10, 15, 24, 0.88);
-}
-
-.panel-close {
-  position: absolute;
-  top: 22px;
-  right: 20px;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 50%;
-  background: transparent;
-  cursor: pointer;
-  transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
-}
-
-.panel-close::before,
-.panel-close::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 11px;
-  height: 1px;
-  background: rgba(244, 241, 225, 0.62);
-  transform: translate(-50%, -50%) rotate(45deg);
-  transition: background 0.3s var(--ease), transform 0.35s var(--ease);
-}
-
-.panel-close::after { transform: translate(-50%, -50%) rotate(-45deg); }
-
-.panel-close:hover,
-.panel-close:focus-visible {
-  border-color: rgba(212, 175, 55, 0.4);
-  background: rgba(212, 175, 55, 0.08);
-  outline: none;
-}
-
-.panel-close:hover::before,
-.panel-close:hover::after,
-.panel-close:focus-visible::before,
-.panel-close:focus-visible::after { background: #e0bd72; }
-
-.panel-close:hover::before { transform: translate(-50%, -50%) rotate(135deg); }
-.panel-close:hover::after { transform: translate(-50%, -50%) rotate(45deg); }
-
-@media (max-width: 768px) {
-  .glass-panel { background-color: rgba(12, 18, 28, 0.92); backdrop-filter: none; -webkit-backdrop-filter: none; }
-}
+* { box-sizing: border-box; }
+html { margin:0; padding:0; color-scheme: dark; background:var(--museum-ink); }
+body { margin:0; padding:0; min-width:320px; font:400 17px/1.8 var(--font-body); color:var(--text-main); -webkit-font-smoothing:antialiased; }
+button,input,textarea { font:inherit; }
+button,a { -webkit-tap-highlight-color:transparent; }
+button { cursor:pointer; }
+button:disabled { cursor:not-allowed; }
+button,a,input,textarea { touch-action:manipulation; }
+a { color:inherit; text-underline-offset:4px; }
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible { outline:3px solid #d26950; outline-offset:5px; }
+p,figure { margin:0; }
+img { display:block; max-width:100%; }
+[hidden] { display:none!important; }
+::selection { background:#a6362b; color:#f2ebdd; }
+::-webkit-scrollbar { width:7px;height:7px; }
+::-webkit-scrollbar-thumb { background:#87816e;border-radius:8px; }
+.eyebrow { font:400 13px/1.6 var(--font-body);color:var(--accent-gold);letter-spacing:.14em; }
+.museum-button { display:inline-flex;align-items:center;justify-content:space-between;gap:34px;min-height:52px;padding:12px 25px;border:1px solid var(--accent-red);border-radius:2px;background:var(--accent-red);color:var(--museum-paper);font:500 16px/1.5 var(--font-body);transition:background .18s; }
+.museum-button:hover { background:#8e2c24; }
+.glass-panel { background:var(--panel-bg);border:1px solid var(--hairline-soft);border-radius:3px;box-shadow:0 20px 70px #0005; }
+.glass-panel--modal { background:var(--panel-bg-strong); }
+.panel-close { min-width:44px;min-height:44px; }
+.sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+.reduce-motion *, .reduce-motion *::before,.reduce-motion *::after { animation:none!important;transition:none!important;scroll-behavior:auto!important; }
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(max-width:768px){:root{--page-gutter:24px}body{font-size:16px}}

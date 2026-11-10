@@ -1,8 +1,4 @@
 <script setup>
-/**
- * 终章：走完十二站之后。
- * 不弹窗、不庆祝，只是一段收束文字和一枚印章 —— 像展厅出口的那面墙。
- */
 defineProps({
   litCount: { type: Number, default: 12 },
 })
@@ -10,26 +6,22 @@ const emit = defineEmits(['restart', 'browse'])
 </script>
 
 <template>
-  <section class="finale" aria-label="终章">
-    <div class="finale-veil" aria-hidden="true"></div>
-
-    <div class="finale-body">
-      <p class="era">一九三六 · 十月</p>
-      <span class="rule" aria-hidden="true"></span>
-
-      <p class="line l1">一九三四年十月，于都河畔出发。</p>
-      <p class="line l2">一九三六年十月，会宁城下会师。</p>
-      <p class="line l3">两年，两万五千里，十二个坐标。</p>
-
-      <div class="seal" aria-hidden="true">长征</div>
-
-      <div class="actions">
-        <button class="act act-main" type="button" @click="emit('restart')">
-          <span aria-hidden="true"></span>重走长征路
-        </button>
-        <button class="act" type="button" @click="emit('browse')">留在俯瞰</button>
+  <section class="finale" aria-labelledby="finale-title">
+    <header class="finale-header"><p>长征万里 · 薪火千秋</p><span>终章</span></header>
+    <div class="finale-main">
+      <div class="finale-body">
+        <p class="finale-kicker">山河为证 · 信念如炬</p>
+        <h1 id="finale-title" class="finale-title">征途有终，<br>薪火不息。</h1>
+        <span class="finale-rule" aria-hidden="true"></span>
+        <p class="finale-copy">回望来路，继续理解长征的历史与精神。</p>
+        <p class="finale-subcopy">你可以重新启程，或返回路线，重访沿途的历史章节。</p>
+        <div class="finale-actions" aria-label="继续参观">
+          <button class="finale-action finale-action-primary" type="button" @click="emit('restart')">重新启程<span aria-hidden="true">↗</span></button>
+          <button class="finale-action finale-action-secondary" type="button" @click="emit('browse')">返回路线导览<span aria-hidden="true">→</span></button>
+        </div>
       </div>
     </div>
+    <footer class="finale-footer"><span>长征主题数字展馆</span><span>从山河之间，读懂一段征途。</span></footer>
   </section>
 </template>
 
@@ -38,151 +30,57 @@ const emit = defineEmits(['restart', 'browse'])
   position: fixed;
   inset: 0;
   z-index: 40;
-  display: grid;
-  place-items: center;
-}
-
-.finale-veil {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 46%, rgba(4, 7, 12, 0.28), rgba(4, 7, 12, 0.86) 78%);
-  animation: veil-in 1.4s ease both;
-}
-
-@keyframes veil-in {
-  from {
-    opacity: 0;
-  }
-}
-
-.finale-body {
-  position: relative;
-  width: min(620px, 84vw);
-  text-align: center;
-}
-
-.era {
-  margin: 0;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  color: rgba(212, 175, 55, 0.6);
-  animation: rise 1s cubic-bezier(0.25, 1, 0.5, 1) 0.3s both;
-}
-
-.rule {
-  display: block;
-  width: 40px;
-  height: 1px;
-  margin: 20px auto 44px;
-  background: rgba(212, 175, 55, 0.35);
-  animation: rise 1s cubic-bezier(0.25, 1, 0.5, 1) 0.45s both;
-}
-
-.line {
-  margin: 0 0 18px;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: clamp(17px, 1.5vw, 22px);
-  font-weight: 500;
-  line-height: 1.75;
-  letter-spacing: 0.04em;
-  color: var(--text-main);
-}
-
-.l1 {
-  animation: rise 1.1s cubic-bezier(0.25, 1, 0.5, 1) 0.9s both;
-}
-.l2 {
-  animation: rise 1.1s cubic-bezier(0.25, 1, 0.5, 1) 1.5s both;
-}
-.l3 {
-  margin-top: 30px;
-  color: var(--accent-gold);
-  animation: rise 1.1s cubic-bezier(0.25, 1, 0.5, 1) 2.1s both;
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
-.seal {
-  display: grid;
-  place-items: center;
-  width: 96px;
-  height: 96px;
-  margin: 52px auto 0;
-  border: 0;
-  border-radius: 0;
-  background: url('/seals/changzheng.webp') center / 100% 100% no-repeat;
-  color: transparent;
-  text-shadow: none;
-  font-family: 'Songti SC', 'Noto Serif SC', serif;
-  font-size: 19px;
-  font-weight: 400;
-  letter-spacing: 0.08em;
-  text-shadow: 0 1px 3px rgba(52, 8, 6, 0.75);
-  filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.5))
-          drop-shadow(0 0 16px rgba(150, 30, 20, 0.35));
-  animation: stamp 0.7s cubic-bezier(0.25, 1, 0.5, 1) 3s both;
-}
-
-@keyframes stamp {
-  from {
-    opacity: 0;
-    transform: scale(1.35) rotate(-4deg);
-  }
-}
-
-.actions {
   display: flex;
-  justify-content: center;
-  gap: 44px;
-  margin-top: 64px;
-  animation: rise 1s cubic-bezier(0.25, 1, 0.5, 1) 3.4s both;
+  flex-direction: column;
+  overflow-y: auto;
+  background: #f2ebdd;
+  color: #181a17;
+  font-family: var(--font-body);
+  font-size: 18px;
 }
-
-.act {
-  position: relative;
-  border: 0;
-  padding: 0;
-  background: none;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 15px;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 0.4s ease;
+.finale-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px 26px; margin: 0 clamp(24px, 4.2vw, 80px); padding: 29px 0; border-bottom: 1px solid rgba(24, 26, 23, .2); }
+.finale-header p { margin: 0; font-family: var(--font-display); font-size: 22px; letter-spacing: .1em; }
+.finale-header > span { color: #6a5f4f; font-size: 14px; letter-spacing: .18em; }
+.finale-main { flex: 1; display: grid; place-items: center; padding: 76px 24px 86px; }
+.finale-body { width: min(840px, 100%); text-align: center; }
+.finale-kicker { margin: 0 0 31px; color: #746046; font-size: 14px; letter-spacing: .2em; }
+.finale-title { margin: 0; font-family: var(--font-display); font-size: clamp(48px, calc(3.33vw + 24px), 88px); font-weight: 400; line-height: 1.3; letter-spacing: .06em; }
+.finale-rule { display: block; width: 44px; height: 2px; margin: 32px auto; background: #a6362b; }
+.finale-copy { margin: 0; color: #46443b; font-size: inherit; line-height: 1.9; letter-spacing: .05em; }
+.finale-subcopy { margin: 13px auto 0; max-width: 560px; color: #6c6559; font-size: 15px; line-height: 1.9; }
+.finale-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 18px 24px; margin-top: 42px; }
+.finale-action { display: inline-flex; justify-content: space-between; align-items: center; gap: 36px; min-height: 56px; padding: 14px 25px; border: 1px solid; border-radius: 0; font: inherit; font-size: 16px; line-height: 1.6; letter-spacing: .05em; cursor: pointer; transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease; }
+.finale-action > span { font-family: var(--font-body); font-size: 21px; line-height: 1; }
+.finale-action-primary { border-color: #a6362b; background: #a6362b; color: #f2ebdd; }
+.finale-action-primary:hover { border-color: #b33b2f; background: #b33b2f; }
+.finale-action-secondary { border-color: #8b8273; background: transparent; color: #38392f; }
+.finale-action-secondary:hover { border-color: #181a17; background: #e7dfd0; color: #181a17; }
+.finale-action:focus-visible { outline: 2px solid #a6362b; outline-offset: 6px; }
+.finale-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; margin: 0 clamp(24px, 4.2vw, 80px); padding: 24px 0; border-top: 1px solid rgba(24, 26, 23, .2); color: #6c6559; font-size: 13px; line-height: 1.8; letter-spacing: .04em; }
+@media (max-width: 1600px) {
+  .finale { font-size: 17px; }
+  .finale-header p { font-size: 20px; }
 }
-
-.act:hover {
-  color: var(--text-main);
+@media (max-width: 800px) {
+  .finale { font-size: 16px; }
+  .finale-header { padding: 23px 0; }
+  .finale-header p { font-size: 18px; letter-spacing: .06em; }
+  .finale-main { padding: 62px 26px 70px; }
+  .finale-kicker { margin-bottom: 27px; font-size: 13px; letter-spacing: .12em; }
+  .finale-title { font-size: 48px; }
+  .finale-rule { margin: 28px auto; }
+  .finale-copy { max-width: 360px; margin: 0 auto; }
+  .finale-subcopy { max-width: 330px; font-size: 14px; }
+  .finale-actions { gap: 15px; margin-top: 32px; }
+  .finale-action { min-height: 54px; font-size: 16px; padding: 13px 22px; gap: 26px; }
 }
-
-.act-main {
-  padding-left: 20px;
-  color: var(--accent-gold);
+@media (max-width: 420px) {
+  .finale-header p { font-size: 17px; }
+  .finale-title { font-size: 42px; }
+  .finale-actions { flex-direction: column; align-items: stretch; max-width: 270px; margin-right: auto; margin-left: auto; }
+  .finale-footer { flex-direction: column; gap: 6px; }
 }
-
-.act-main span {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 1px;
-  height: 16px;
-  background: var(--accent-gold);
-  transform: translateY(-50%);
+@media (prefers-reduced-motion: reduce) {
+  .finale *, .finale *::before, .finale *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
-
-@media (max-width: 768px) {
-  .actions {
-    gap: 30px;
-  }
-  .line {
-    font-size: 15px;
-    line-height: 1.9;
-  }
-}
-.finale-line{text-shadow:0 2px 22px rgba(0,0,0,.72),0 0 40px rgba(0,0,0,.5)}
 </style>
