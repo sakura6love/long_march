@@ -159,7 +159,7 @@ export function isMuted() {
 
 /* ---------------- 背景音乐（独立开关，不跟随音效） ---------------- */
 const BGM_KEY = 'march:bgm'
-const BGM_SRC = `${import.meta.env.BASE_URL}audio/bgm.m4a`
+const BGM_SRC = `${import.meta.env.BASE_URL}audio/bgm.mp3`
 const BGM_LEVEL = 0.34
 
 let bgmEl = null
