@@ -104,533 +104,467 @@ watch(
   <Transition name="detail">
     <aside
       v-if="node"
-      class="detail-panel glass-panel"
+      class="detail-panel"
       role="dialog"
-      aria-label="历史节点详情"
+      aria-labelledby="detail-title"
       :aria-hidden="!node"
     >
-      <button class="panel-close" type="button" aria-label="关闭详情" @click="close" />
+      <button class="detail-close" type="button" aria-label="关闭详情" @click="close" />
 
-      <header class="detail-head">
-        <p class="detail-eyebrow">
-          <span class="detail-order">{{ orderLabel }}</span>
-          <span class="detail-date">{{ node.date }}</span>
-        </p>
-        <h2 class="detail-title">{{ node.name }}</h2>
-        <span class="detail-rule" aria-hidden="true"></span>
-        <p v-if="node.quote" class="detail-quote">{{ node.quote }}</p>
-      </header>
+      <div class="detail-scroll" tabindex="0" aria-label="站点档案内容">
+        <header class="detail-head">
+          <p class="detail-order">{{ orderLabel }}</p>
+          <h2 id="detail-title" class="detail-title">{{ node.name }}</h2>
+          <p class="detail-date">{{ node.date }}</p>
+          <p v-if="node.quote" class="detail-quote">{{ node.quote }}</p>
+        </header>
 
-      <div class="detail-body">
-        <template v-if="node.lead">
-          <p class="detail-lead">{{ node.lead }}</p>
+        <div class="detail-body">
+          <template v-if="node.lead">
+            <p class="detail-lead">{{ node.lead }}</p>
+            <section v-for="(sec, i) in node.sections" :key="i" class="detail-section">
+              <h3 class="detail-subhead">{{ sec.h }}</h3>
+              <p class="detail-text">{{ sec.p }}</p>
+            </section>
+          </template>
+          <template v-else>
+            <p v-for="(para, i) in paragraphs" :key="i" class="detail-text" :class="{ 'is-lead': i === 0 }">
+              {{ para }}
+            </p>
+          </template>
+        </div>
 
-          <section v-for="(sec, i) in node.sections" :key="i" class="detail-section">
-            <h3 class="detail-subhead">{{ sec.h }}</h3>
-            <p class="detail-text">{{ sec.p }}</p>
-          </section>
-
-        </template>
-
-        <template v-else>
-          <p
-            v-for="(para, i) in paragraphs"
-            :key="i"
-            class="detail-text"
-            :class="{ 'is-lead': i === 0 }"
-          >
-            {{ para }}
-          </p>
-        </template>
+        <dl v-if="node.facts && node.facts.length" class="detail-facts">
+          <div v-for="(f, i) in node.facts" :key="i" class="detail-fact">
+            <dt class="detail-fact-k">{{ f.k }}</dt>
+            <dd class="detail-fact-v">{{ f.v }}</dd>
+          </div>
+        </dl>
       </div>
 
-      <dl v-if="node.facts && node.facts.length" class="detail-facts">
-        <div v-for="(f, i) in node.facts" :key="i" class="detail-fact">
-          <dd class="detail-fact-v">{{ f.v }}</dd>
-          <dt class="detail-fact-k">{{ f.k }}</dt>
-        </div>
-      </dl>
-
-      <button
-        class="detail-light"
-        :class="{ 'is-lit': lit, 'is-confirming': confirming }"
-        type="button"
-        @click="onLight"
-      >
-        <span class="detail-light-dot" aria-hidden="true"></span>
-        {{ lightLabel }}
-      </button>
-
-      <footer class="detail-foot">
-        <span class="detail-coordinate">{{ coordinate }}</span>
-        <div class="detail-steps">
-          <button
-            type="button"
-            class="step-btn"
-            :disabled="order <= 1"
-            @click="emit('navigate', -1)"
-          ><span aria-hidden="true">←</span>上一站</button>
-          <button
-            type="button"
-            class="step-btn"
-            :disabled="order >= total"
-            @click="emit('navigate', 1)"
-          >下一站<span aria-hidden="true">→</span></button>
-        </div>
-      </footer>
+      <div class="detail-actions">
+        <button
+          class="detail-light"
+          :class="{ 'is-lit': lit, 'is-confirming': confirming }"
+          type="button"
+          @click="onLight"
+        >
+          <span class="detail-light-dot" aria-hidden="true" />
+          {{ lightLabel }}
+        </button>
+        <footer class="detail-foot">
+          <span class="detail-coordinate">{{ coordinate }}</span>
+          <div class="detail-steps">
+            <button type="button" class="step-btn" :disabled="order <= 1" @click="emit('navigate', -1)">
+              <span aria-hidden="true">←</span>上一站
+            </button>
+            <button type="button" class="step-btn" :disabled="order >= total" @click="emit('navigate', 1)">
+              下一站<span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </footer>
+      </div>
     </aside>
   </Transition>
 </template>
 
 <style scoped>
 .detail-panel {
+  --focus-color: var(--accent-red, #ac4233);
+  color-scheme: light;
   position: fixed;
   z-index: 34;
   top: 88px;
-  right: 40px;
+  right: clamp(24px, 3vw, 64px);
   display: flex;
-  width: 392px;
-  max-height: min(76vh, 720px);
-  box-sizing: border-box;
-  padding: 34px 32px 22px;
   flex-direction: column;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  width: clamp(390px, 29vw, 460px);
+  max-height: min(calc(100dvh - 152px), 810px);
   overflow: hidden;
+  border: 1px solid rgba(41, 41, 35, 0.18);
+  border-top: 3px solid var(--accent-red, #ac4233);
+  background: var(--paper, #eae2d1);
+  color: var(--ink, #292923);
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.22);
+  font-family: var(--font-body);
   pointer-events: auto;
-}
-
-/* 面板顶部一条极细的金线，和画面上那条地平线呼应。 */
-.detail-panel::before {
-  position: absolute;
-  top: 0;
-  left: 32px;
-  width: 56px;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(224, 189, 114, 0.95), transparent);
-  content: '';
 }
 
 .detail-close {
   position: absolute;
-  top: 22px;
-  right: 22px;
-  width: 28px;
-  height: 28px;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
   padding: 0;
-  border: 1px solid transparent;
+  border: 1px solid rgba(41, 41, 35, 0.16);
   border-radius: 50%;
-  background: transparent;
+  background: var(--paper, #eae2d1);
+  color: var(--ink, #292923);
   cursor: pointer;
-  transition:
-    border-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
-    background 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: background 180ms ease, border-color 180ms ease;
 }
 
-.detail-close span,
-.detail-close span::after {
+.detail-close::before,
+.detail-close::after {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 11px;
+  width: 16px;
   height: 1px;
-  background: rgba(243, 241, 230, 0.62);
+  background: currentColor;
   content: '';
   transform: translate(-50%, -50%) rotate(45deg);
-  transition: background 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.detail-close span::after {
-  transform: translate(-50%, -50%) rotate(90deg);
+.detail-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
-.detail-close:hover,
-.detail-close:focus-visible {
-  border-color: rgba(212, 175, 55, 0.4);
-  background: rgba(212, 175, 55, 0.08);
-  outline: none;
+.detail-close:hover {
+  border-color: var(--accent-red, #ac4233);
+  background: #f4ecdc;
 }
 
-.detail-close:hover span,
-.detail-close:hover span::after,
-.detail-close:focus-visible span,
-.detail-close:focus-visible span::after {
-  background: #e0bd72;
+.detail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 30px 30px 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: #aaa18e transparent;
 }
 
 .detail-head {
-  padding-right: 30px;
-}
-
-.detail-eyebrow {
-  display: flex;
-  margin: 0 0 16px;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  color: rgba(243, 241, 230, 0.44);
-  font: 10px/1 'Space Mono', ui-monospace, monospace;
-  letter-spacing: 0.16em;
+  padding-right: 24px;
 }
 
 .detail-order {
-  color: var(--accent-gold);
-}
-
-.detail-date {
-  color: rgba(243, 241, 230, 0.5);
-  letter-spacing: 0.12em;
+  margin: 0 0 20px;
+  color: var(--accent-red, #ac4233);
+  font-size: 12px;
+  line-height: 1.6;
+  letter-spacing: 0.14em;
 }
 
 .detail-title {
   margin: 0;
-  color: var(--text-main);
-  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
   font-family: var(--font-display);
-  font-size: 30px;
-  letter-spacing: 0.02em;
+  font-size: clamp(34px, 2.4vw, 42px);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
+  line-height: 1.4;
+  letter-spacing: 0.05em;
 }
 
-.detail-rule {
-  display: block;
-  width: 34px;
-  height: 1px;
-  margin-top: 16px;
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.92), rgba(212, 175, 55, 0));
+.detail-date {
+  margin: 10px 0 0;
+  color: var(--paper-muted, #686255);
+  font-size: 13px;
+  line-height: 1.7;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
 }
 
 .detail-quote {
-  margin: 16px 0 0;
+  margin: 22px 0 0;
   padding-left: 14px;
-  border-left: 1px solid rgba(212, 175, 55, 0.55);
-  color: rgba(224, 189, 114, 0.86);
-  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
-  font-size: 14px;
-  letter-spacing: 0.04em;
-  line-height: 1.8;
+  border-left: 2px solid var(--accent-gold, #b99b6b);
+  color: #6d503e;
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.85;
 }
 
 .detail-body {
-  margin-top: 22px;
-  padding-top: 20px;
-  flex: 1;
-  min-height: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  overflow: auto;
-  padding-right: 4px;
-  padding-bottom: 18px;
-  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
-  mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(212, 175, 55, 0.35) transparent;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(41, 41, 35, 0.17);
 }
 
-.detail-body::-webkit-scrollbar {
-  width: 4px;
-}
-
-.detail-body::-webkit-scrollbar-thumb {
-  border-radius: 2px;
-  background: rgba(212, 175, 55, 0.32);
-}
-
-.detail-text {
-  margin: 0;
-  color: rgba(244, 241, 225, 0.7);
-  font-size: 13.5px;
-  line-height: 2;
-  letter-spacing: 0.03em;
-  text-align: justify;
-}
-
-.detail-text + .detail-text {
-  margin-top: 14px;
-}
-
-.detail-text.is-lead {
-  color: rgba(244, 241, 225, 0.88);
-}
-
-/* ---- 分节结构：导语 / 小标题 / 数据条 ---- */
+.detail-text,
 .detail-lead {
-  margin: 0 0 20px;
-  color: rgba(244, 241, 225, 0.92);
-  font-size: 14.5px;
-  line-height: 1.92;
-  letter-spacing: 0.035em;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.95;
+  overflow-wrap: anywhere;
 }
 
-.detail-section + .detail-section {
-  margin-top: 18px;
+.detail-lead {
+  margin-bottom: 25px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1.8;
+}
+
+.detail-section + .detail-section,
+.detail-text + .detail-text {
+  margin-top: 22px;
 }
 
 .detail-subhead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 7px;
-  color: var(--accent-gold);
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 400;
-  letter-spacing: 0.18em;
-}
-
-.detail-subhead::before {
-  content: "";
-  width: 12px;
-  height: 1px;
-  background: rgba(212, 175, 55, 0.55);
-  flex: none;
+  margin: 0 0 8px;
+  color: var(--accent-red, #ac4233);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.8;
 }
 
 .detail-facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  flex: none;
-  margin: 16px 0 0;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 14px;
+  margin: 28px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(41, 41, 35, 0.17);
 }
 
 .detail-fact {
   min-width: 0;
 }
 
-.detail-fact-v {
-  margin: 0;
-  color: rgba(248, 223, 156, 0.94);
-  font-size: 18px;
-  line-height: 1.2;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.detail-fact + .detail-fact {
+  padding-left: 12px;
+  border-left: 1px solid rgba(41, 41, 35, 0.12);
 }
 
 .detail-fact-k {
-  margin: 5px 0 0;
-  color: rgba(163, 168, 180, 0.62);
-  font-size: 10px;
-  line-height: 1.4;
-  letter-spacing: 0.12em;
+  color: var(--paper-muted, #686255);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.detail-fact-v {
+  margin: 8px 0 0;
+  color: var(--ink, #292923);
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.detail-actions {
+  flex: 0 0 auto;
+  padding: 18px 26px 14px;
+  border-top: 1px solid rgba(41, 41, 35, 0.18);
+  background: #e4dac6;
 }
 
 .detail-light {
   display: flex;
-  width: 100%;
-  height: 42px;
-  margin-top: 16px;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.045);
-  color: rgba(244, 241, 225, 0.82);
-  font-size: 12px;
-  letter-spacing: 0.18em;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--accent-red, #ac4233);
+  background: var(--accent-red, #ac4233);
+  color: #fff7e9;
+  font: 500 15px/1.6 var(--font-body);
+  letter-spacing: 0.08em;
   cursor: pointer;
-  transition:
-    background 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-    border-color 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-    color 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: background 180ms ease, color 180ms ease;
 }
 
 .detail-light-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
+  flex: none;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 10px 2px rgba(224, 189, 114, 0.5);
-  transition: box-shadow 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.detail-light:hover:not(:disabled),
-.detail-light:focus-visible:not(:disabled) {
-  border-color: rgba(212, 175, 55, 0.45);
-  background: rgba(255, 255, 255, 0.075);
-  box-shadow: 0 0 18px rgba(212, 175, 55, 0.12);
-  color: #f8df9c;
-  outline: none;
+.detail-light:hover {
+  background: #93372a;
 }
 
 .detail-light.is-lit {
-  border-color: rgba(212, 175, 55, 0.42);
-  background: rgba(212, 175, 55, 0.10);
-  color: #f8df9c;
+  background: transparent;
+  color: #913a2e;
 }
 
-.detail-light.is-lit .detail-light-dot {
-  box-shadow:
-    0 0 12px 3px rgba(246, 220, 156, 0.75),
-    0 0 26px 8px rgba(224, 189, 114, 0.28);
+.detail-light.is-lit:hover,
+.detail-light.is-confirming {
+  background: #f0d8c8;
+  color: #7d2c22;
 }
 
 .detail-foot {
   display: flex;
-  margin-top: 18px;
-  padding-top: 16px;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  gap: 4px 10px;
+  margin-top: 10px;
 }
 
 .detail-coordinate {
-  color: rgba(243, 241, 230, 0.34);
-  font: 10px/1 'Space Mono', ui-monospace, monospace;
-  letter-spacing: 0.12em;
+  color: var(--paper-muted, #686255);
+  font-size: 11px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
 }
 
 .detail-steps {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
 }
 
-.detail-steps button {
-  width: 30px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid rgba(212, 175, 55, 0.28);
-  border-radius: 2px;
+.step-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 78px;
+  min-height: 44px;
+  padding: 6px;
+  border: 0;
   background: transparent;
-  color: rgba(243, 241, 230, 0.62);
-  font-size: 13px;
-  line-height: 1;
+  color: var(--ink, #292923);
+  font: 13px/1.6 var(--font-body);
   cursor: pointer;
-  transition:
-    color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
-    border-color 0.3s cubic-bezier(0.25, 1, 0.5, 1),
-    background 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: color 180ms ease, background 180ms ease;
 }
 
-.detail-steps button:hover,
-.detail-steps button:focus-visible {
-  border-color: rgba(224, 189, 114, 0.7);
-  background: rgba(212, 175, 55, 0.1);
-  color: #f8df9c;
-  outline: none;
+.step-btn:hover:not(:disabled) {
+  background: rgba(172, 66, 51, 0.08);
+  color: #913a2e;
 }
 
-/* 进场：等镜头飞到落点（约 1 秒）再滑出，别和"光点升到 30%"抢戏。 */
-.detail-enter-active {
-  transition:
-    opacity 0.9s cubic-bezier(0.25, 1, 0.5, 1) 0.75s,
-    transform 0.9s cubic-bezier(0.25, 1, 0.5, 1) 0.75s;
+.step-btn:disabled {
+  color: #9a9283;
+  cursor: default;
 }
 
+.detail-close:focus-visible,
+.detail-light:focus-visible,
+.step-btn:focus-visible,
+.detail-scroll:focus-visible {
+  outline: 2px solid #913a2e;
+  outline-offset: -3px;
+}
+
+.detail-enter-active,
 .detail-leave-active {
-  transition:
-    opacity 0.3s ease,
-    transform 0.3s ease;
+  transition: opacity 300ms ease, transform 350ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .detail-enter-from,
 .detail-leave-to {
   opacity: 0;
-  transform: translateX(26px);
+  transform: translateX(20px);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 720px) {
   .detail-panel {
     top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    left: 12px;
     width: auto;
-    height: auto;
-    max-height: min(78vh, 660px);
-    padding: 24px 20px calc(16px + env(safe-area-inset-bottom, 0px));
-    border-right: 0;
-    border-bottom: 0;
-    border-left: 0;
-    border-radius: 14px 14px 0 0;
-    background: rgba(16, 21, 30, 0.78);
+    max-height: 80dvh;
   }
 
-  .detail-panel::before {
-    top: 8px;
-    left: 50%;
-    width: 34px;
-    height: 2px;
-    border-radius: 1px;
-    background: rgba(243, 241, 230, 0.18);
-    transform: translateX(-50%);
+  .detail-scroll {
+    padding: 26px 24px 24px;
   }
 
   .detail-title {
-    font-size: 26px;
+    font-size: 34px;
   }
 
-  .detail-quote {
-    margin-top: 12px;
-    font-size: 13px;
-  }
-
-  .detail-body {
-    margin-top: 16px;
-    padding-top: 14px;
-    min-height: 96px;
-  }
-
-  .detail-text {
-    font-size: 14px;
-    line-height: 1.95;
-  }
-
-  /* 抽屉内滚动时，最后一行淡出，提示"下面还有"。 */
-  .detail-body {
-    mask-image: linear-gradient(180deg, #000 calc(100% - 26px), transparent);
-    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), transparent);
+  .detail-actions {
+    padding: 14px 20px 10px;
   }
 
   .detail-enter-from,
   .detail-leave-to {
-    transform: translateY(40px);
+    transform: translateY(20px);
+  }
+}
+
+@media (max-width: 420px) {
+  .detail-scroll {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .detail-coordinate {
+    flex-basis: 100%;
+  }
+
+  .detail-foot {
+    gap: 0;
+  }
+
+  .detail-steps {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .detail-facts {
+    gap: 8px;
+  }
+
+  .detail-fact + .detail-fact {
+    padding-left: 8px;
+  }
+
+  .detail-fact-v {
+    font-size: 18px;
+  }
+}
+
+@media (max-height: 600px) and (min-width: 721px) {
+  .detail-panel {
+    top: 16px;
+    bottom: 16px;
+    right: 16px;
+    width: min(440px, 52vw);
+    max-height: calc(100dvh - 32px);
+  }
+
+  .detail-scroll {
+    padding-top: 22px;
+  }
+
+  .detail-order {
+    margin-bottom: 12px;
+  }
+
+  .detail-title {
+    font-size: 30px;
+  }
+
+  .detail-actions {
+    padding-top: 12px;
+    padding-bottom: 8px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .detail-enter-active,
-  .detail-leave-active {
-    transition-duration: 0.01ms;
-    transition-delay: 0s;
+  .detail-leave-active,
+  .detail-close,
+  .detail-light,
+  .step-btn {
+    transition: none;
   }
 }
-.detail-light.is-confirming {
-  border-color: rgba(243, 212, 140, 0.85);
-  color: #f8df9c;
-  box-shadow:
-    0 0 0 1px rgba(243, 212, 140, 0.25),
-    0 6px 18px rgba(212, 175, 55, 0.18);
-}
 
-.detail-steps { display: flex; gap: 8px; }
-.step-btn {
-  min-width: 78px;
-  height: 34px;
-  padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  border: 1px solid rgba(196, 163, 90, 0.24);
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--text-main);
-  font-size: 11.5px;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  transition: border-color .35s var(--ease), background .35s var(--ease), color .35s var(--ease);
-}
-.step-btn:hover:not(:disabled) { border-color: rgba(229, 192, 123, 0.72); background: rgba(229, 192, 123, 0.06); color: #fff; }
-.step-btn:disabled { opacity: .32; cursor: default; }
-
-@media (max-width: 768px) {
-  .detail-steps { gap: 10px; }
-  .step-btn { min-width: 88px; height: 44px; font-size: 12px; }
+html.reduce-motion .detail-enter-active,
+html.reduce-motion .detail-leave-active,
+html.reduce-motion .detail-close,
+html.reduce-motion .detail-light,
+html.reduce-motion .step-btn {
+  transition: none;
 }
 </style>

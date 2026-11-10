@@ -1,10 +1,5 @@
 <script setup>
-/**
- * 事件场景：一张虚化的历史影像垫在星球下方，一段叙事文字压在左下角。
- *
- * 为什么不做"居中卡片 + 大红边框"：那是海报的做法。
- * 影像是环境、文字是字幕——所以文字压在暗部，不加框，只留一条 1px 金线。
- */
+/** 事件场景：纸色档案阅读面与历史示意图并置，窄屏切换为上下布局。 */
 defineProps({
   event: { type: Object, default: null },
   dimmed: { type: Boolean, default: false },
@@ -15,40 +10,52 @@ defineProps({
 <template>
   <Transition name="scene">
     <div v-if="event" class="event-scene" :class="{ 'is-dimmed': dimmed }">
-      <div class="event-copy">
-        <p class="event-date">{{ event.date }}</p>
-        <span class="event-rule" aria-hidden="true" />
-        <h2 class="event-title">{{ event.title }}</h2>
-        <p class="event-text">{{ event.text }}</p>
+      <section
+        :key="event.id"
+        class="event-copy"
+        tabindex="0"
+        :aria-label="event.title"
+        @pointerdown.stop
+        @pointerup.stop
+        @click.stop
+        @wheel.stop
+      >
+        <div class="event-article">
+          <header class="event-head">
+            <p class="event-kicker">长征纪事</p>
+            <p class="event-date">{{ event.date }}</p>
+            <h2 class="event-title">{{ event.title }}</h2>
+            <span class="event-rule" aria-hidden="true" />
+          </header>
+          <p class="event-text">{{ event.text }}</p>
 
-        <ul v-if="event.points && event.points.length" class="event-points">
-          <li v-for="(pt, i) in event.points" :key="i">{{ pt }}</li>
-        </ul>
+          <ul v-if="event.points && event.points.length" class="event-points">
+            <li v-for="(pt, i) in event.points" :key="i">{{ pt }}</li>
+          </ul>
 
-        <!-- 四渡赤水：四条虚线画在卡片里，而不是球面上（球面间距不到 3px） -->
-        <svg v-if="event.diagram" class="event-diagram" viewBox="0 0 320 96" aria-hidden="true">
-          <defs>
-            <marker id="arrow" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto">
-              <path d="M0 0 L6 3 L0 6 z" fill="rgba(212,175,55,0.75)" />
-            </marker>
-          </defs>
-          <g fill="none" stroke="rgba(212,175,55,0.55)" stroke-width="1" stroke-dasharray="4 3">
-            <path d="M18 78 C 60 78, 62 26, 104 26" marker-end="url(#arrow)" />
-            <path d="M104 26 C 146 26, 148 78, 190 78" marker-end="url(#arrow)" />
-            <path d="M190 78 C 232 78, 234 40, 276 40" marker-end="url(#arrow)" />
-            <path d="M276 40 C 300 40, 300 16, 312 16" marker-end="url(#arrow)" />
-          </g>
-          <g fill="rgba(212,175,55,0.85)" font-size="10" font-family="Noto Serif SC, serif">
-            <text x="22" y="94">① 土城</text>
-            <text x="108" y="18">② 太平渡</text>
-            <text x="194" y="94">③ 茅台</text>
-            <text x="250" y="34">④ 二郎滩</text>
-          </g>
-        </svg>
+          <svg v-if="event.diagram" class="event-diagram" viewBox="0 0 320 104" aria-hidden="true">
+            <defs>
+              <marker id="event-arrow" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M0 0 L6 3 L0 6 z" fill="currentColor" />
+              </marker>
+            </defs>
+            <g fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3">
+              <path d="M18 78 C 60 78, 62 26, 104 26" marker-end="url(#event-arrow)" />
+              <path d="M104 26 C 146 26, 148 78, 190 78" marker-end="url(#event-arrow)" />
+              <path d="M190 78 C 232 78, 234 40, 276 40" marker-end="url(#event-arrow)" />
+              <path d="M276 40 C 300 40, 300 16, 312 16" marker-end="url(#event-arrow)" />
+            </g>
+            <g fill="currentColor" font-size="11">
+              <text x="22" y="98">① 土城</text>
+              <text x="108" y="18">② 太平渡</text>
+              <text x="194" y="98">③ 茅台</text>
+              <text x="250" y="34">④ 二郎滩</text>
+            </g>
+          </svg>
 
-        <p class="event-credit">{{ event.credit }}</p>
-      </div>
-
+          <p class="event-credit">{{ event.credit }}</p>
+        </div>
+      </section>
     </div>
   </Transition>
 </template>
@@ -58,289 +65,130 @@ defineProps({
   position: fixed;
   inset: 0;
   z-index: 7;
-  pointer-events: none;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-}
-
-.event-copy::before {
-  position: absolute;
-  z-index: -1;
-  top: -12vh;
-  bottom: -14vh;
-  left: -14vw;
-  right: -6vw;
-  background: linear-gradient(90deg, rgba(4, 7, 12, 0.72) 0%, rgba(4, 7, 12, 0.5) 46%, transparent 100%);
-  content: '';
+  font-family: var(--font-body);
   pointer-events: none;
 }
 
 .event-copy {
+  --focus-color: var(--accent-red, #ac4233);
+  color-scheme: light;
   position: absolute;
-  left: 8vw;
-  bottom: 15vh;
-  width: 560px;
-  max-width: 72vw;
-  color: #e9e2d4;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: 38%;
+  padding: 96px clamp(32px, 4vw, 78px) 76px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  border-right: 1px solid rgba(41, 41, 35, 0.16);
+  background: var(--paper, #eae2d1);
+  color: var(--ink, #292923);
+  scrollbar-width: thin;
+  scrollbar-color: #aaa18e transparent;
+  pointer-events: auto;
+  transition: opacity 250ms ease;
+}
+
+.event-article {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 580px;
+  margin-block: auto;
+}
+
+.event-kicker {
+  margin: 0 0 28px;
+  color: var(--accent-red, #ac4233);
+  font-size: 12px;
+  line-height: 1.6;
+  letter-spacing: 0.3em;
 }
 
 .event-date {
-  margin: 0;
-  font-family: var(--font-body);
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  color: rgba(214, 205, 186, 0.92);
-  text-shadow: 0 1px 10px rgba(4, 7, 12, 0.8);
-}
-
-.event-rule {
-  display: block;
-  width: 44px;
-  height: 1px;
-  margin: 16px 0 18px;
-  background: var(--accent-gold);
-  opacity: 0.5;
+  margin: 0 0 16px;
+  color: var(--paper-muted, #686255);
+  font-size: 13px;
+  line-height: 1.8;
+  letter-spacing: 0.09em;
+  font-variant-numeric: tabular-nums;
 }
 
 .event-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 40px;
-  line-height: 1.18;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: #f7f5ec;
+  font-size: clamp(36px, 3vw, 58px);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+}
+
+.event-rule {
+  display: block;
+  width: 42px;
+  height: 2px;
+  margin: 28px 0;
+  background: var(--accent-red, #ac4233);
+}
+
+.event-text {
+  margin: 0;
+  font-size: 17px;
+  line-height: 2;
+  overflow-wrap: anywhere;
 }
 
 .event-points {
-  margin: 22px 0 0;
-  padding: 0 0 0 16px;
+  margin: 30px 0 0;
+  padding: 20px 0 0;
+  border-top: 1px solid rgba(41, 41, 35, 0.18);
   list-style: none;
-  border-left: 1px solid rgba(212, 175, 55, 0.28);
 }
 
 .event-points li {
   position: relative;
-  margin: 0 0 8px;
-  font-family: var(--font-body);
-  font-size: 13px;
+  padding-left: 18px;
+  font-size: 14px;
   line-height: 1.9;
-  letter-spacing: 0.01em;
-  color: rgba(243, 241, 230, 0.88);
-  text-shadow: 0 1px 12px rgba(4, 7, 12, 0.8);
+  color: #514c43;
+}
+
+.event-points li + li {
+  margin-top: 9px;
 }
 
 .event-points li::before {
-  content: '';
   position: absolute;
-  left: -19px;
   top: 12px;
-  width: 4px;
-  height: 1px;
-  background: rgba(212, 175, 55, 0.55);
-}
-
-.event-text {
-  margin: 16px 0 0;
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.95;
-  letter-spacing: 0.01em;
-  color: rgba(246, 243, 234, 0.94);
-  text-shadow: 0 1px 14px rgba(4, 7, 12, 0.85), 0 0 42px rgba(4, 7, 12, 0.55);
+  left: 0;
+  width: 5px;
+  height: 5px;
+  background: var(--accent-red, #ac4233);
+  content: '';
 }
 
 .event-diagram {
   display: block;
-  width: 320px;
-  height: 96px;
-  margin-top: 24px;
-  opacity: 0.9;
+  width: min(100%, 380px);
+  height: auto;
+  margin-top: 26px;
+  color: #8b4a38;
+  font-family: var(--font-body);
 }
 
 .event-credit {
-  margin: 26px 0 0;
-  font-family: var(--font-body);
+  margin: 30px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(41, 41, 35, 0.12);
+  color: var(--paper-muted, #686255);
   font-size: 11px;
-  line-height: 1.6;
-  color: var(--text-dim);
-  opacity: 0.8;
-}
-
-.event-actions {
-  position: absolute;
-  top: 34px;
-  right: 34px;
-  display: flex;
-  gap: 18px;
-  opacity: 0;
-  transition: opacity 0.35s ease;
-  pointer-events: auto;
-}
-
-.event-scene:hover .event-actions,
-.event-actions:focus-within {
-  opacity: 1;
-}
-
-.event-actions button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: rgba(243, 241, 230, 0.5);
-  font-family: inherit;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  cursor: pointer;
-  transition: color 0.3s ease;
-}
-
-.event-actions button:hover {
-  color: #e9e2d4;
-}
-
-.event-continue {
-  position: absolute;
-  right: 8vw;
-  bottom: 15vh;
-  margin: 0;
-  font-size: 11px;
-  letter-spacing: 0.26em;
-  color: rgba(243, 241, 230, 0.5);
-  animation: continue-breathe 2.4s ease-in-out infinite;
-}
-
-@keyframes continue-breathe {
-  0%,
-  100% {
-    opacity: 0.22;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-/* 进场：文字延迟 0.35s，上浮 8px；不做缩放 */
-.scene-enter-active .event-copy,
-.scene-enter-active .event-continue {
-  transition:
-    opacity 0.8s ease 0.35s,
-    transform 0.8s cubic-bezier(0.25, 1, 0.5, 1) 0.35s;
-}
-
-.scene-enter-from .event-copy,
-.scene-enter-from .event-continue {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.scene-leave-active .event-copy,
-.scene-leave-active .event-continue {
-  transition: opacity 0.45s ease;
-}
-
-.scene-leave-to .event-copy,
-.scene-leave-to .event-continue {
-  opacity: 0;
-}
-
-@media (max-width: 768px) {
-  .event-copy {
-    left: 24px;
-    right: 24px;
-    bottom: 12vh;
-    width: auto;
-    max-width: none;
-  }
-
-  .event-title {
-    font-size: 26px;
-  }
-
-  .event-points {
-  margin: 22px 0 0;
-  padding: 0 0 0 16px;
-  list-style: none;
-  border-left: 1px solid rgba(212, 175, 55, 0.28);
-}
-
-.event-points li {
-  position: relative;
-  margin: 0 0 8px;
-  font-size: 13px;
   line-height: 1.9;
-  letter-spacing: 0.03em;
-  color: rgba(243, 241, 230, 0.78);
 }
 
-.event-points li::before {
-  content: '';
-  position: absolute;
-  left: -19px;
-  top: 12px;
-  width: 4px;
-  height: 1px;
-  background: rgba(212, 175, 55, 0.55);
-}
-
-.event-text {
-    font-size: 14px;
-    line-height: 1.95;
-  }
-
-  .event-continue {
-    right: auto;
-    left: 24px;
-    bottom: 5vh;
-  }
-
-  .event-actions {
-    top: auto;
-    bottom: 5vh;
-    right: 24px;
-    opacity: 1;
-  }
-}
-
-/* ---- 移动端：文字承托 + 安全区；面板打开时让位 ---- */
-@media (max-width: 768px) {
-  .event-copy {
-    left: 16px;
-    right: 16px;
-    bottom: calc(7vh + env(safe-area-inset-bottom));
-    padding: 18px 16px 20px;
-    background: linear-gradient(
-      180deg,
-      rgba(6, 10, 17, 0) 0%,
-      rgba(6, 10, 17, 0.64) 26%,
-      rgba(6, 10, 17, 0.86) 100%
-    );
-  }
-
-  .event-date,
-  .event-title,
-  .event-text,
-  .event-points,
-  .event-credit {
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
-  }
-
-  .event-title {
-    font-size: 24px;
-  }
-
-  .event-text {
-    font-size: 13.5px;
-    line-height: 1.9;
-  }
-
-  .event-points li {
-    font-size: 12.5px;
-  }
-
-  .event-continue,
-  .event-actions {
-    bottom: calc(2.5vh + env(safe-area-inset-bottom));
-  }
+.event-copy:focus-visible {
+  outline: 2px solid var(--accent-red, #ac4233);
+  outline-offset: -6px;
 }
 
 .event-scene.is-dimmed .event-copy {
@@ -348,55 +196,123 @@ defineProps({
   pointer-events: none;
 }
 
-/* 移动端事件版式：文案底部贴底、限高可滚，把上方让给影像 */
-@media (max-width: 768px) {
-  .event-copy {
-    left: 20px;
-    right: 20px;
-    bottom: calc(5vh + env(safe-area-inset-bottom));
-    width: auto;
-    max-width: none;
-    max-height: 46vh;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    padding: 14px 0 12px;
-    background: linear-gradient(180deg, rgba(5, 8, 14, 0) 0%, rgba(5, 8, 14, 0.86) 26%, rgba(5, 8, 14, 0.94) 100%);
-  }
-  .event-title { font-size: 25px; }
-  .event-text { font-size: 15px; line-height: 1.95; }
-  .event-points li { font-size: 13px; }
-  .event-continue { bottom: calc(1.5vh + env(safe-area-inset-bottom)); }
+.scene-enter-active,
+.scene-leave-active {
+  transition: opacity 400ms ease;
 }
-/* 横屏手机（844×390 这类）：竖向空间不足，文案改为右侧窄栏并压缩 */
-@media (max-height: 480px) and (orientation: landscape) {
+
+.scene-enter-active .event-article {
+  transition: transform 500ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.scene-enter-from,
+.scene-leave-to {
+  opacity: 0;
+}
+
+.scene-enter-from .event-article {
+  transform: translateY(14px);
+}
+
+@media (max-width: 1100px) and (min-width: 721px) {
   .event-copy {
-    left: auto;
-    right: 4vw;
-    bottom: 6vh;
-    width: 50vw;
-    max-width: none;
-    max-height: 74vh;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    width: 42%;
+    padding-right: 32px;
+    padding-left: 32px;
   }
+
   .event-title {
-    font-size: 26px;
-  }
-  .event-text {
-    font-size: 13px;
-    line-height: 1.75;
-  }
-  .event-points {
-    margin-top: 12px;
-  }
-  .event-points li {
-    font-size: 12px;
-    line-height: 1.6;
-  }
-  .event-credit {
-    margin-top: 12px;
+    font-size: 36px;
   }
 }
 
+@media (max-width: 720px) {
+  .event-copy {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 56dvh;
+    max-height: 56dvh;
+    padding: 28px clamp(24px, 5vw, 40px) calc(28px + env(safe-area-inset-bottom, 0px));
+    border-top: 2px solid var(--accent-red, #ac4233);
+    border-right: 0;
+  }
+
+  .event-article {
+    max-width: 620px;
+    margin-inline: auto;
+  }
+
+  .event-kicker {
+    margin-bottom: 16px;
+    font-size: 11px;
+  }
+
+  .event-date {
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+
+  .event-title {
+    font-size: 34px;
+  }
+
+  .event-rule {
+    margin: 20px 0;
+  }
+
+  .event-text {
+    line-height: 1.95;
+  }
+
+  .event-points {
+    margin-top: 24px;
+  }
+
+  .event-credit {
+    margin-top: 24px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .event-copy {
+    inset: 0 auto 0 0;
+    width: 46%;
+    height: auto;
+    max-height: 100dvh;
+    padding: 28px 30px 32px;
+    border-top: 0;
+    border-right: 1px solid rgba(41, 41, 35, 0.16);
+  }
+
+  .event-kicker {
+    margin-bottom: 14px;
+  }
+
+  .event-title {
+    font-size: 30px;
+  }
+
+  .event-rule {
+    margin: 18px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-copy,
+  .scene-enter-active,
+  .scene-leave-active,
+  .scene-enter-active .event-article {
+    transition: none;
+  }
+}
+
+html.reduce-motion .event-copy,
+html.reduce-motion .scene-enter-active,
+html.reduce-motion .scene-leave-active,
+html.reduce-motion .scene-enter-active .event-article {
+  transition: none;
+}
 </style>

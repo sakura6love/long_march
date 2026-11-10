@@ -157,8 +157,8 @@ export function createRouteLine(globe, nodes) {
   geo.setPositions(flat)
 
   const coreMat = new LineMaterial({
-    linewidth: 2.6,
-    color: 0x8c2a17,
+    linewidth: 2.8,
+    color: 0xac4233,
     transparent: true,
     depthWrite: false,
   })

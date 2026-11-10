@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 /**
  * 五幕：序章 → 俯瞰 → 展签 → 设置 → 终章。
  *
@@ -473,13 +473,14 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
-  background-color: #0b0f19;
+  background-color: var(--bg);
   overflow: hidden;
 }
 
 .main-container {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   position: relative;
 }
 
@@ -493,36 +494,35 @@ body {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 11px;
-  letter-spacing: 0.26em;
-  color: rgba(243, 241, 230, 0.46);
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
   pointer-events: none;
   white-space: nowrap;
-  animation: story-hint-breathe 2.8s ease-in-out infinite;
 }
 
 .story-hint i {
   font-style: normal;
-  color: rgba(212, 175, 55, 0.38);
+  color: var(--accent-gold);
   letter-spacing: 0;
 }
 
 .story-hint em {
   font-style: normal;
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  color: rgba(163, 168, 180, 0.5);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
 }
 
-@keyframes story-hint-breathe {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
+.main-container.is-scene .story-hint {
+  left: 69%;
+  bottom: 28px;
+  padding: 8px 14px;
+  border: 1px solid var(--hairline-soft);
+  border-radius: 2px;
+  background: rgba(20, 23, 20, 0.8);
+  color: var(--text-main);
 }
 
 .skip-burn {
@@ -530,13 +530,15 @@ body {
   right: 8vw;
   bottom: 4.5vh;
   z-index: 8;
-  padding: 0;
-  border: 0;
-  background: none;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  color: rgba(243, 241, 230, 0.4);
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  background: var(--surface);
+  font-family: var(--font-body);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--text-main);
   cursor: pointer;
   transition: color 0.3s ease;
 }
@@ -560,6 +562,22 @@ body {
 
   .story-hint {
     bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 720px) {
+  .main-container.is-scene .story-hint {
+    top: calc(44dvh - 52px);
+    bottom: auto;
+    left: 50%;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .main-container.is-scene .story-hint {
+    top: auto;
+    bottom: 20px;
+    left: 73%;
   }
 }
 
