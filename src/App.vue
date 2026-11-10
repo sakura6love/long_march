@@ -20,7 +20,7 @@ import { CHAPTERS } from './lib/chapters.js'
 import { STORY_EVENTS } from './lib/story.js'
 import { readLitIds, lightUp, saveLitIds, clearProgress } from './lib/api.js'
 import { dbg } from './lib/debug.js'
-import { fetchStats } from './lib/ai.js'
+import { fetchStats, STATS_URL } from './lib/ai.js'
 import {
   duckBgm,
   isBgmOn,
@@ -114,6 +114,20 @@ const stats = ref(null)
 async function refreshStats() {
   const data = await fetchStats()
   if (data) stats.value = data
+}
+
+/** 上报「全站最多点亮到第几站」；失败静默，绝不阻塞流程。keepalive 保证关页也能发出。 */
+function reportLights(count) {
+  try {
+    fetch(STATS_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ lights: count }),
+      keepalive: true,
+    }).catch(() => {})
+  } catch {
+    /* 离线或无后端时忽略 */
+  }
 }
 
 function toggleBgm() {
@@ -312,6 +326,8 @@ function finishJourney() {
   document.body.style.overflow = ''
   screen.value = 'finale'
   finaleReady.value = false
+  reportLights(12)
+  window.setTimeout(refreshStats, 900)
   globeRef.value?.pullBack?.()
   window.setTimeout(() => {
     finaleReady.value = true
