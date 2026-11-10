@@ -107,6 +107,7 @@ function goOverview() {
 }
 
 const bgmOn = ref(isBgmOn())
+const mutedOn = ref(isMuted())
 
 function toggleBgm() {
   bgmOn.value = !bgmOn.value
@@ -157,7 +158,9 @@ function restart() {
 }
 
 function toggleMute() {
-  setMuted(!isMuted())
+  const next = !mutedOn.value
+  mutedOn.value = next
+  setMuted(next)
 }
 
 function toggleMotion() {
@@ -414,7 +417,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
     <SettingsPanel
       v-if="settingsOpen"
-      :muted="isMuted()"
+      :muted="mutedOn"
       :bgm="bgmOn"
       :reduced="reduced"
       :can-restart="true"

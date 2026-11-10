@@ -163,14 +163,36 @@ const emit = defineEmits(['close', 'restart', 'toggle-mute', 'toggle-motion', 't
 }
 
 .switch i {
-  width: 26px;
-  height: 1px;
-  background: rgba(243, 241, 230, 0.25);
-  transition: background 0.3s ease;
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: rgba(243, 241, 230, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(243, 241, 230, 0.18);
+  transition: background 0.28s ease, box-shadow 0.28s ease;
+}
+
+.switch i::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(243, 241, 230, 0.5);
+  transition: transform 0.28s cubic-bezier(0.25, 1, 0.5, 1), background 0.28s ease;
 }
 
 .switch i.on {
-  background: var(--accent-gold);
+  background: rgba(229, 192, 123, 0.26);
+  box-shadow: inset 0 0 0 1px rgba(229, 192, 123, 0.55);
+}
+
+.switch i.on::after {
+  transform: translateX(16px);
+  background: #e5c07b;
 }
 
 .split {
