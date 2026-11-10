@@ -229,9 +229,19 @@ function drawerEl() {
 }
 
 /** 键盘弹出时把抽屉压进可见视口（安卓 Chrome / WebView 通用）。 */
+function isFinePointer() {
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches
+}
+
 function applyKeyboardLayout() {
   const el = drawerEl()
   if (!el || !open.value) return
+  // 桌面（鼠标指针）没有软键盘，这套视口贴合只该在触屏上跑；
+  // 否则聚焦输入框会把面板强行改成 top 定位，桌面版式被打乱。
+  if (isFinePointer()) {
+    resetKeyboardLayout()
+    return
+  }
   const vv = window.visualViewport
   const height = vv ? vv.height : window.innerHeight
   const top = (vv ? vv.offsetTop : 0) + 8
@@ -256,6 +266,7 @@ function isInAskInput(node) {
 
 function onFocusIn(event) {
   if (!isInAskInput(event.target)) return
+  if (isFinePointer()) return
   applyKeyboardLayout()
   window.setTimeout(applyKeyboardLayout, 120)
   window.setTimeout(applyKeyboardLayout, 360)
