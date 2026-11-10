@@ -71,7 +71,7 @@ const short = (date = '') => {
 </script>
 
 <template>
-  <nav class="route-strip" aria-label="长征事件路书">
+  <div class="route-strip" aria-label="路书">
     <span class="rs-end rs-end-l">瑞金</span>
     <span class="rs-end rs-end-r">会宁</span>
     <div class="rs-line" aria-hidden="true">
@@ -90,12 +90,9 @@ const short = (date = '') => {
       }"
       :style="{ left: `${e.pct}%` }"
       type="button"
-      :aria-label="`${e.title}，${short(e.date)}`"
       @click.stop="$emit('select', e.id)"
       @mouseenter="hover = e.id"
       @mouseleave="hover = ''"
-      @focus="hover = e.id"
-      @blur="hover = ''"
     >
       <span class="rs-index">{{ num(i) }}</span>
       <span class="rs-dot" aria-hidden="true" />
@@ -105,49 +102,49 @@ const short = (date = '') => {
         <i>{{ e.place || '' }} · {{ short(e.date) }}</i>
       </span>
     </button>
-  </nav>
+  </div>
 </template>
 
 <style scoped>
 .route-strip {
   position: fixed;
-  z-index: 26;
   left: 50%;
-  bottom: 112px;
-  width: min(760px, 56vw);
-  height: 48px;
+  bottom: 108px;
+  width: min(540px, 48vw);
+  height: 34px;
   transform: translateX(-50%);
-  font-family: var(--font-body);
+  z-index: 26;
   pointer-events: none;
 }
 
 .rs-line {
   position: absolute;
-  top: 29px;
-  right: 0;
   left: 0;
+  right: 0;
+  top: 20px;
   height: 1px;
-  background: rgba(185, 178, 164, 0.36);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .rs-fill {
   position: absolute;
-  inset: 0 auto 0 0;
+  left: 0;
+  top: 0;
   height: 1px;
-  background: var(--accent-gold, #b99b6b);
-  transition: width 600ms var(--ease);
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), var(--accent-gold));
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.35);
+  transition: width 0.9s var(--ease);
 }
 
 .rs-node {
   position: absolute;
   top: 0;
-  width: 44px;
-  height: 48px;
-  margin-left: -22px;
+  width: 24px;
+  height: 34px;
+  margin-left: -12px;
   padding: 0;
   border: 0;
-  background: transparent;
-  color: var(--text-muted, #b9b2a4);
+  background: none;
   cursor: pointer;
   pointer-events: auto;
 }
@@ -157,182 +154,123 @@ const short = (date = '') => {
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  font-family: var(--font-display);
-  font-size: 15px;
-  line-height: 1.6;
-  color: currentColor;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.68);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+  transition: color 0.35s var(--ease), text-shadow 0.35s var(--ease);
   white-space: nowrap;
-  transition: color 180ms ease;
 }
 
 .rs-dot {
   position: absolute;
-  top: 26px;
   left: 50%;
-  width: 7px;
-  height: 7px;
-  margin-left: -3.5px;
-  border: 1px solid #8e887c;
-  background: var(--bg, #141714);
-  transform: rotate(45deg);
-  transition: background 180ms ease, border-color 180ms ease;
+  top: 14px;
+  width: 1px;
+  height: 8px;
+  margin-left: -0.5px;
+  background: rgba(255, 255, 255, 0.32);
+  transition: height 0.35s var(--ease), background 0.35s var(--ease), box-shadow 0.35s var(--ease);
 }
 
 .rs-tip {
   position: absolute;
-  bottom: 57px;
   left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
+  padding: 7px 10px;
   width: max-content;
-  max-width: min(260px, 70vw);
-  padding: 14px 18px;
-  transform: translateX(-50%);
-  border: 1px solid rgba(185, 155, 107, 0.4);
-  background: var(--surface, #22261f);
-  color: var(--text-main, #eee7da);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  text-align: left;
-  pointer-events: none;
+  max-width: 190px;
+  background: rgba(8, 12, 18, 0.92);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
 }
 
 .rs-tip em {
-  font-family: var(--font-display);
-  font-size: 19px;
   font-style: normal;
-  line-height: 1.5;
+  font-size: 11px;
+  color: var(--text-main);
 }
 
 .rs-tip i {
-  color: var(--text-muted, #b9b2a4);
-  font-size: 12px;
   font-style: normal;
-  line-height: 1.6;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(243, 241, 230, 0.5);
 }
 
 .rs-end {
   position: absolute;
-  top: -30px;
-  color: var(--text-muted, #b9b2a4);
-  font-size: 12px;
-  line-height: 1.6;
-  letter-spacing: 0.16em;
+  top: -18px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
 }
+.rs-end-l { left: 0; }
+.rs-end-r { right: 0; }
 
-.rs-end-l {
-  left: 0;
+/* 已走过 */
+.is-seen .rs-index {
+  color: rgba(244, 241, 225, 0.72);
 }
-
-.rs-end-r {
-  right: 0;
-}
-
-.is-seen {
-  color: var(--text-main, #eee7da);
-}
-
 .is-seen .rs-dot {
-  border-color: var(--accent-red, #ac4233);
-  background: var(--accent-red, #ac4233);
+  height: 12px;
+  background: var(--red-trail);
+  box-shadow: 0 0 6px rgba(139, 28, 28, 0.55);
 }
 
-.is-current,
-.is-active {
-  color: var(--accent-gold, #b99b6b);
+/* 当前 */
+.is-current .rs-index,
+.is-active .rs-index {
+  color: var(--accent-gold);
+  text-shadow: 0 0 6px rgba(212, 175, 55, 0.42);
 }
 
 .is-current .rs-dot,
 .is-active .rs-dot {
-  border-color: var(--accent-gold, #b99b6b);
-  background: var(--accent-gold, #b99b6b);
-  box-shadow: 0 0 0 4px rgba(185, 155, 107, 0.15);
+  background: #f8df9c;
+  height: 18px;
+  top: 9px;
+  box-shadow:
+    0 0 0 1px rgba(248, 223, 156, 0.35),
+    0 0 10px rgba(232, 201, 138, 0.65);
 }
 
-.rs-node:hover,
-.rs-node:focus-visible {
-  color: #fff4db;
+/* 未走到：不再叠 opacity，只压颜色 */
+.is-locked .rs-index {
+  color: rgba(255, 255, 255, 0.52);
+}
+.is-locked .rs-dot {
+  background: rgba(255, 255, 255, 0.26);
+}
+.is-locked:hover .rs-index {
+  color: rgba(255, 255, 255, 0.78);
 }
 
-.rs-node:hover .rs-dot,
-.rs-node:focus-visible .rs-dot {
-  border-color: var(--text-main, #eee7da);
+.rs-node:hover .rs-index {
+  color: var(--text-main);
 }
-
-.rs-node:focus-visible {
-  outline: 1px solid var(--accent-gold, #b99b6b);
-  outline-offset: 4px;
-}
-
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .route-strip {
+    width: 88vw;
     bottom: calc(106px + env(safe-area-inset-bottom, 0px));
-    width: calc(100vw - 72px);
+    height: 30px;
   }
-
   .rs-index {
-    font-size: 14px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
   }
-
-  .rs-end {
-    top: -26px;
-    font-size: 11px;
-  }
-
-  .rs-node:first-of-type .rs-tip {
-    left: 0;
-    transform: none;
-  }
-
-  .rs-node:last-of-type .rs-tip {
-    right: 0;
-    left: auto;
-    transform: none;
-  }
-}
-
-@media (max-width: 480px) {
-  .route-strip {
-    width: calc(100vw - 52px);
-  }
-
-  .rs-node {
-    width: 32px;
-    margin-left: -16px;
-  }
-
-  .rs-index {
-    font-size: 13px;
-  }
-
-  .rs-tip {
-    max-width: 220px;
-    padding: 12px 14px;
-  }
-}
-
-@media (max-height: 600px) and (orientation: landscape) {
-  .route-strip {
-    bottom: 36px;
-    width: min(600px, 64vw);
-  }
-
   .rs-end {
     display: none;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .rs-fill,
-  .rs-index,
-  .rs-dot {
-    transition: none;
-  }
-}
-
-html.reduce-motion .rs-fill,
-html.reduce-motion .rs-index,
-html.reduce-motion .rs-dot {
-  transition: none;
-}
 </style>
+

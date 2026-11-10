@@ -787,8 +787,8 @@ onMounted(() => {
     .backgroundColor('rgba(0, 0, 0, 0)')
     .globeImageUrl(`${assetBase}earth-8k.webp`)
     .showAtmosphere(true)
-    .atmosphereColor('#b4c1b5')
-    .atmosphereAltitude(0.09)
+    .atmosphereColor('#a8d4ff')
+    .atmosphereAltitude(0.22)
     // 保持原有所有节点的经纬度与标签高度不变。
     .htmlElementsData(labelItems)
     .htmlLat((point) => point.lat)
@@ -828,7 +828,7 @@ onMounted(() => {
   // 光照只有一个目的：把山脊刻出来，而不是把地球照亮。
   // 环境光偏暖、压得很低，保证背光那一侧仍是深蓝而不是死黑。
   // 天空/地面双色环境光：天空偏冷、地面偏暖，比纯环境光更有"大气"。
-  hemiLight = new HemisphereLight(0xbecbbf, 0x302b20, 0.55)
+  hemiLight = new HemisphereLight(0x9fc4e8, 0x2b2418, 0.55)
   ambientLight = new AmbientLight(0x3a3a32, 0.12)
   scene.add(hemiLight)
   scene.add(ambientLight)
@@ -840,7 +840,7 @@ onMounted(() => {
   scene.add(terrainLight)
 
   // 补光：极暗的冷色，只负责勾出右上方的球缘，避免边缘融进背景。
-  rimLight = new DirectionalLight(0x8b9681, 0.26)
+  rimLight = new DirectionalLight(0x5b7fa6, 0.26)
   rimLight.position.set(120, 18, -160)
   scene.add(rimLight)
 
@@ -868,16 +868,16 @@ onMounted(() => {
   specularTexture.anisotropy = maxAniso
 
   globeMaterial.normalMap = normalTexture
-  globeMaterial.normalScale.set(1.6, 1.6)
+  globeMaterial.normalScale.set(2.2, 2.2)
   globeMaterial.specularMap = specularTexture
   // 海面高光压成冷灰蓝：纯白会立刻变"湿塑料"。
-  globeMaterial.specular.set(0x383e37)
-  globeMaterial.shininess = 26
+  globeMaterial.specular.set(0x3a4d60)
+  globeMaterial.shininess = 70
   // 微暖的基色乘上去，把贴图里过饱和的蓝绿压回 UI 的暖灰调子。
-  globeMaterial.color.set('#e9e0cb')
+  globeMaterial.color.set('#f7f1e4')
   globeMaterial.roughness = 0.9
   globeMaterial.metalness = 0.02
-  globeMaterial.emissive.set('#151a14')
+  globeMaterial.emissive.set('#121821')
   globeMaterial.emissiveIntensity = 0.05
   globeMaterial.needsUpdate = true
 
@@ -1013,7 +1013,7 @@ onBeforeUnmount(() => {
   <div
     class="horizon-frame"
     :style="glowStyle"
-    :class="{ 'is-finale': finale, 'is-event': !!backdrop, 'labels-muted': labelsMuted, 'labels-off': !labelsOn }"
+    :class="{ 'is-finale': finale, 'labels-muted': labelsMuted, 'labels-off': !labelsOn }"
     aria-label="长征路线俯瞰地球，显示中国境内的十二个历史节点"
     @dblclick="handleDoubleClick"
     @pointerdown="handlePointerDown"
@@ -1035,7 +1035,7 @@ onBeforeUnmount(() => {
     <header v-if="chrome" class="masthead">
       <p class="masthead-kicker" aria-hidden="true">
         <span class="readout-dot"></span>
-        长征 · 数字展馆
+        LOW EARTH ORBIT / CN-ROUTE
       </p>
       <h1 class="masthead-title">长征万里 · 薪火千秋</h1>
       <p class="masthead-sub">1934—1936 · 十二个坐标，一条改变中国的路</p>
@@ -1049,79 +1049,95 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .horizon-frame {
+  transition: transform 2.2s cubic-bezier(0.25, 1, 0.5, 1);
+  transform-origin: 50% 46%;
   position: relative;
-  width: 100%;
+  width: 100vw;
   height: 100vh;
-  height: 100dvh;
+  min-height: 360px;
   overflow: hidden;
   isolation: isolate;
   touch-action: none;
-  cursor: grab;
   background:
-    radial-gradient(ellipse at 62% 40%, rgba(104, 112, 88, 0.16), transparent 62%),
-    linear-gradient(180deg, #111511, #19201b);
+    radial-gradient(ellipse at 50% 46%, rgba(58, 96, 130, 0.22), transparent 58%),
+    linear-gradient(180deg, #03060b 0%, #050a12 48%, #0a1622 100%);
 }
 
-.horizon-frame:active { cursor: grabbing; }
+/* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
+@media (max-width: 768px) {
+  .march-label-node { width: 13px; height: 17px; }
+  .event-backdrop-img { object-position: 50% 30%; }
+  .event-backdrop::after {
+    background:
+      linear-gradient(180deg, rgba(3, 6, 11, 0.26) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.62) 100%),
+      radial-gradient(ellipse at 50% 62%, rgba(122, 162, 205, 0.10) 0%, transparent 58%);
+  }
+  .horizon-frame.labels-muted :deep(.march-label-card) {
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+}
 
-.horizon-frame::before,
-.horizon-frame::after {
+.horizon-frame.is-finale {
+  transform: none;
+}
+
+.horizon-frame::before {
   position: absolute;
+  z-index: 0;
   inset: 0;
+  background: url('/stars.png') center / cover no-repeat;
+  opacity: 0.85;
   content: '';
   pointer-events: none;
 }
 
-.horizon-frame::before {
-  z-index: 0;
-  background: url('/stars.png') center / cover no-repeat;
-  opacity: 0.14;
-}
-
 .horizon-frame::after {
-  z-index: 4;
-  background:
-    linear-gradient(180deg, rgba(20, 23, 20, 0.55), transparent 25%, transparent 65%, rgba(20, 23, 20, 0.85)),
-    radial-gradient(ellipse at 55% 43%, transparent 35%, rgba(12, 16, 12, 0.48));
-}
-
-.horizon-frame.is-event::after {
-  background: linear-gradient(180deg, rgba(20, 23, 20, 0.1), transparent 30%, rgba(20, 23, 20, 0.24));
-}
-
-.earth-globe {
   position: absolute;
+  z-index: 4;
   inset: 0;
-  z-index: 2;
-  width: 100%;
-  height: 100%;
-  transition: opacity 850ms var(--ease);
+  background:
+    linear-gradient(180deg, rgba(7, 11, 19, 0.52), transparent 22%, transparent 52%, rgba(7, 11, 19, 0.82) 100%),
+    radial-gradient(ellipse at 50% 30%, transparent 30%, rgba(3, 6, 11, 0.6) 100%);
+  content: '';
+  pointer-events: none;
 }
 
-.horizon-frame.is-event .earth-globe { opacity: 0.03; }
-.horizon-frame.is-event .masthead { opacity: 0; }
-
-:deep(canvas) {
-  display: block;
-  width: 100%;
-  height: 100%;
-  filter: saturate(0.72) sepia(0.12) contrast(1.04) brightness(calc(0.96 + var(--glow, 0) * 0.08));
-  transition: filter 600ms var(--ease);
+/* globe.gl 会往容器里塞一个自带的操作提示条（.scene-nav-info），
+   那是库的预制 UI，和整体设计不搭，直接藏掉。 */
+:deep(.scene-nav-info) {
+  display: none !important;
 }
 
-:deep(.scene-nav-info) { display: none !important; }
-
+/* 事件背景：垫在画布下方、星空上方；只在事件播放时显形。 */
 .event-backdrop {
   position: absolute;
-  inset: 0 0 0 38%;
-  z-index: 1;
+  inset: 0;
+  z-index: 0;
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 700ms var(--ease);
+  transition: opacity 0.9s ease;
 }
 
-.event-backdrop.is-on { opacity: 1; }
+.event-backdrop.is-on {
+  opacity: 1;
+  animation: sceneDrift 22s ease-out both;
+}
+
+@keyframes sceneDrift {
+  from { transform: scale(1.06); }
+  to { transform: scale(1.0); }
+}
+
+.event-backdrop::after {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(3, 6, 11, 0.30) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.62) 100%),
+    radial-gradient(ellipse at 50% 62%, rgba(122, 162, 205, 0.10) 0%, transparent 58%);
+  content: '';
+}
 
 .event-backdrop-img {
   position: absolute;
@@ -1129,56 +1145,106 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
   opacity: 0;
-  filter: saturate(0.65) sepia(0.12) brightness(0.9);
-  transition: opacity 850ms ease;
+  will-change: opacity;
+  filter: saturate(0.95) brightness(0.82) contrast(1.04);
+  transition: opacity 1.1s ease;
 }
 
-.event-backdrop-img.is-shown { opacity: 1; }
+.event-backdrop-img.is-shown {
+  opacity: 1;
+}
+
+/* 画布本身严格覆盖全屏。 */
+.earth-globe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: visible;
+}
+
+:deep(canvas) {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 
 .masthead {
   position: absolute;
   z-index: 6;
-  top: clamp(24px, 3.6vh, 42px);
-  left: clamp(24px, 3.4vw, 64px);
-  max-width: min(650px, 54vw);
+  top: 26px;
+  left: 34px;
+  max-width: 46vw;
   pointer-events: none;
-  transition: opacity 300ms ease;
 }
 
 .masthead-kicker {
   display: flex;
+  margin: 0 0 12px;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 9px;
   color: var(--accent-gold);
-  font: 500 12px/1.4 var(--font-body);
+  font: 10px/1 'Space Mono', ui-monospace, monospace;
   letter-spacing: 0.18em;
+  opacity: 0.9;
+}
+
+/* 标题是"抬头看得到、低头不抢戏"的存在感：小字号 + 宋体 + 大量字距。 */
+.masthead-title {
+  margin: 0;
+  color: #f7f5ec;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  text-shadow: 0 1px 18px rgba(4, 7, 12, 0.75);
+}
+
+.overlook-hint {
+  display: none; /* 已并入 App 的 story-hint，避免底部堆三行 */
+  position: fixed;
+  z-index: 6;
+  bottom: 22px;
+  left: 50%;
+  margin: 0;
+  transform: translateX(-50%);
+  color: rgba(243, 241, 230, 0.26);
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.hint-enter-active {
+  transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.hint-enter-from {
+  opacity: 0;
+}
+
+.masthead-sub {
+  margin: 10px 0 0;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.02em;
 }
 
 .readout-dot {
   width: 6px;
   height: 6px;
-  background: var(--accent-red);
-  transform: rotate(45deg);
+  border-radius: 50%;
+  background: var(--accent-gold);
+  box-shadow: 0 0 12px var(--accent-gold);
 }
 
-.masthead-title {
-  color: var(--text-main);
-  font: 600 clamp(24px, 1.75vw, 32px)/1.3 var(--font-display);
-  letter-spacing: 0.045em;
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
-}
+/* ———————————————————— 标签 ———————————————————— */
 
-.masthead-sub {
-  margin-top: 9px;
-  color: var(--text-muted);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-}
-
-.overlook-hint { display: none; }
 
 :deep(.march-head-pin) {
   position: fixed;
@@ -1199,10 +1265,10 @@ onBeforeUnmount(() => {
   top: -5px;
   width: 10px;
   height: 10px;
-  border: 1.5px solid var(--paper);
   border-radius: 50%;
-  background: var(--accent-red);
-  box-shadow: 0 0 12px rgba(172, 66, 51, 0.55);
+  background: #8c2a17;
+  border: 1.5px solid #e8c98a;
+  box-shadow: 0 0 10px rgba(200, 70, 40, 0.75), 0 0 22px rgba(140, 42, 23, 0.45);
 }
 
 :deep(.march-event-anchor) {
@@ -1221,51 +1287,68 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 13px;
   top: 7px;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   transform: rotate(45deg);
-  border: 1px solid var(--paper);
-  background: var(--accent-gold);
-  box-shadow: 0 0 0 2px rgba(20, 23, 20, 0.5);
-  transition: transform 200ms var(--ease), background 200ms;
+  background: rgba(212, 175, 55, 0.22);
+  border: 1px solid rgba(232, 201, 138, 0.75);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  transition: transform 300ms var(--ease), background 260ms, box-shadow 260ms;
 }
+
 
 :deep(.march-event-tip) {
   position: absolute;
   left: 16px;
-  top: -26px;
-  padding: 6px 10px;
-  border: 1px solid var(--hairline);
-  border-radius: 2px;
-  color: var(--text-main);
-  background: var(--surface);
-  font: 400 13px/1.5 var(--font-body);
+  top: -18px;
+  padding: 2px 6px;
   white-space: nowrap;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: rgba(243, 241, 230, 0.92);
+  background: rgba(8, 12, 18, 0.86);
+  border: 1px solid rgba(212, 175, 55, 0.35);
   opacity: 0;
-  transform: translateY(3px);
+  transform: translateY(2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
-  transition: opacity 180ms ease, transform 180ms ease;
 }
 
-:deep(.march-event-anchor:hover .march-event-tip),
-:deep(.march-event-anchor:focus-visible .march-event-tip) {
+:deep(.march-event-anchor:hover .march-event-tip) {
   opacity: 1;
   transform: translateY(0);
 }
 
-:deep(.march-event-anchor.is-unreached) { opacity: 0; pointer-events: none; }
-:deep(.march-event-anchor.is-hot .march-event-diamond) { background: var(--accent-red); }
-:deep(.march-event-anchor:hover .march-event-diamond) { transform: rotate(45deg) scale(1.3); }
+:deep(.march-event-anchor.is-unreached) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+:deep(.march-event-anchor.is-reached .march-event-diamond) {
+  background: var(--accent-gold);
+  border-color: #ffeec4;
+}
+
+:deep(.march-event-anchor.is-hot .march-event-diamond) {
+  background: #ffe6b0;
+  border-color: #fff6d6;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 10px rgba(243, 212, 140, 0.85);
+  transform: rotate(45deg) scale(1.25);
+}
+
+:deep(.march-event-anchor:hover .march-event-diamond) {
+  background: #ffd88a;
+  transform: rotate(45deg) scale(1.35);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 10px rgba(232, 201, 138, 0.7);
+}
 
 .horizon-frame.labels-off :deep(.march-label-anchor),
-.horizon-frame.labels-off :deep(.march-event-anchor),
-.horizon-frame.labels-muted :deep(.march-label-card) {
+.horizon-frame.labels-off :deep(.march-event-anchor) {
   opacity: 0 !important;
   visibility: hidden;
   pointer-events: none !important;
 }
 
-/* Labels remain anchored at a zero-sized geographical origin. */
 :deep(.march-label-anchor) {
   position: relative;
   display: block;
@@ -1273,180 +1356,407 @@ onBeforeUnmount(() => {
   height: 0;
   padding: 0;
   border: 0;
+  outline: none;
   background: transparent;
   cursor: pointer;
   pointer-events: auto;
-  transition: opacity 300ms ease;
+  opacity: 1;
+  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
+/* 锚点是 0×0，用伪元素撑出 36px 的透明命中圆，
+   用户不必精准点到 9px 的小圆点。 */
 :deep(.march-label-anchor::before) {
   position: absolute;
-  inset: 0 auto auto 0;
-  width: 40px;
-  height: 40px;
+  top: 0;
+  left: 0;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  transform: translate(-50%, -50%);
   content: '';
+  transform: translate(-50%, -50%);
 }
 
-:deep(.march-label-anchor.is-far) { opacity: 0; pointer-events: none; }
-:deep(.march-label-anchor.is-far *) { pointer-events: none !important; }
-:deep(.march-label-anchor.is-far::before) { pointer-events: none; }
+/* 转到球体背面：整块淡出，同时让出点击。 */
+:deep(.march-label-anchor.is-far) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+:deep(.march-label-anchor.is-far .march-label-card),
+:deep(.march-label-anchor.is-far .march-label-node),
+:deep(.march-label-anchor.is-far::before) {
+  pointer-events: none;
+}
 
 :deep(.march-label-node) {
   position: absolute;
-  left: 0;
   top: 0;
-  width: 15px;
-  height: 20px;
+  left: 0;
+  width: 14px;
+  height: 18px;
   overflow: visible;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
-  transition: transform 300ms var(--ease), filter 300ms ease;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.55));
+  transition:
+    opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    filter 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-:deep(.ember-shape) {
-  fill: rgba(20, 23, 20, 0.35);
-  stroke: #e0c9a3;
-  stroke-width: 1.7;
+:deep(.march-label-node .ember-shape) {
+  fill: none;
+  stroke: rgba(243, 176, 112, 0.92);
+  stroke-width: 1.75;
   stroke-linejoin: round;
-  transition: fill 300ms ease, stroke 300ms ease;
+  transition:
+    fill 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    stroke 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-:deep(.march-label-anchor.is-lit .ember-shape) {
-  fill: var(--accent-red);
-  stroke: #f0d3af;
+/* 开场镜头还没停稳时，光点处于"未点亮"状态，也不接受点击。 */
+:deep(.march-label-anchor.is-lit .march-label-node) {
+  width: 15px;
+  height: 20px;
+  filter:
+    drop-shadow(0 0 5px rgba(255, 120, 50, 0.55))
+    drop-shadow(0 0 12px rgba(255, 90, 30, 0.28));
 }
 
+:deep(.march-label-anchor.is-lit .march-label-node .ember-shape) {
+  fill: #f2541b;
+  stroke: rgba(255, 196, 150, 0.85);
+}
+
+/* 下一站：只有这一颗在呼吸，其余保持安静 */
 :deep(.march-label-anchor.is-next .march-label-node) {
-  animation: station-pulse 2.6s ease-in-out infinite;
+  animation: node-breathe 2.6s var(--ease) infinite;
 }
 
-:deep(.march-label-anchor:hover .march-label-node),
-:deep(.march-label-anchor.is-active .march-label-node) {
+@keyframes node-breathe {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(255, 150, 80, 0)) drop-shadow(0 0 3px rgba(0, 0, 0, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(255, 150, 80, 0.85)) drop-shadow(0 0 14px rgba(255, 120, 50, 0.45));
+  }
+}
+
+:deep(.march-label-anchor:hover .march-label-node) {
   transform: translate(-50%, -50%) scale(1.22);
 }
 
-:deep(.march-label-anchor.is-pending) { pointer-events: none; }
-:deep(.march-label-anchor.is-pending .march-label-node) { opacity: 0; }
-:deep(.march-label-anchor.is-revealed .march-label-node),
-:deep(.march-label-anchor.is-igniting .march-label-node) { animation: station-reveal 650ms var(--ease); }
+:deep(.march-label-anchor.is-pending) {
+  pointer-events: none;
+}
+
+:deep(.march-label-anchor.is-pending .march-label-node) {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+}
+
+/* 点亮的一瞬间：先胀开一圈光晕，再收回常态 —— 像有人在天上点了盏灯。 */
+:deep(.march-label-anchor.is-revealed .march-label-node) {
+  animation: march-node-bloom 900ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes march-node-bloom {
+  0% {
+    transform: translate(-50%, -50%) scale(1.9);
+    filter: drop-shadow(0 0 10px rgba(255, 190, 120, 0.95));
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
 
 :deep(.march-label-beam) {
   position: absolute;
   top: 0;
   left: 0;
-  width: 24px;
+  width: 30px;
   height: 1px;
-  background: var(--accent-gold);
+  background: linear-gradient(90deg, #f8df9c, rgba(212, 175, 55, 0.2));
+  box-shadow: 0 0 8px rgba(224, 189, 114, 0.8);
+  /* 默认收成一小段并隐藏，避免静止时每个点后面都拖一根毛刺。 */
   opacity: 0;
-  transform: translate(var(--beam-shift, 3px), -50%) scaleX(0.4);
-  transform-origin: left;
-  transition: opacity 220ms ease, transform 300ms var(--ease);
+  transform: translate(var(--beam-shift, 3px), -50%) scaleX(0.35);
+  transform-origin: left center;
+  transition:
+    opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
+/* 卡片默认隐藏：靠 --slide-x 做位移，和垂直居中互不打架。 */
 :deep(.march-label-card) {
-  --slide-x: -5px;
+  --slide-x: -6px;
+
   position: absolute;
   top: 0;
-  left: 28px;
+  left: 30px;
   display: grid;
-  min-width: 84px;
-  padding: 9px 14px;
-  border: 1px solid rgba(185, 155, 107, 0.35);
-  border-left: 2px solid var(--accent-red);
-  border-radius: 2px;
-  color: var(--ink);
-  background: var(--paper);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  font-family: var(--font-body);
+  min-width: 92px;
+  padding: 7px 10px 8px;
+  border: 1px solid rgba(224, 189, 114, 0.56);
+  border-left: 2px solid var(--accent-gold);
+  border-radius: 1px 5px 5px 1px;
+  background:
+    linear-gradient(135deg, rgba(46, 52, 56, 0.92), rgba(11, 18, 26, 0.86)),
+    radial-gradient(circle at 0 0, rgba(224, 189, 114, 0.18), transparent 55%);
+  box-shadow:
+    8px 8px 0 rgba(5, 9, 14, 0.42),
+    0 5px 18px rgba(0, 0, 0, 0.32),
+    inset 0 1px rgba(255, 255, 255, 0.11);
+  color: var(--text-main);
+  font-family: 'Microsoft YaHei', 'Noto Sans CJK SC', 'PingFang SC', sans-serif;
   text-align: left;
-  white-space: nowrap;
+  text-wrap: nowrap;
   opacity: 0;
   pointer-events: none;
   transform: translateY(-50%) translateX(var(--slide-x));
-  transition: opacity 220ms ease, transform 300ms var(--ease);
+  transition:
+    opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1) 0.12s,
+    transform 0.45s cubic-bezier(0.25, 1, 0.5, 1) 0.12s,
+    background 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+:deep(.march-label-code) {
+  color: var(--accent-gold);
+  font: 8px/1 'Space Mono', ui-monospace, monospace;
+  letter-spacing: 0.12em;
 }
 
 :deep(.march-label-card strong) {
-  font-family: var(--font-display);
-  font-size: 16px;
+  margin-top: 4px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
 }
 
+:deep(.march-label-card small) {
+  margin-top: 3px;
+  color: rgba(243, 241, 230, 0.55);
+  font: 9px/1.2 'Space Mono', ui-monospace, monospace;
+}
+
+/* 靠近屏幕右缘：卡片翻到左侧，引线同步反向。 */
 :deep(.march-label-anchor.is-flipped .march-label-card) {
-  --slide-x: 5px;
+  --slide-x: 6px;
+
+  right: 30px;
   left: auto;
-  right: 28px;
-  border-left: 1px solid rgba(185, 155, 107, 0.35);
-  border-right: 2px solid var(--accent-red);
+  border-right: 2px solid var(--accent-gold);
+  border-left: 1px solid rgba(224, 189, 114, 0.56);
+  border-radius: 5px 1px 1px 5px;
   text-align: right;
 }
 
 :deep(.march-label-anchor.is-flipped .march-label-beam) {
   --beam-shift: -3px;
-  left: -24px;
-  transform-origin: right;
+
+  left: -30px;
+  background: linear-gradient(270deg, #f8df9c, rgba(212, 175, 55, 0.2));
+  transform-origin: right center;
 }
 
-:deep(.march-label-anchor:hover .march-label-card),
-:deep(.march-label-anchor:focus-visible .march-label-card),
-:deep(.march-label-anchor.is-active .march-label-card) {
-  --slide-x: 0px;
-  opacity: 1;
-  pointer-events: auto;
-}
-
+/* 悬停 / 键盘聚焦 / 选中：三种状态共用同一套展开样式。 */
 :deep(.march-label-anchor:hover .march-label-beam),
-:deep(.march-label-anchor:focus-visible .march-label-beam),
-:deep(.march-label-anchor.is-active .march-label-beam) {
+:deep(.march-label-anchor:focus-visible .march-label-beam) {
   opacity: 1;
   transform: translate(var(--beam-shift, 3px), -50%) scaleX(1);
 }
 
-@keyframes station-pulse {
-  0%, 100% { filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.65)); }
-  50% { filter: drop-shadow(0 0 7px rgba(224, 201, 163, 0.8)); }
+:deep(.march-label-anchor:hover .march-label-card),
+:deep(.march-label-anchor:focus-visible .march-label-card) {
+  --slide-x: 0px;
+
+  border-color: #f8df9c;
+  background:
+    linear-gradient(135deg, rgba(74, 61, 38, 0.96), rgba(17, 24, 29, 0.94)),
+    radial-gradient(circle at 0 0, rgba(224, 189, 114, 0.26), transparent 55%);
+  box-shadow:
+    10px 10px 0 rgba(5, 9, 14, 0.46),
+    0 7px 24px rgba(212, 175, 55, 0.2),
+    inset 0 1px rgba(255, 255, 255, 0.15);
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0.18s, 0.18s, 0s, 0s, 0s;
 }
 
-@keyframes station-reveal {
-  from { opacity: 0.2; transform: translate(-50%, -50%) scale(1.55); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+/* 点亮过的站点：光点常亮一层暖金，和"还没点亮"的点拉开差别。 */
+:deep(.march-label-anchor.is-next .march-label-node) {
+  animation: march-next-pulse 1.7s cubic-bezier(0.25, 1, 0.5, 1) infinite;
 }
 
-@media (max-width: 1100px) and (min-width: 721px) {
-  .event-backdrop { inset: 0 0 0 42%; }
-}
+/* 行军标记：由 3D 旗帜承担，标签这里不再插旗 */
 
-@media (max-width: 720px) {
-  .masthead { top: 24px; left: 24px; max-width: calc(100% - 48px); }
-  .masthead-kicker { margin-bottom: 9px; font-size: 11px; }
-  .masthead-title { font-size: 23px; }
-  .masthead-sub { font-size: 11px; }
-  .event-backdrop { inset: 0 0 54%; }
-  .event-backdrop-img { object-position: 50% 40%; }
-  .horizon-frame::after {
-    background: linear-gradient(180deg, rgba(20, 23, 20, 0.72), transparent 28%, transparent 68%, rgba(20, 23, 20, 0.8));
+@keyframes march-next-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 3px rgba(246, 220, 156, 0.45));
   }
-  .horizon-frame.is-event::after { background: none; }
-  :deep(.march-label-card) { min-width: 76px; padding: 8px 11px; }
-  :deep(.march-label-card strong) { font-size: 15px; }
+  50% {
+    transform: translate(-50%, -50%) scale(1.22);
+    filter:
+      drop-shadow(0 0 9px rgba(246, 220, 156, 0.95))
+      drop-shadow(0 0 20px rgba(255, 140, 60, 0.65));
+  }
 }
 
-@media (max-width: 420px) {
-  .masthead { top: 20px; left: 20px; max-width: calc(100% - 40px); }
-  .masthead-title { font-size: 21px; }
-  .masthead-sub { max-width: 270px; line-height: 1.7; }
+:deep(.march-label-anchor.is-lit .march-label-node) {
+  background: transparent;
+  filter:
+    drop-shadow(0 0 5px rgba(255, 120, 50, 0.55))
+    drop-shadow(0 0 14px rgba(224, 189, 114, 0.45));
 }
 
-@media (max-height: 500px) and (orientation: landscape) {
-  .masthead { top: 18px; left: 24px; }
-  .masthead-title { font-size: 20px; }
-  .masthead-kicker, .masthead-sub { display: none; }
+/* 刚被点亮的瞬间：光点弹一下、金环炸开一次，然后回到常亮态。 */
+:deep(.march-label-anchor.is-igniting .march-label-node) {
+  animation: node-ignite 900ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-@media (max-height: 600px) and (orientation: landscape) {
-  .event-backdrop { inset: 0 0 0 46%; }
+@keyframes node-ignite {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 8px rgba(255, 150, 80, 0.5));
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(2.1);
+    filter: drop-shadow(0 0 22px rgba(255, 150, 80, 0.95));
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 10px rgba(224, 189, 114, 0.55));
+  }
+}
+
+:deep(.march-label-anchor.is-active .march-label-node) {
+  background: transparent;
+  filter: drop-shadow(0 0 16px rgba(243, 212, 140, 0.95));
+  transform: translate(-50%, -50%) scale(1.28);
+}
+
+@media (max-width: 768px) {
+  /* 手机屏窄，地球铺满整屏：顶部压暗一层，标题才压得住画面。 */
+  /* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
+.horizon-frame::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: url('/stars.png') center / cover no-repeat;
+  opacity: 0.85;
+  content: '';
+  pointer-events: none;
+}
+
+.horizon-frame::after {
+    background:
+      linear-gradient(180deg, rgba(7, 11, 19, 0.78), transparent 26%, transparent 68%, rgba(7, 11, 19, 0.6)),
+      radial-gradient(ellipse at 50% 74%, transparent 34%, rgba(3, 6, 11, 0.5) 100%);
+  }
+
+  .masthead {
+    top: 18px;
+    left: 18px;
+    max-width: 72vw;
+  }
+
+  .masthead-kicker {
+    margin-bottom: 8px;
+    font-size: 8px;
+  }
+
+  .masthead-title {
+    font-size: 15px;
+    letter-spacing: 0.24em;
+  }
+
+  .overlook-hint {
+  display: none; /* 已并入 App 的 story-hint，避免底部堆三行 */
+  position: fixed;
+  z-index: 6;
+  bottom: 22px;
+  left: 50%;
+  margin: 0;
+  transform: translateX(-50%);
+  color: rgba(243, 241, 230, 0.26);
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.hint-enter-active {
+  transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.hint-enter-from {
+  opacity: 0;
+}
+
+.masthead-sub {
+    margin-top: 6px;
+    font-size: 9.5px;
+  }
+
+  :deep(.march-label-card) {
+    min-width: 76px;
+    padding: 5px 7px 6px;
+    left: 18px;
+  }
+
+  :deep(.march-label-card strong) {
+    font-size: 12px;
+  }
+
+  :deep(.march-label-beam) {
+    width: 18px;
+  }
+
+  :deep(.march-label-anchor.is-flipped .march-label-card) {
+    right: 18px;
+  }
+
+  :deep(.march-label-anchor.is-flipped .march-label-beam) {
+    left: -18px;
+    width: 18px;
+  }
+}
+
+/* 选中/点燃的站点：收掉标签电自带的柔光，火焰与火线才是唯一光源 */
+.march-label-anchor.is-active,
+.march-label-anchor.is-lit,
+.march-label-anchor.is-igniting,
+.march-label-anchor.is-active > *,
+.march-label-anchor.is-lit > *,
+.march-label-anchor.is-igniting > * {
+  box-shadow: none !important;
+}
+
+/* 俯瞰态整体可拖：给一个明确的手型 */
+.horizon-frame { cursor: grab; }
+.horizon-frame:active { cursor: grabbing; }
+/* 横屏手机：标题区让位给事件文案 */
+@media (max-height: 480px) and (orientation: landscape) {
+  .masthead {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+
+/* 金色进度：越往后越亮、越金（不改红、不压暗） */
+.horizon-frame :deep(canvas) {
+  filter: sepia(calc(var(--glow, 0) * 0.46))
+          saturate(calc(1 + var(--glow, 0) * 0.45))
+          brightness(calc(1 + var(--glow, 0) * 0.24))
+          hue-rotate(calc(var(--glow, 0) * -10deg))
+          contrast(calc(1 - var(--glow, 0) * 0.05));
+  transition: filter 600ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 </style>

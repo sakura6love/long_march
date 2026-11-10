@@ -1,4 +1,8 @@
 <script setup>
+/**
+ * 序章：地球在右侧缓转，左侧是入口。
+ * 不做"点击任意处进入"——必须点主入口，才有仪式感。
+ */
 defineProps({
   hasSave: { type: Boolean, default: false },
   resumeLabel: { type: String, default: '' },
@@ -7,155 +11,256 @@ const emit = defineEmits(['start', 'resume', 'settings'])
 </script>
 
 <template>
-  <section class="prologue" aria-labelledby="prologue-title">
+  <section class="prologue" aria-label="序章">
     <div class="prologue-scrim" aria-hidden="true"></div>
+
     <div class="prologue-body">
-      <p class="kicker"><span aria-hidden="true"></span>纪念红军长征胜利九十周年</p>
-      <h1 id="prologue-title" class="title">
-        <span>长征万里</span>
-        <span>薪火千秋<span class="title-stop" aria-hidden="true">。</span></span>
-      </h1>
-      <p class="subtitle">十二个坐标，一条改变中国的路。<br>循着山河，重访长征记忆。</p>
-      <nav class="entries" aria-label="展馆入口">
+      <p class="kicker">LOW EARTH ORBIT / CN-ROUTE</p>
+      <h1 class="title">长征万里 · 薪火千秋</h1>
+      <p class="subtitle">1934—1936 · 十二个坐标，一条改变中国的路</p>
+
+      <span class="rule" aria-hidden="true"></span>
+
+      <nav class="entries">
         <button class="entry entry-main" type="button" @click="emit('start')">
+          <span class="entry-line" aria-hidden="true"></span>
           重走长征路
-          <svg viewBox="0 0 24 16" aria-hidden="true"><path d="M1 8h21M15 1l7 7-7 7" /></svg>
         </button>
-        <div class="entry-secondary">
-          <button class="entry entry-resume" type="button" :disabled="!hasSave" @click="emit('resume')">
-            继续前行
-            <span v-if="hasSave && resumeLabel" class="resume-label">{{ resumeLabel }}</span>
-          </button>
-          <span class="entry-divider" aria-hidden="true"></span>
-          <button class="entry" type="button" @click="emit('settings')">设置</button>
-        </div>
+        <button
+          class="entry"
+          type="button"
+          :disabled="!hasSave"
+          @click="emit('resume')"
+        >
+          <span class="entry-line" aria-hidden="true"></span>
+          继续前行
+          <em v-if="hasSave && resumeLabel">{{ resumeLabel }}</em>
+        </button>
+        <button class="entry" type="button" @click="emit('settings')">
+          <span class="entry-line" aria-hidden="true"></span>
+          设置
+        </button>
       </nav>
+
+      <p class="credit">据中共中央党史研究室《中国共产党历史》整理</p>
     </div>
-    <p class="credit">据中共中央党史研究室《中国共产党历史》整理</p>
+
     <div class="prologue-side" aria-hidden="true">
-      <p class="era">1934<span>—</span>1936</p>
-      <div class="seal"></div>
+      <p class="era">一九三四<span>·</span>一九三六</p>
+      <div class="seal">薪火</div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.prologue { position: fixed; inset: 0; z-index: 9; pointer-events: none; }
+.prologue {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  user-select: none;
+}
+
 .prologue-scrim {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(20, 23, 20, .96), rgba(20, 23, 20, .78) 26%, rgba(20, 23, 20, .24) 48%, transparent 66%),
-    linear-gradient(0deg, rgba(20, 23, 20, .8), transparent 23%);
+    linear-gradient(90deg, rgba(4, 7, 12, 0.94) 0%, rgba(4, 7, 12, 0.72) 34%, rgba(4, 7, 12, 0) 62%),
+    linear-gradient(180deg, rgba(4, 7, 12, 0.55), rgba(4, 7, 12, 0) 30%, rgba(4, 7, 12, 0.5));
 }
-.prologue-body { position: absolute; top: 49%; left: 8.3vw; width: min(600px, 44vw); transform: translateY(-50%); }
-.kicker { display: flex; align-items: center; gap: 12px; margin: 0 0 28px; color: var(--text-muted); font: 500 13px/1.7 var(--font-body); letter-spacing: .16em; }
-.kicker > span { flex: none; width: 24px; height: 2px; background: var(--accent-red); }
-.title { margin: 0; color: var(--text-main); font-family: var(--font-display); font-size: 72px; font-weight: 600; line-height: 1.24; letter-spacing: .055em; }
-.title > span { display: block; }
-.title-stop { color: var(--accent-red); }
-.subtitle { margin: 29px 0 0; color: var(--text-muted); font: 400 16px/1.95 var(--font-body); letter-spacing: .04em; }
+
+.prologue-body {
+  position: absolute;
+  left: 8vw;
+  top: 50%;
+  width: min(620px, 46vw);
+  transform: translateY(-50%);
+  /* 文字区不可拦截指针：否则左半屏的地球拖不动 */
+  pointer-events: none;
+}
+
+.kicker {
+  margin: 0 0 28px;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  color: rgba(212, 175, 55, 0.62);
+}
+
+.title {
+  margin: 0;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: clamp(38px, 3.6vw, 54px);
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: var(--text-main);
+}
+
+.subtitle {
+  margin: 22px 0 0;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+}
+
+.rule {
+  display: block;
+  width: 56px;
+  height: 1px;
+  margin: 46px 0 40px;
+  background: rgba(212, 175, 55, 0.35);
+}
+
 .entries {
+  /* 容器整块不拦截：否则按钮之间的缝隙也拖不动地球 */
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 16px;
-  margin-top: 38px;
-  /* Only the controls capture input; the surrounding globe remains draggable. */
-  pointer-events: none;
+  gap: 22px;
 }
-.entry {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 0 2px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--text-muted);
-  font: 400 14px/1.5 var(--font-body);
-  letter-spacing: .06em;
-  cursor: pointer;
-  pointer-events: auto;
-  transition: color .2s ease, background-color .2s ease, border-color .2s ease;
-}
-.entry:hover:not(:disabled) { color: var(--text-main); }
-.entry:focus-visible { outline: 2px solid var(--paper); outline-offset: 5px; }
-.entry:disabled { color: #817e74; cursor: default; }
-.entry-main { min-width: 210px; min-height: 56px; justify-content: space-between; gap: 34px; padding: 0 24px; border-color: rgba(255, 235, 210, .12); background: var(--accent-red); color: #fff5e7; font-weight: 500; font-size: 16px; letter-spacing: .1em; }
-.entry-main:hover:not(:disabled) { background: #ba4b3a; color: #fff5e7; }
-.entry-main svg { width: 23px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; }
-.entry-secondary { display: flex; align-items: center; gap: 18px; }
-.entry-divider { height: 13px; width: 1px; background: rgba(234, 226, 209, .2); }
-.resume-label { color: var(--accent-gold); font-size: 12px; letter-spacing: .02em; }
-.credit { position: absolute; left: 8.3vw; bottom: 38px; margin: 0; color: #a39f93; font: 400 12px/1.6 var(--font-body); letter-spacing: .025em; }
-.prologue-side { position: absolute; right: 5.5vw; bottom: 42px; display: flex; align-items: center; gap: 22px; }
-.era { display: flex; align-items: center; gap: 12px; margin: 0; color: var(--text-muted); font: 500 13px/1 var(--font-body); letter-spacing: .1em; }
-.era span { color: var(--accent-gold); }
-.seal { width: 48px; height: 48px; background: url('/seals/xinhuo.webp') center / contain no-repeat; opacity: .85; transform: rotate(-3deg); }
 
-@media (max-width: 1600px) {
-  .title { font-size: 60px; }
-  .prologue-body { left: 7.5vw; }
-  .credit { left: 7.5vw; }
+.entry {
+  pointer-events: auto;
+  position: relative;
+  padding: 0 0 0 0;
+  border: 0;
+  background: none;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 16px;
+  letter-spacing: 0.18em;
+  color: rgba(244, 241, 225, 0.46);
+  padding-left: 0;
+  cursor: pointer;
+  transition: color 0.5s var(--ease), padding-left 0.5s var(--ease);
 }
-@media (max-width: 1000px) {
-  .prologue-body { left: 6vw; width: 48vw; }
-  .title { font-size: 52px; }
-  .kicker { font-size: 12px; letter-spacing: .08em; }
-  .credit { left: 6vw; }
+
+.entry-line {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0;
+  height: 1px;
+  background: rgba(212, 175, 55, 0.75);
+  transform: translateY(-50%);
+  transform-origin: left center;
+  opacity: 0;
+  transition: width 0.55s var(--ease), opacity 0.35s var(--ease);
 }
+
+.entry:hover:not(:disabled),
+.entry:focus-visible:not(:disabled) {
+  color: var(--text-main);
+  outline: none;
+  padding-left: 34px;
+  transition-delay: 0.06s;
+}
+
+.entry:hover:not(:disabled) .entry-line,
+.entry:focus-visible:not(:disabled) .entry-line {
+  width: 24px;
+  opacity: 1;
+}
+
+.entry-main {
+  font-size: 22px;
+  color: var(--text-main);
+  letter-spacing: 0.22em;
+}
+
+
+.entry:disabled {
+  color: rgba(243, 241, 230, 0.18);
+  cursor: default;
+}
+
+.entry em {
+  margin-left: 10px;
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: rgba(212, 175, 55, 0.55);
+}
+
+.credit {
+  margin: 64px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(243, 241, 230, 0.22);
+}
+
+.prologue-side {
+  position: absolute;
+  right: 6vw;
+  bottom: 8vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+
+.era {
+  margin: 0;
+  writing-mode: vertical-rl;
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 12px;
+  letter-spacing: 0.42em;
+  color: rgba(163, 168, 180, 0.45);
+}
+
+.era span {
+  padding: 6px 0;
+  color: rgba(212, 175, 55, 0.5);
+}
+
+.seal {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 0;
+  background: url('/seals/xinhuo.webp') center / 100% 100% no-repeat;
+  color: transparent;
+  text-shadow: none;
+  font-family: 'Songti SC', 'Noto Serif SC', serif;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  text-shadow: 0 1px 2px rgba(64, 12, 8, 0.65);
+  filter: brightness(0.68) saturate(0.92) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.55));
+  opacity: 0.92;
+  cursor: pointer;
+  transform: rotate(-3deg);
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+              filter 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.seal:hover,
+.seal:focus-visible {
+  transform: rotate(-3deg) scale(1.05);
+  filter: brightness(0.82) saturate(1) drop-shadow(0 0 12px rgba(200, 70, 45, 0.5));
+  opacity: 1;
+}
+
 @media (max-width: 768px) {
-  .prologue-scrim {
-    background:
-      linear-gradient(90deg, rgba(20, 23, 20, .88), rgba(20, 23, 20, .54) 48%, rgba(20, 23, 20, .08)),
-      linear-gradient(0deg, rgba(20, 23, 20, .94), rgba(20, 23, 20, .24) 44%, rgba(20, 23, 20, .18));
+  .prologue-body {
+    left: 7vw;
+    width: 84vw;
+    top: 46%;
   }
-  .prologue-body { top: 46%; left: 7vw; width: 86vw; }
-  .kicker { gap: 9px; margin-bottom: 23px; font-size: 12px; letter-spacing: .08em; }
-  .kicker > span { width: 18px; }
-  .title { font-size: 38px; line-height: 1.3; letter-spacing: .06em; }
-  .subtitle { margin-top: 22px; font-size: 14px; line-height: 1.9; }
-  .entries { margin-top: 30px; gap: 10px; }
-  .entry-main { min-width: 196px; min-height: 52px; font-size: 15px; padding: 0 22px; }
-  .entry-secondary { gap: 15px; }
-  .credit { left: 7vw; right: 7vw; bottom: calc(26px + env(safe-area-inset-bottom, 0px)); max-width: 280px; font-size: 11px; }
-  .prologue-side { right: 7vw; bottom: calc(94px + env(safe-area-inset-bottom, 0px)); }
-  .era { font-size: 11px; gap: 7px; }
-  .seal { width: 38px; height: 38px; }
+  .title {
+    font-size: 30px;
+  }
+  .subtitle {
+    font-size: 11px;
+  }
+  .entry-main {
+    font-size: 19px;
+  }
+  .prologue-side {
+    right: 7vw;
+    bottom: 6vh;
+  }
 }
-@media (max-width: 420px) {
-  .prologue-side { gap: 12px; }
-  .entry { font-size: 13px; }
-  .entry-main { font-size: 15px; }
-}
-@media (max-height: 650px) and (min-width: 769px) {
-  .prologue-body { top: 47%; }
-  .kicker { margin-bottom: 17px; }
-  .title { font-size: 48px; }
-  .subtitle { margin-top: 18px; font-size: 14px; }
-  .entries { margin-top: 23px; gap: 7px; }
-  .entry-main { min-height: 48px; }
-  .credit { bottom: 20px; font-size: 11px; }
-  .prologue-side { bottom: 20px; }
-}
-@media (max-height: 480px) and (orientation: landscape) {
-  .prologue-body { top: 24px; left: 5vw; width: 56vw; transform: none; }
-  .kicker { margin-bottom: 12px; font-size: 11px; }
-  .title { font-size: 36px; line-height: 1.2; }
-  .subtitle { margin-top: 12px; font-size: 12px; line-height: 1.6; }
-  .entries { flex-direction: row; align-items: center; gap: 16px; margin-top: 18px; }
-  .entry-main { min-width: 168px; min-height: 44px; padding: 0 16px; font-size: 13px; gap: 16px; }
-  .entry-secondary { gap: 10px; }
-  .entry { font-size: 12px; }
-  .entry-resume { flex-direction: column; gap: 0; }
-  .resume-label { font-size: 10px; }
-  .credit { left: 5vw; bottom: 14px; max-width: none; font-size: 10px; }
-  .prologue-side { right: 5vw; bottom: 14px; }
-  .seal { width: 34px; height: 34px; }
-}
-@media (prefers-reduced-motion: reduce) { .entry { transition: none; } }
-html.reduce-motion .entry { transition: none; }
 </style>
