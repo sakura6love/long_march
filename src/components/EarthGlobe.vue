@@ -15,6 +15,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import Globe from 'globe.gl'
 import {
   AmbientLight,
+  Color,
   DirectionalLight,
   Group,
   HemisphereLight,
@@ -29,6 +30,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import longMarchNodes from '../data.js'
 import { createCameraRig, FRAME } from '../lib/cameraRig.js'
 import { createRouteLine } from '../lib/routeLine.js'
+import { approachLight, clampProgress, createDawnAtmosphere, dawnProfile } from '../lib/dawnAtmosphere.js'
 import { STORY_EVENTS } from '../lib/story.js'
 import { dbg } from '../lib/debug.js'
 
@@ -79,11 +81,9 @@ const props = defineProps({
 
 const _glowQ = new URLSearchParams(location.search).get('glow')
 const _glowOverride = _glowQ === null || _glowQ === '' || Number.isNaN(Number(_glowQ)) ? null : Number(_glowQ)
-const glowStyle = computed(() => {
-  const raw = _glowOverride === null ? Math.max(0, Math.min(1, props.burn)) : Math.max(0, Math.min(1, _glowOverride))
-  const v = Math.pow(raw, 0.75)
-  return { '--glow': String(v) }
-})
+// Keep the existing ?glow=0..1 visual comparison control separate from saved progress.
+const dawnTarget = computed(() => clampProgress(_glowOverride ?? props.burn))
+const glowStyle = computed(() => ({ '--glow': String(dawnProfile(dawnTarget.value).warmth) }))
 
 const emit = defineEmits(['select', 'select-event', 'tap', 'reset'])
 
@@ -104,6 +104,11 @@ let introStarted = false
 let resizeObserver = null
 let rotationTimer = null
 let frameHandle = 0
+let lastLightingTime = 0
+let dawnProgress = dawnTarget.value
+let dawnAtmosphere = null
+let dawnReadyAt = Infinity
+let dawnAppearance = 0
 
 // 当前选中的节点 id：它的卡片会保持展开。
 let activeId = null
@@ -267,7 +272,7 @@ function updateLabelStates() {
   }
 }
 
-function tick() {
+function tick(time = performance.now()) {
   frameHandle = requestAnimationFrame(tick)
   // 位移被库内部清掉时立刻补回，保证"点恒在 30% 那条线上"。
   cameraRig?.ensureOffset()
@@ -276,16 +281,16 @@ function tick() {
   // 而那个函数在 labelsOn=false 时会提前 return，导致光点冻结在上一帧、残留在图上。
   updateHeadPin(props.burn)
 
-  // 事件场景：星球缓缓退到剪影，让背景影像浮出来。
+  // 黎明随连续行程渐亮；事件压暗与行程亮度从同一处合成，读完恢复当前晨光。
+  const seconds = lastLightingTime ? (time - lastLightingTime) / 1000 : 1 / 60
+  lastLightingTime = time
+  const reduced = prefersReducedMotion()
+  dawnProgress = reduced ? dawnTarget.value : approachLight(dawnProgress, dawnTarget.value, seconds, 0.8)
+  const appearanceTarget = time >= dawnReadyAt ? 1 : 0
+  dawnAppearance = reduced ? appearanceTarget : approachLight(dawnAppearance, appearanceTarget, seconds, 0.22)
   const dimTarget = props.dim ? 1 : 0
-  if (Math.abs(dimLevel - dimTarget) > 0.001) {
-    dimLevel += (dimTarget - dimLevel) * 0.14
-    const k = 1 - 0.93 * dimLevel
-    if (hemiLight) hemiLight.intensity = 0.55 * k
-    if (ambientLight) ambientLight.intensity = 0.12 * k
-    if (terrainLight) terrainLight.intensity = 3.05 * k
-    if (rimLight) rimLight.intensity = 0.26 * k
-  }
+  dimLevel = reduced ? dimTarget : approachLight(dimLevel, dimTarget, seconds, 0.15)
+  applyDawnLighting()
 }
 
 /** 切换选中态：保证任何时刻最多只有一个 is-active。 */
@@ -411,6 +416,33 @@ let ambientLight = null
 let terrainLight = null
 let rimLight = null
 let dimLevel = 0
+let appliedDawn = -1
+let appliedDim = -1
+let appliedAppearance = -1
+const dawnSkyStart = new Color('#d2c3a3')
+const dawnSkyEnd = new Color('#ffe3ab')
+const dawnRimStart = new Color('#b18148')
+const dawnRimEnd = new Color('#ffd487')
+
+function applyDawnLighting() {
+  if (dawnProgress === appliedDawn && dimLevel === appliedDim && dawnAppearance === appliedAppearance) return
+  const profile = dawnProfile(dawnProgress)
+  const sceneLight = 1 - 0.93 * dimLevel
+  if (hemiLight) {
+    hemiLight.color.lerpColors(dawnSkyStart, dawnSkyEnd, profile.warmth)
+    hemiLight.intensity = profile.hemisphere * sceneLight
+  }
+  if (ambientLight) ambientLight.intensity = profile.ambient * sceneLight
+  if (terrainLight) terrainLight.intensity = profile.terrain * sceneLight
+  if (rimLight) {
+    rimLight.color.lerpColors(dawnRimStart, dawnRimEnd, profile.warmth)
+    rimLight.intensity = profile.rim * sceneLight
+  }
+  dawnAtmosphere?.update(profile, dimLevel, dawnAppearance)
+  appliedDawn = dawnProgress
+  appliedDim = dimLevel
+  appliedAppearance = dawnAppearance
+}
 
 function resetView() {
   if (props.locked) return
@@ -582,8 +614,9 @@ const INTRO_MAX_DISTANCE = 320
 /** 开场动画的定时器，卸载或用户提前点击时统一清空。 */
 let introTimers = []
 
+const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
 function prefersReducedMotion() {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return motionPreference.matches || document.documentElement.classList.contains('reduce-motion')
 }
 
 function clearIntro() {
@@ -786,9 +819,8 @@ onMounted(() => {
   globe.value = Globe()(globeContainer.value)
     .backgroundColor('rgba(0, 0, 0, 0)')
     .globeImageUrl(`${assetBase}earth-8k.webp`)
-    .showAtmosphere(true)
-    .atmosphereColor('#a8d4ff')
-    .atmosphereAltitude(0.22)
+    // The warm dawn shells replace the library's fixed blue atmosphere.
+    .showAtmosphere(false)
     // 保持原有所有节点的经纬度与标签高度不变。
     .htmlElementsData(labelItems)
     .htmlLat((point) => point.lat)
@@ -825,10 +857,8 @@ onMounted(() => {
 
   const scene = globe.value.scene()
 
-  // 光照只有一个目的：把山脊刻出来，而不是把地球照亮。
-  // 环境光偏暖、压得很低，保证背光那一侧仍是深蓝而不是死黑。
-  // 天空/地面双色环境光：天空偏冷、地面偏暖，比纯环境光更有"大气"。
-  hemiLight = new HemisphereLight(0x9fc4e8, 0x2b2418, 0.55)
+  // 暖色天空光与低角度主光保留山脊层次，行程主要照亮球缘。
+  hemiLight = new HemisphereLight(0xd2c3a3, 0x2b2418, 0.55)
   ambientLight = new AmbientLight(0x3a3a32, 0.12)
   scene.add(hemiLight)
   scene.add(ambientLight)
@@ -839,10 +869,14 @@ onMounted(() => {
   terrainLight.position.set(-180, 30, 125)
   scene.add(terrainLight)
 
-  // 补光：极暗的冷色，只负责勾出右上方的球缘，避免边缘融进背景。
-  rimLight = new DirectionalLight(0x5b7fa6, 0.26)
+  // 球缘由暗琥珀逐渐过渡到暖金色。
+  rimLight = new DirectionalLight(0xb18148, 0.26)
   rimLight.position.set(120, 18, -160)
   scene.add(rimLight)
+
+  dawnAtmosphere = createDawnAtmosphere(globe.value.getGlobeRadius())
+  scene.add(dawnAtmosphere.group)
+  applyDawnLighting()
 
   // 路线火线：先铺一条余烬虚线，点亮的段由 watch(litIds) 重建。
   routeLine = createRouteLine(globe.value, longMarchNodes, STORY_EVENTS)
@@ -870,8 +904,8 @@ onMounted(() => {
   globeMaterial.normalMap = normalTexture
   globeMaterial.normalScale.set(2.2, 2.2)
   globeMaterial.specularMap = specularTexture
-  // 海面高光压成冷灰蓝：纯白会立刻变"湿塑料"。
-  globeMaterial.specular.set(0x3a4d60)
+  // 海面仍保留反光，使用低饱和暖灰承接晨光。
+  globeMaterial.specular.set(0x595344)
   globeMaterial.shininess = 70
   // 微暖的基色乘上去，把贴图里过饱和的蓝绿压回 UI 的暖灰调子。
   globeMaterial.color.set('#f7f1e4')
@@ -972,6 +1006,9 @@ dbg('__marchBurn', burnUniforms)
   // 序章阶段先停在远景（整球缓转），由 App 调 enterOverview() 再俯冲。
   globe.value.onGlobeReady(() => {
     sharpenGlobeTexture()
+    // three-globe animates its initial sphere scale for 600ms after readiness.
+    // Keep the independent shells hidden until that sphere is full-sized.
+    dawnReadyAt = performance.now() + 600
   })
 
   // 仅供开发期截图/标定使用；生产构建会被 tree-shake 掉。
@@ -987,6 +1024,9 @@ onBeforeUnmount(() => {
   clearIntro()
   cancelAnimationFrame(frameHandle)
   frameHandle = 0
+
+  dawnAtmosphere?.dispose()
+  dawnAtmosphere = null
 
   cameraRig?.cancelFlight()
   cameraRig = null
@@ -1059,8 +1099,8 @@ onBeforeUnmount(() => {
   isolation: isolate;
   touch-action: none;
   background:
-    radial-gradient(ellipse at 50% 46%, rgba(58, 96, 130, 0.22), transparent 58%),
-    linear-gradient(180deg, #03060b 0%, #050a12 48%, #0a1622 100%);
+    radial-gradient(ellipse at 50% 46%, rgba(118, 83, 40, 0.14), transparent 62%),
+    linear-gradient(180deg, #03060b 0%, #090c10 48%, #171612 100%);
 }
 
 /* 星空单独一层：垫在渐变之上、画布之下，画布透明的地方能透出来。 */
@@ -1070,7 +1110,7 @@ onBeforeUnmount(() => {
   .event-backdrop::after {
     background:
       linear-gradient(180deg, rgba(3, 6, 11, 0.26) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.62) 100%),
-      radial-gradient(ellipse at 50% 62%, rgba(122, 162, 205, 0.10) 0%, transparent 58%);
+      radial-gradient(ellipse at 50% 62%, rgba(174, 133, 68, 0.08) 0%, transparent 58%);
   }
   .horizon-frame.labels-muted :deep(.march-label-card) {
     opacity: 0 !important;
@@ -1087,7 +1127,8 @@ onBeforeUnmount(() => {
   z-index: 0;
   inset: 0;
   background: url('/stars.png') center / cover no-repeat;
-  opacity: 0.85;
+  opacity: calc(0.75 - var(--glow, 0) * 0.28);
+  transition: opacity 1.2s ease;
   content: '';
   pointer-events: none;
 }
@@ -1135,7 +1176,7 @@ onBeforeUnmount(() => {
   inset: 0;
   background:
     linear-gradient(180deg, rgba(3, 6, 11, 0.30) 0%, rgba(3, 6, 11, 0) 26%, rgba(3, 6, 11, 0) 58%, rgba(3, 6, 11, 0.62) 100%),
-    radial-gradient(ellipse at 50% 62%, rgba(122, 162, 205, 0.10) 0%, transparent 58%);
+    radial-gradient(ellipse at 50% 62%, rgba(174, 133, 68, 0.08) 0%, transparent 58%);
   content: '';
 }
 
@@ -1648,7 +1689,7 @@ onBeforeUnmount(() => {
   z-index: 0;
   inset: 0;
   background: url('/stars.png') center / cover no-repeat;
-  opacity: 0.85;
+  opacity: calc(0.75 - var(--glow, 0) * 0.28);
   content: '';
   pointer-events: none;
 }
@@ -1750,13 +1791,9 @@ onBeforeUnmount(() => {
 }
 
 
-/* 金色进度：越往后越亮、越金（不改红、不压暗） */
-.horizon-frame :deep(canvas) {
-  filter: sepia(calc(var(--glow, 0) * 0.46))
-          saturate(calc(1 + var(--glow, 0) * 0.45))
-          brightness(calc(1 + var(--glow, 0) * 0.24))
-          hue-rotate(calc(var(--glow, 0) * -10deg))
-          contrast(calc(1 - var(--glow, 0) * 0.05));
-  transition: filter 600ms cubic-bezier(0.25, 1, 0.5, 1);
+/* 色彩和亮度由球缘材质承担，地表贴图保持原色。 */
+@media (prefers-reduced-motion: reduce) {
+  .horizon-frame::before { transition: none; }
 }
+html.reduce-motion .horizon-frame::before { transition: none; }
 </style>
