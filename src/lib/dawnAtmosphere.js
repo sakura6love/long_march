@@ -19,10 +19,10 @@ export function dawnProfile(progress) {
   const warmth = p * p * (3 - 2 * p)
   return {
     warmth,
-    innerWidth: 0.028 + 0.022 * warmth,
+    innerWidth: 0.032 + 0.024 * warmth,
     outerWidth: 0.12 + 0.10 * warmth,
-    innerStrength: 0.22 + 0.46 * warmth,
-    outerStrength: 0.08 + 0.24 * warmth,
+    innerStrength: 0.12 + 0.18 * warmth,
+    outerStrength: 0.035 + 0.105 * warmth,
     hemisphere: 0.55 + 0.13 * warmth,
     ambient: 0.12 + 0.04 * warmth,
     terrain: 3.05 + 0.20 * warmth,
@@ -61,15 +61,14 @@ void main() {
   // closest distance to that origin gives a stable, perspective-correct rim.
   vec3 ray = normalize(vWorldPosition - cameraPosition);
   float distanceToCenter = length(cross(cameraPosition, ray));
-  if (distanceToCenter < uRadius) discard;
-
-  float height = (distanceToCenter - uRadius) / (uRadius * uWidth);
+  // Let the actual globe depth occlude this back-facing shell. An ideal-radius
+  // cutout leaves a dark gap beside the globe's inscribed polygon silhouette.
+  float height = max(0.0, (distanceToCenter - uRadius) / (uRadius * uWidth));
   float falloff = exp(-3.2 * height) * (1.0 - smoothstep(0.65, 1.0, height));
-  float softEdge = smoothstep(0.0, 0.003, distanceToCenter / uRadius - 1.0);
-  // More light above the horizon; the lower rim remains visible and quiet.
+  // A broad upper glow with a quiet lower limb, rather than a uniform ring.
   vec3 normal = normalize(vViewNormal);
-  float upperRim = 0.48 + 0.52 * smoothstep(-0.45, 0.8, normal.y + normal.x * 0.25);
-  float alpha = clamp(falloff * softEdge * upperRim * uStrength, 0.0, 1.0);
+  float upperRim = 0.15 + 0.85 * smoothstep(-0.35, 0.8, normal.y + normal.x * 0.25);
+  float alpha = clamp(falloff * upperRim * uStrength, 0.0, 1.0);
 
   gl_FragColor = vec4(uColor, alpha);
   #include <tonemapping_fragment>
@@ -83,10 +82,10 @@ export function createDawnAtmosphere(radius) {
   group.name = 'long-march-dawn'
   group.visible = false
   const geometry = new SphereGeometry(radius, 128, 64)
-  const innerStart = new Color('#c59b59')
-  const innerEnd = new Color('#ffe4a6')
-  const outerStart = new Color('#9f6d32')
-  const outerEnd = new Color('#ffc76c')
+  const innerStart = new Color('#c6a979')
+  const innerEnd = new Color('#ffe9bc')
+  const outerStart = new Color('#9f8059')
+  const outerEnd = new Color('#e8be80')
 
   function makeShell(name) {
     const material = new ShaderMaterial({
@@ -100,6 +99,7 @@ export function createDawnAtmosphere(radius) {
       },
       transparent: true,
       depthWrite: false,
+      // Required: the opaque globe supplies the exact inner silhouette.
       depthTest: true,
       side: BackSide,
       blending: AdditiveBlending,
